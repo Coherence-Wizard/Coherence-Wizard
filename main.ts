@@ -396,7 +396,7 @@ export default class CoherencePlugin extends Plugin {
     }
 
     async onload() {
-        console.log('Coherence Plugin: Loaded version 1.0.14');
+        console.log('Coherence Plugin: Loaded version 1.0.15');
         await this.loadSettings();
 
         this.registerView(
