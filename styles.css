@@ -1,0 +1,35 @@
+/* Coherence Plugin Styles */
+
+.my-plugin-ribbon-class {
+    color: var(--text-accent);
+}
+
+.error-text {
+    color: var(--text-error);
+}
+
+.chrono-group {
+    margin-bottom: 20px;
+    border: 1px solid var(--background-modifier-border);
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.dedup-group {
+    margin-bottom: 20px;
+    border: 1px solid var(--background-modifier-border);
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.dedup-file {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.dedup-file:last-child {
+    border-bottom: none;
+}

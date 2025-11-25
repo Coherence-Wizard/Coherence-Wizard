@@ -1,0 +1,11 @@
+{
+	"id": "coherence-wizard",
+	"name": "Coherence Wizard",
+	"version": "1.0.14",
+	"minAppVersion": "0.15.0",
+	"description": "Unified toolkit for Atomization, Summarization, and Wisdom Extraction.",
+	"author": "Antigravity",
+	"authorUrl": "https://www.buymeacoffee.com/rastovich",
+	"fundingUrl": "https://www.buymeacoffee.com/rastovich",
+	"isDesktopOnly": true
+}
