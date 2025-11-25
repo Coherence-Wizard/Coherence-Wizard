@@ -24,10 +24,11 @@ jobs:
         run: |
           npm install
           npm run build
+          ls -la
 
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             main.js
