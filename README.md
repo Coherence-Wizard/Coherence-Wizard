@@ -42,8 +42,8 @@ To use the AI-powered features of this plugin, you must have **Ollama** installe
 
 1.  Download and install [Ollama](https://ollama.com/).
 2.  Pull a model suitable for your hardware. We recommend:
-    *   **High Performance**: `llama3` or `gemma2:9b`
-    *   **Lower Resources**: `gemma2:2b` or `phi3`
+    *   **High Performance**: `gemma3:12b`
+    *   **Lower Resources**: `gemma3:4b`
 3.  Ensure Ollama is running (default URL: `http://localhost:11434`).
 
 > **⚠️ Hardware Note**: Local AI models require decent hardware. A dedicated GPU is highly recommended for speed. CPU-only mode may be slow.
