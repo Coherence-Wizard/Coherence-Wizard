@@ -10,18 +10,19 @@ export class RatingModal extends Modal {
     skipExisting = true;
     model: string;
     params: string;
+    private ollama: OllamaService;
 
     constructor(app: App, settings: CoherenceSettings, target?: TFile | TFolder) {
         super(app);
-        const ollama = new OllamaService(settings.ollamaUrl);
-        this.service = new RatingService(app, ollama);
+        this.ollama = new OllamaService(settings.ollamaUrl);
+        this.service = new RatingService(app, this.ollama);
         this.target = target || null;
         this.model = settings.ratingModel || 'llama3.1';
         this.params = settings.ratingParams || 'coherence, profundity';
         this.skipExisting = settings.ratingSkipIfRated ?? true;
     }
 
-    onOpen() {
+    async onOpen() {
         const { contentEl } = this;
         contentEl.empty();
         new Setting(contentEl).setName('Automatic rating').setHeading();
@@ -34,9 +35,27 @@ export class RatingModal extends Modal {
             return;
         }
 
+        let models: string[] = [];
+        try {
+            models = await this.ollama.listModels();
+        } catch (e) {
+            console.error('Failed to fetch models', e);
+        }
+
+        if (models.length === 0) {
+            models = ['llama3', 'mistral', 'gemma'];
+        }
+
         new Setting(contentEl)
             .setName('Model')
-            .addText(text => text.setValue(this.model).onChange(v => this.model = v));
+            .addDropdown(drop => {
+                models.forEach(m => drop.addOption(m, m));
+                if (!models.includes(this.model)) {
+                    drop.addOption(this.model, this.model);
+                }
+                drop.setValue(this.model)
+                    .onChange(v => this.model = v);
+            });
 
         new Setting(contentEl)
             .setName('Quality parameters')

@@ -1260,14 +1260,14 @@ var RatingModal = class extends import_obsidian13.Modal {
     super(app);
     this.recursive = false;
     this.skipExisting = true;
-    const ollama = new OllamaService(settings.ollamaUrl);
-    this.service = new RatingService(app, ollama);
+    this.ollama = new OllamaService(settings.ollamaUrl);
+    this.service = new RatingService(app, this.ollama);
     this.target = target || null;
     this.model = settings.ratingModel || "llama3.1";
     this.params = settings.ratingParams || "coherence, profundity";
     this.skipExisting = (_a = settings.ratingSkipIfRated) != null ? _a : true;
   }
-  onOpen() {
+  async onOpen() {
     const { contentEl } = this;
     contentEl.empty();
     new import_obsidian13.Setting(contentEl).setName("Automatic rating").setHeading();
@@ -1278,7 +1278,22 @@ var RatingModal = class extends import_obsidian13.Modal {
       contentEl.createEl("p", { text: "No target selected.", cls: "error-text" });
       return;
     }
-    new import_obsidian13.Setting(contentEl).setName("Model").addText((text) => text.setValue(this.model).onChange((v) => this.model = v));
+    let models = [];
+    try {
+      models = await this.ollama.listModels();
+    } catch (e) {
+      console.error("Failed to fetch models", e);
+    }
+    if (models.length === 0) {
+      models = ["llama3", "mistral", "gemma"];
+    }
+    new import_obsidian13.Setting(contentEl).setName("Model").addDropdown((drop) => {
+      models.forEach((m) => drop.addOption(m, m));
+      if (!models.includes(this.model)) {
+        drop.addOption(this.model, this.model);
+      }
+      drop.setValue(this.model).onChange((v) => this.model = v);
+    });
     new import_obsidian13.Setting(contentEl).setName("Quality parameters").setDesc("Comma separated list").addText((text) => text.setValue(this.params).onChange((v) => this.params = v));
     if (!(this.target instanceof import_obsidian13.TFile)) {
       new import_obsidian13.Setting(contentEl).setName("Recursive").addToggle((t) => t.setValue(this.recursive).onChange((v) => this.recursive = v));
@@ -4201,7 +4216,7 @@ var CoherenceSettingTab = class extends import_obsidian32.PluginSettingTab {
   }
   renderAboutSettings(containerEl) {
     new import_obsidian32.Setting(containerEl).setName("About Coherence Wizard").setHeading();
-    containerEl.createEl("p", { text: "Version: 2.0.0", cls: "version-text" });
+    containerEl.createEl("p", { text: "Version: 0.0.17", cls: "version-text" });
     containerEl.createEl("p", { text: "The intention is to streamline coherence by using tools to convert chaos into order." });
     containerEl.createEl("p", { text: "The included tools have significantly enhanced my PKM workflows and I want to help others passionate about self-development using Obsidian." });
     containerEl.createEl("p", { text: "Many of these tools rely on private local AI via Ollama. (Future iterations of this plugin will allow for the use of large cloud AI via API). This is a privacy first plugin." });

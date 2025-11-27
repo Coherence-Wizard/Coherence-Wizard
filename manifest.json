@@ -1,7 +1,7 @@
 {
 	"id": "coherence-wizard",
 	"name": "Coherence Wizard",
-	"version": "2.0.0",
+	"version": "0.0.17",
 	"minAppVersion": "0.15.0",
 	"description": "Unified toolkit for Atomization, Summarization, and Wisdom Extraction.",
 	"author": "Antigravity",
