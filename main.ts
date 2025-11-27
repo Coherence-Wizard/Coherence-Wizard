@@ -842,7 +842,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
     renderAboutSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('About Coherence Wizard').setHeading();
-        containerEl.createEl('p', { text: 'Version: 1.0.9', cls: 'version-text' });
+        containerEl.createEl('p', { text: 'Version: 2.0.0', cls: 'version-text' });
 
         containerEl.createEl('p', { text: 'The intention is to streamline coherence by using tools to convert chaos into order.' });
         containerEl.createEl('p', { text: 'The included tools have significantly enhanced my PKM workflows and I want to help others passionate about self-development using Obsidian.' });
