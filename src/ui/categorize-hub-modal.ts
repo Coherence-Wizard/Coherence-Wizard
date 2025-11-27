@@ -1,11 +1,12 @@
 import { App, Modal, Setting, TFile, TFolder } from 'obsidian';
 import { CategorizerModal } from './categorizer-modal';
 import { RatingModal } from './rating-modal';
+import { CoherenceSettings } from '../types';
 
 export class CategorizeHubModal extends Modal {
     private mode: 'categorize' | 'rate' = 'categorize';
 
-    constructor(app: App, private settings: any, private fileOrFolder?: TFile | TFolder) {
+    constructor(app: App, private settings: CoherenceSettings, private fileOrFolder?: TFile | TFolder) {
         super(app);
     }
 
@@ -16,7 +17,7 @@ export class CategorizeHubModal extends Modal {
     display() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Categorize Tools' });
+        new Setting(contentEl).setName('Categorize tools').setHeading();
 
         if (this.fileOrFolder) {
             const type = this.fileOrFolder instanceof TFile ? 'File' : 'Folder';
@@ -24,14 +25,14 @@ export class CategorizeHubModal extends Modal {
         }
 
         new Setting(contentEl)
-            .setName('Select Tool')
+            .setName('Select tool')
             .setDesc('Choose the categorization or rating tool to use.')
             .addDropdown(drop => drop
                 .addOption('categorize', 'Categorize (Assign Categories)')
                 .addOption('rate', 'Auto Rate (Assign Quality Score)')
                 .setValue(this.mode)
-                .onChange((value: any) => {
-                    this.mode = value;
+                .onChange((value: string) => {
+                    this.mode = value as 'categorize' | 'rate';
                 }));
 
         new Setting(contentEl)

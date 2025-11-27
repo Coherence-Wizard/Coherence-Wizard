@@ -8,14 +8,16 @@
     color: var(--text-error);
 }
 
-.chrono-group {
+.chrono-group,
+.coherence-chrono-group {
     margin-bottom: 20px;
     border: 1px solid var(--background-modifier-border);
     padding: 10px;
     border-radius: 5px;
 }
 
-.dedup-group {
+.dedup-group,
+.coherence-dedup-group {
     margin-bottom: 20px;
     border: 1px solid var(--background-modifier-border);
     padding: 10px;
@@ -32,4 +34,94 @@
 
 .dedup-file:last-child {
     border-bottom: none;
+}
+
+/* Settings Styles */
+.coherence-settings-nav {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    gap: 10px;
+}
+
+.coherence-bmc-container {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.coherence-bmc-img {
+    height: 40px;
+}
+
+.coherence-setting-desc {
+    margin-bottom: 20px;
+}
+
+.coherence-dict-desc {
+    margin-bottom: 10px;
+}
+
+.coherence-textarea-full,
+.coherence-input-full {
+    width: 100%;
+}
+
+.coherence-btn-container-right {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+.coherence-btn-margin-right {
+    margin-right: 10px;
+}
+
+/* Deduplication Styles */
+.coherence-dedup-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.coherence-dedup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.coherence-dedup-files {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.coherence-dedup-card {
+    background-color: var(--background-secondary);
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.coherence-file-preview {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    margin-top: 5px;
+    margin-bottom: 5px;
+    font-style: italic;
+}
+
+.coherence-file-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.coherence-group-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
 }

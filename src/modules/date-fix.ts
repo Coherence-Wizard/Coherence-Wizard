@@ -1,8 +1,7 @@
-import { TFile, Vault, normalizePath, Notice } from 'obsidian';
-
+import { App, TFile, TFolder, normalizePath } from 'obsidian';
 
 export class DateFixService {
-    constructor(private vault: Vault) { }
+    constructor(private app: App) { }
 
     async fixDatesInFolder(folderPath: string, recursive: boolean, fallbackToCreationDate: boolean, dateFormat: string, exceptions: string): Promise<{ processed: number, renamed: number, errors: number }> {
         const files: TFile[] = [];
@@ -23,8 +22,8 @@ export class DateFixService {
 
                 const newName = await this.getNewFilename(file, fallbackToCreationDate, dateFormat);
                 if (newName && newName !== file.name) {
-                    const newPath = normalizePath(`${file.parent.path}/${newName}`);
-                    await this.vault.rename(file, newPath);
+                    const newPath = normalizePath(`${file.parent ? file.parent.path : ''}/${newName}`);
+                    await this.app.fileManager.renameFile(file, newPath);
                     renamed++;
                 }
             } catch (e) {
@@ -45,8 +44,8 @@ export class DateFixService {
 
             const newName = await this.getNewFilename(file, fallbackToCreationDate, dateFormat);
             if (newName && newName !== file.name) {
-                const newPath = normalizePath(`${file.parent.path}/${newName}`);
-                await this.vault.rename(file, newPath);
+                const newPath = normalizePath(`${file.parent ? file.parent.path : ''}/${newName}`);
+                await this.app.fileManager.renameFile(file, newPath);
                 return `Renamed to ${newName}`;
             }
             return 'No change needed';
@@ -57,9 +56,9 @@ export class DateFixService {
     }
 
     private collectFiles(path: string, files: TFile[], recursive: boolean) {
-        const folder = this.vault.getAbstractFileByPath(path);
-        if (folder && 'children' in folder) {
-            for (const child of (folder as any).children) {
+        const folder = this.app.vault.getAbstractFileByPath(path);
+        if (folder instanceof TFolder) {
+            for (const child of folder.children) {
                 if (child instanceof TFile) {
                     files.push(child);
                 } else if (recursive && 'children' in child) {
@@ -85,14 +84,11 @@ export class DateFixService {
 
     private async getNewFilename(file: TFile, fallbackToCreationDate: boolean, dateFormat: string): Promise<string> {
         let name = file.name;
-        let originalName = name;
 
         // 1. Check if it already starts with a date (roughly)
         // We can't easily check against dynamic format, but we can check if it starts with 4 digits.
         if (/^\d{4}[-_]\d{2}[-_]\d{2}/.test(name)) {
             // Already has a date at start, likely.
-            // TODO: Maybe validate if it matches dateFormat?
-            // For now, assume if it starts with YYYY-MM-DD or similar, it's good.
             return name;
         }
 
@@ -104,9 +100,6 @@ export class DateFixService {
         // 20240206-0145 (8 digits - 4 digits)
 
         const datePattern = /(\d{4})(\d{2})(\d{2})([-_]\d{4,6})?/;
-        // We want to find this anywhere in the string, but if it's at the start we might have already caught it above.
-        // But the above check was for YYYY-MM-DD (with separators). This regex catches YYYYMMDD (no separators).
-
         const match = name.match(datePattern);
 
         if (match) {
@@ -117,9 +110,6 @@ export class DateFixService {
             const date = window.moment(`${year}-${month}-${day}`, 'YYYY-MM-DD');
             if (date.isValid()) {
                 const formattedDate = date.format(dateFormat);
-
-                // Remove the matched part from the original name
-                // We need to be careful not to destroy the extension if the match is near the end.
 
                 // Separate extension
                 const extIndex = name.lastIndexOf('.');
@@ -139,7 +129,6 @@ export class DateFixService {
                     const date = window.moment(`${year}-${month}-${day}`, 'YYYY-MM-DD');
 
                     if (date.isValid()) {
-                        const formattedDate = date.format(dateFormat);
                         let newBase = baseName.replace(matchBase[0], '').trim();
                         newBase = newBase.replace(/^[-_ ]+|[-_ ]+$/g, '');
                         newBase = newBase.replace(/[-_ ]{2,}/g, '_');

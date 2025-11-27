@@ -1,10 +1,10 @@
-import { App, TFile, normalizePath, Notice } from 'obsidian';
+import { App, TFile, TFolder, normalizePath } from 'obsidian';
 import { OllamaService } from './ollama';
 
 export class GeneralizerService {
     private ollama: OllamaService;
 
-    constructor(private app: App, settings: any) {
+    constructor(private app: App, settings: { ollamaUrl: string }) {
         this.ollama = new OllamaService(settings.ollamaUrl);
     }
 
@@ -105,8 +105,8 @@ export class GeneralizerService {
 
     private collectFiles(path: string, files: TFile[], recursive: boolean) {
         const folder = this.app.vault.getAbstractFileByPath(path);
-        if (folder && 'children' in folder) {
-            for (const child of (folder as any).children) {
+        if (folder instanceof TFolder) {
+            for (const child of folder.children) {
                 if (child instanceof TFile && child.extension === 'md') {
                     files.push(child);
                 } else if (recursive && 'children' in child) {

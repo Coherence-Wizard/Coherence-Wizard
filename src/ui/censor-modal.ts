@@ -1,17 +1,18 @@
 import { App, Modal, Setting, TFile, TFolder, Notice } from 'obsidian';
 import { CensorService } from '../modules/censor';
+import { CoherenceSettings } from '../types';
 
 export class CensorModal extends Modal {
     private service: CensorService;
     private targetFolder: TFolder | null = null;
-    private dictionaryText: string = '';
+    private dictionaryText = '';
     private direction: 'forward' | 'reverse' = 'forward';
-    private useMasking: boolean = false;
-    private sentenceLevel: boolean = false;
-    private recursive: boolean = false;
+    private useMasking = false;
+    private sentenceLevel = false;
+    private recursive = false;
     private selectedDictionaryName: string;
 
-    constructor(app: App, private settings: any, private fileOrFolder?: TFile | TFolder) {
+    constructor(app: App, private settings: CoherenceSettings, private fileOrFolder?: TFile | TFolder) {
         super(app);
         this.service = new CensorService(app);
         this.selectedDictionaryName = settings.censorActiveDictionary;
@@ -25,7 +26,7 @@ export class CensorModal extends Modal {
     }
 
     updateDictionaryText() {
-        const dict = this.settings.censorDictionaries.find((d: any) => d.name === this.selectedDictionaryName);
+        const dict = this.settings.censorDictionaries.find((d: { name: string, content: string }) => d.name === this.selectedDictionaryName);
         this.dictionaryText = dict ? dict.content : '';
     }
 
@@ -36,14 +37,14 @@ export class CensorModal extends Modal {
     display() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Censor and Alias' });
+        new Setting(contentEl).setName('Censor and alias').setHeading();
 
         if (this.fileOrFolder) {
             const type = this.fileOrFolder instanceof TFile ? 'File' : 'Folder';
             contentEl.createEl('p', { text: `Target: ${this.fileOrFolder.path} (${type})` });
         } else {
             new Setting(contentEl)
-                .setName('Target Folder')
+                .setName('Target folder')
                 .setDesc('Select the folder to process')
                 .addText(text => text
                     .setPlaceholder('Example: Folder/Subfolder')
@@ -71,7 +72,7 @@ export class CensorModal extends Modal {
 
         if (this.direction === 'forward') {
             new Setting(contentEl)
-                .setName('Use Masking')
+                .setName('Use masking')
                 .setDesc('Replace with █ instead of alias')
                 .addToggle(toggle => toggle
                     .setValue(this.useMasking)
@@ -82,7 +83,7 @@ export class CensorModal extends Modal {
 
             if (this.useMasking) {
                 new Setting(contentEl)
-                    .setName('Sentence Level Masking')
+                    .setName('Sentence level masking')
                     .setDesc('Block entire sentence containing censored word')
                     .addToggle(toggle => toggle
                         .setValue(this.sentenceLevel)
@@ -104,7 +105,7 @@ export class CensorModal extends Modal {
             .setName('Dictionary')
             .setDesc('Select dictionary to use')
             .addDropdown(drop => {
-                this.settings.censorDictionaries.forEach((d: any) => drop.addOption(d.name, d.name));
+                this.settings.censorDictionaries.forEach((d: { name: string }) => drop.addOption(d.name, d.name));
                 drop.setValue(this.selectedDictionaryName)
                     .onChange(value => {
                         this.selectedDictionaryName = value;
@@ -114,7 +115,7 @@ export class CensorModal extends Modal {
             });
 
         new Setting(contentEl)
-            .setName('Dictionary Content')
+            .setName('Dictionary content')
             .setDesc('Edit the censored words and aliases (Changes here are temporary unless saved in settings)')
             .addTextArea(text => text
                 .setValue(this.dictionaryText)

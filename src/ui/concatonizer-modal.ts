@@ -1,16 +1,17 @@
-import { App, Modal, Setting, Notice, TFolder } from 'obsidian';
+import { App, Modal, Setting, Notice, TFolder, TFile } from 'obsidian';
 import { ConcatonizerService } from '../modules/concatonizer';
+import { CoherenceSettings } from '../types';
 
 export class ConcatonizerModal extends Modal {
     service: ConcatonizerService;
-    target: any = null; // TFolder
-    recursive: boolean = false;
-    stripYaml: boolean = false;
-    outputName: string = 'combined.md';
-    separator: string = '\n\n---\n\n';
-    includeFilename: boolean = true;
+    target: TFolder | TFile | null = null;
+    recursive = false;
+    stripYaml = false;
+    outputName = 'combined.md';
+    separator = '\n\n---\n\n';
+    includeFilename = true;
 
-    constructor(app: App, settings: any, target?: any) {
+    constructor(app: App, settings: CoherenceSettings, target?: TFolder | TFile) {
         super(app);
         this.service = new ConcatonizerService(app.vault);
         this.target = target;
@@ -29,12 +30,12 @@ export class ConcatonizerModal extends Modal {
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Concatonizer' });
+        new Setting(contentEl).setName('Concatonizer').setHeading();
 
-        if (!this.target || this.target.extension) {
+        if (!this.target || this.target instanceof TFile) {
             contentEl.createEl('p', { text: 'Please select a folder to concatonize.', cls: 'error-text' });
             // If target is a file, maybe use its parent?
-            if (this.target && this.target.extension) {
+            if (this.target instanceof TFile) {
                 this.target = this.target.parent;
                 contentEl.createEl('p', { text: `Using parent folder: ${this.target.path}` });
             } else {
@@ -45,7 +46,7 @@ export class ConcatonizerModal extends Modal {
         }
 
         new Setting(contentEl)
-            .setName('Output Filename')
+            .setName('Output filename')
             .setDesc('Name of the combined file')
             .addText(text => text
                 .setValue(this.outputName)
@@ -66,7 +67,7 @@ export class ConcatonizerModal extends Modal {
                 .onChange(value => this.stripYaml = value));
 
         new Setting(contentEl)
-            .setName('Include Filename')
+            .setName('Include filename')
             .setDesc('Add filename as header for each file content')
             .addToggle(toggle => toggle
                 .setValue(this.includeFilename)

@@ -1,18 +1,19 @@
 import { App, Modal, Setting, TFile, TFolder, Notice } from 'obsidian';
 import { ChronoMergeService } from '../modules/chrono-merge';
+import { CoherenceSettings } from '../types';
 
 export class ChronoMergeModal extends Modal {
     private service: ChronoMergeService;
     private targetFolder: TFolder | null = null;
-    private recursive: boolean = false;
-    private threshold: number = 5;
+    private recursive = false;
+    private threshold = 5;
     private groups: TFile[][] = [];
     private folder?: TFolder;
-    private useCreationTime: boolean = false;
+    private useCreationTime = false;
 
     onCloseCallback?: () => void;
 
-    constructor(app: App, settings: any, folder?: TFolder) {
+    constructor(app: App, settings: CoherenceSettings, folder?: TFolder) {
         super(app);
         this.service = new ChronoMergeService(app);
         this.targetFolder = folder || null;
@@ -28,7 +29,7 @@ export class ChronoMergeModal extends Modal {
     display() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Chrono Merge' });
+        new Setting(contentEl).setName('Chrono merge').setHeading();
 
         if (!this.groups.length) {
             // Scan View
@@ -55,7 +56,7 @@ export class ChronoMergeModal extends Modal {
                     .onChange(value => this.recursive = value));
 
             new Setting(contentEl)
-                .setName('Time Threshold (Minutes)')
+                .setName('Time threshold (minutes)')
                 .setDesc('Max time difference between files to group them')
                 .addText(text => text
                     .setValue(this.threshold.toString())
@@ -71,16 +72,13 @@ export class ChronoMergeModal extends Modal {
                     .onClick(() => this.scan()));
         } else {
             // Results View
-            contentEl.createEl('h3', { text: `Found ${this.groups.length} groups` });
+            new Setting(contentEl).setName(`Found ${this.groups.length} groups`).setHeading();
 
             this.groups.forEach((group, index) => {
                 const groupEl = contentEl.createDiv({ cls: 'chrono-group' });
-                groupEl.style.marginBottom = '20px';
-                groupEl.style.padding = '15px';
-                groupEl.style.border = '1px solid var(--background-modifier-border)';
-                groupEl.style.borderRadius = '5px';
+                groupEl.addClass('coherence-chrono-group');
 
-                groupEl.createEl('h4', { text: `Group ${index + 1} (${group.length} files)` });
+                new Setting(groupEl).setName(`Group ${index + 1} (${group.length} files)`).setHeading();
 
                 const fileList = groupEl.createEl('ul');
                 group.forEach(file => {
@@ -97,33 +95,30 @@ export class ChronoMergeModal extends Modal {
                 nameContainer.style.marginBottom = '10px';
                 nameContainer.createEl('div', { text: 'Output Filename', cls: 'setting-item-name' });
                 const nameInput = nameContainer.createEl('input', { type: 'text' });
-                nameInput.style.width = '100%';
+                nameInput.addClass('coherence-input-full');
                 nameInput.value = outputName;
-                nameInput.onchange = (e: any) => outputName = e.target.value;
+                nameInput.onchange = (e: Event) => outputName = (e.target as HTMLInputElement).value;
 
                 // Merged Content Preview
                 const contentContainer = groupEl.createDiv();
                 contentContainer.style.marginBottom = '10px';
                 contentContainer.createEl('div', { text: 'Merged Content', cls: 'setting-item-name' });
                 const contentArea = contentContainer.createEl('textarea');
-                contentArea.style.width = '100%';
-                contentArea.style.height = '200px';
-                contentArea.style.resize = 'vertical';
+                contentArea.addClass('coherence-textarea-full');
+                contentArea.rows = 10;
                 contentArea.value = "Loading content...";
-                contentArea.onchange = (e: any) => mergedContent = e.target.value;
+                contentArea.onchange = (e: Event) => mergedContent = (e.target as HTMLTextAreaElement).value;
 
                 // Load content asynchronously
-                this.service.getMergedContent(group, this.useCreationTime).then(content => {
+                void this.service.getMergedContent(group, this.useCreationTime).then(content => {
                     mergedContent = content;
                     contentArea.value = content;
                 });
 
-                const btnContainer = groupEl.createDiv();
-                btnContainer.style.display = 'flex';
-                btnContainer.style.justifyContent = 'flex-end';
+                const btnContainer = groupEl.createDiv({ cls: 'coherence-btn-container-right' });
 
                 const skipBtn = btnContainer.createEl('button', { text: 'Skip Group' });
-                skipBtn.style.marginRight = '10px';
+                skipBtn.addClass('coherence-btn-margin-right');
                 skipBtn.onclick = () => {
                     groupEl.remove();
                     const idx = this.groups.indexOf(group);

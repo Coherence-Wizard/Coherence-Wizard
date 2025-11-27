@@ -20,13 +20,13 @@ export class AtomizerService {
      * Generate a unique path if file already exists
      */
     private async getUniquePath(folder: string, name: string): Promise<string> {
-        let base = normalizePath(`${folder}/${name}.md`);
+        const base = normalizePath(`${folder}/${name}.md`);
         if (!(await this.vault.adapter.exists(base))) {
             return base;
         }
 
         let counter = 2;
-        while (true) {
+        while (counter < 1000) {
             const candidate = normalizePath(`${folder}/${name}-${counter}.md`);
             if (!(await this.vault.adapter.exists(candidate))) {
                 return candidate;
@@ -55,12 +55,12 @@ export class AtomizerService {
      * Helper to extract YAML and Intro content
      */
     private extractPreamble(lines: string[]): { yaml: string[], intro: string[], remainingLines: string[] } {
-        let yaml: string[] = [];
-        let intro: string[] = [];
-        let remainingLines: string[] = [];
+        const yaml: string[] = [];
+        // const intro: string[] = []; // Unused
+        const remainingLines: string[] = [];
 
         let inYaml = false;
-        let yamlEnded = false;
+        // let yamlEnded = false; // Unused
         let startIndex = 0;
 
         // Check for YAML start
@@ -76,7 +76,7 @@ export class AtomizerService {
                 yaml.push(line);
                 if (line.trim() === '---') {
                     inYaml = false;
-                    yamlEnded = true;
+                    // yamlEnded = true; // Unused
                 }
             } else {
                 remainingLines.push(line);
@@ -107,8 +107,8 @@ export class AtomizerService {
 
         const headingRegex = /^(#{1,6})[ \t]+(.+?)\s*$/;
 
-        let intro: string[] = [];
-        let sections: { level: number; title: string; content: string[] }[] = [];
+        const intro: string[] = [];
+        const sections: { level: number; title: string; content: string[] }[] = [];
         let current: { level: number; title: string; content: string[] } | null = null;
 
         for (const line of remainingLines) {
@@ -191,8 +191,8 @@ export class AtomizerService {
 
         const dateRegex = /\d{4}-\d{2}-\d{2}/;
 
-        let intro: string[] = [];
-        let sections: { title: string; content: string[] }[] = [];
+        const intro: string[] = [];
+        const sections: { title: string; content: string[] }[] = [];
         let currentTitle: string | null = null;
         let currentBlock: string[] = [];
 
@@ -247,7 +247,7 @@ export class AtomizerService {
     /**
      * Atomize by Character (Divider)
      */
-    async atomizeByDivider(file: TFile, divider: string = '---'): Promise<void> {
+    async atomizeByDivider(file: TFile, divider = '---'): Promise<void> {
         const content = await this.vault.read(file);
         const lines = content.split('\n');
 
@@ -257,8 +257,8 @@ export class AtomizerService {
 
         const dividerRegex = new RegExp(`^\\s*${divider.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`);
 
-        let intro: string[] = [];
-        let sections: { title: string; content: string[] }[] = [];
+        const intro: string[] = [];
+        const sections: { title: string; content: string[] }[] = [];
         let currentBlock: string[] = [];
         let currentTitle: string | null = null;
         let needTitle = false;

@@ -1,11 +1,12 @@
-import { App, Modal, Setting, Notice } from 'obsidian';
+import { App, Modal, Setting, Notice, TFile, TFolder } from 'obsidian';
 import { WisdomService } from '../modules/wisdom';
 import { OllamaService } from '../modules/ollama';
+import { CoherenceSettings } from '../types';
 
 export class WisdomModal extends Modal {
     service: WisdomService;
     ollama: OllamaService;
-    target: any = null; // TFile or TFolder
+    target: TFile | TFolder | null = null;
 
     // Settings
     selectedModel: string;
@@ -14,7 +15,7 @@ export class WisdomModal extends Modal {
 
     models: string[] = [];
 
-    constructor(app: App, settings: any, target?: any) {
+    constructor(app: App, settings: CoherenceSettings, target?: TFile | TFolder) {
         super(app);
         this.ollama = new OllamaService(settings.ollamaUrl);
         this.service = new WisdomService(app.vault, this.ollama);
@@ -29,7 +30,7 @@ export class WisdomModal extends Modal {
     async onOpen() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Wisdom Extractor' });
+        new Setting(contentEl).setName('Wisdom extractor').setHeading();
         contentEl.createEl('p', { text: 'Loading models...' });
 
         try {
@@ -44,10 +45,10 @@ export class WisdomModal extends Modal {
     display() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Wisdom Extractor' });
+        new Setting(contentEl).setName('Wisdom extractor').setHeading();
 
         if (this.target) {
-            const type = this.target.extension ? 'File' : 'Folder';
+            const type = this.target instanceof TFile ? 'File' : 'Folder';
             contentEl.createEl('p', { text: `Target: ${this.target.name} (${type})` });
         } else {
             contentEl.createEl('p', { text: 'No file or folder selected.', cls: 'error-text' });
@@ -56,7 +57,7 @@ export class WisdomModal extends Modal {
 
         // Model Selection
         new Setting(contentEl)
-            .setName('Ollama Model')
+            .setName('Ollama model')
             .addDropdown(drop => {
                 this.models.forEach(m => drop.addOption(m, m));
                 drop.setValue(this.selectedModel);
@@ -71,17 +72,17 @@ export class WisdomModal extends Modal {
                 .addOption('generalized', 'Generalized (AI)')
                 .addOption('safe', 'Safe (Copy Only)')
                 .setValue(this.mode)
-                .onChange(value => this.mode = value as any));
+                .onChange(value => this.mode = value as 'safe' | 'generalized'));
 
         // Action
         new Setting(contentEl)
             .addButton(btn => btn
-                .setButtonText('Extract Wisdom')
+                .setButtonText('Extract wisdom')
                 .setCta()
                 .onClick(async () => {
                     btn.setButtonText('Processing...').setDisabled(true);
                     try {
-                        if (this.target.extension) {
+                        if (this.target instanceof TFile) {
                             // Single File
                             const result = await this.service.processFile(
                                 this.target,
@@ -104,7 +105,7 @@ export class WisdomModal extends Modal {
                     } catch (e) {
                         new Notice('Error during extraction.');
                         console.error(e);
-                        btn.setButtonText('Extract Wisdom').setDisabled(false);
+                        btn.setButtonText('Extract wisdom').setDisabled(false);
                     }
                 }));
     }

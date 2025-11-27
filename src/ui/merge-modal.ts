@@ -2,11 +2,12 @@ import { App, Modal, Setting, TFile, TFolder } from 'obsidian';
 import { ChronoMergeModal } from './chrono-merge-modal';
 import { ConcatonizerModal } from './concatonizer-modal';
 import { DeduplicationModal } from './deduplication-modal';
+import { CoherenceSettings } from '../types';
 
 export class MergeModal extends Modal {
     private mode: 'chrono' | 'concat' | 'dedup' = 'chrono';
 
-    constructor(app: App, private settings: any, private fileOrFolder?: TFile | TFolder) {
+    constructor(app: App, private settings: CoherenceSettings, private fileOrFolder?: TFile | TFolder) {
         super(app);
     }
 
@@ -17,7 +18,7 @@ export class MergeModal extends Modal {
     display() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Merge Tools' });
+        new Setting(contentEl).setName('Merge tools').setHeading();
 
         if (this.fileOrFolder) {
             const type = this.fileOrFolder instanceof TFile ? 'File' : 'Folder';
@@ -25,15 +26,15 @@ export class MergeModal extends Modal {
         }
 
         new Setting(contentEl)
-            .setName('Select Merge Tool')
+            .setName('Select merge tool')
             .setDesc('Choose the merge strategy to use.')
             .addDropdown(drop => drop
                 .addOption('chrono', 'Chrono Merge (Time-based)')
                 .addOption('concat', 'Combine (Append files)')
                 .addOption('dedup', 'Find Duplicates')
                 .setValue(this.mode)
-                .onChange((value: any) => {
-                    this.mode = value;
+                .onChange((value: string) => {
+                    this.mode = value as 'chrono' | 'concat' | 'dedup';
                 }));
 
         new Setting(contentEl)

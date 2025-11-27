@@ -1,4 +1,4 @@
-import { App, TFile, Notice } from 'obsidian';
+import { App, TFile, TFolder } from 'obsidian';
 
 export class YamlTemplateService {
     constructor(private app: App) { }
@@ -70,8 +70,8 @@ export class YamlTemplateService {
 
     private collectFiles(path: string, files: TFile[], recursive: boolean) {
         const folder = this.app.vault.getAbstractFileByPath(path);
-        if (folder && 'children' in folder) {
-            for (const child of (folder as any).children) {
+        if (folder instanceof TFolder) {
+            for (const child of folder.children) {
                 if (child instanceof TFile && child.extension === 'md') {
                     files.push(child);
                 } else if (recursive && 'children' in child) {

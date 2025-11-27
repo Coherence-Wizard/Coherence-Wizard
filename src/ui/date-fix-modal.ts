@@ -1,15 +1,16 @@
-import { App, Modal, Setting, Notice } from 'obsidian';
+import { App, Modal, Setting, Notice, TFile, TFolder } from 'obsidian';
 import { DateFixService } from '../modules/date-fix';
+import { CoherenceSettings } from '../types';
 
 export class DateFixModal extends Modal {
     service: DateFixService;
-    target: any = null; // TFile or TFolder
-    recursive: boolean = true;
-    fallbackToCreationDate: boolean = false;
-    dateFormat: string = 'YYYY-MM-DD';
-    exceptions: string = '';
+    target: TFile | TFolder | null = null;
+    recursive = true;
+    fallbackToCreationDate = false;
+    dateFormat = 'YYYY-MM-DD';
+    exceptions = '';
 
-    constructor(app: App, settings: any, target?: any) {
+    constructor(app: App, settings: CoherenceSettings, target?: TFile | TFolder) {
         super(app);
         this.service = new DateFixService(app.vault);
         this.target = target ?? this.app.workspace.getActiveFile();
@@ -22,10 +23,10 @@ export class DateFixModal extends Modal {
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Date Fix / Rename' });
+        new Setting(contentEl).setName('Date fix / rename').setHeading();
 
         if (this.target) {
-            const type = this.target.extension ? 'File' : 'Folder';
+            const type = this.target instanceof TFile ? 'File' : 'Folder';
             contentEl.createEl('p', { text: `Target: ${this.target.name} (${type})` });
         } else {
             contentEl.createEl('p', { text: 'No file or folder selected.', cls: 'error-text' });
@@ -40,14 +41,14 @@ export class DateFixModal extends Modal {
                 .onChange(value => this.recursive = value));
 
         new Setting(contentEl)
-            .setName('Fallback to Creation Date')
+            .setName('Fallback to creation date')
             .setDesc('If no date is found in the filename, prepend the file\'s creation date.')
             .addToggle(toggle => toggle
                 .setValue(this.fallbackToCreationDate)
                 .onChange(value => this.fallbackToCreationDate = value));
 
         new Setting(contentEl)
-            .setName('Preferred Date Format')
+            .setName('Preferred date format')
             .setDesc('ISO format to use (e.g. YYYY-MM-DD)')
             .addText(text => text
                 .setValue(this.dateFormat)
@@ -62,12 +63,12 @@ export class DateFixModal extends Modal {
 
         new Setting(contentEl)
             .addButton(btn => btn
-                .setButtonText('Run Date Fix')
+                .setButtonText('Run date fix')
                 .setCta()
                 .onClick(async () => {
                     btn.setButtonText('Processing...').setDisabled(true);
                     try {
-                        if (this.target.extension) {
+                        if (this.target instanceof TFile) {
                             // Single File
                             const result = await this.service.fixDateInFile(this.target, this.fallbackToCreationDate, this.dateFormat, this.exceptions);
                             new Notice(result);
@@ -86,7 +87,7 @@ export class DateFixModal extends Modal {
                     } catch (e) {
                         new Notice('Error during date fix.');
                         console.error(e);
-                        btn.setButtonText('Run Date Fix').setDisabled(false);
+                        btn.setButtonText('Run date fix').setDisabled(false);
                     }
                 }));
     }

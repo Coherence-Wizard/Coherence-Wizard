@@ -1,27 +1,28 @@
-import { App, Modal, Setting, Notice } from 'obsidian';
+import { App, Modal, Setting, Notice, TFile, TFolder } from 'obsidian';
 import { YamlTemplateService } from '../modules/yaml-template';
+import { CoherenceSettings } from '../types';
 
 export class YamlTemplateModal extends Modal {
     service: YamlTemplateService;
-    target: any;
-    recursive: boolean = true;
-    addDate: boolean = true;
+    target: TFile | TFolder | null;
+    recursive = true;
+    addDate = true;
     template: string;
 
-    constructor(app: App, settings: any, target?: any) {
+    constructor(app: App, settings: CoherenceSettings, target?: TFile | TFolder) {
         super(app);
         this.service = new YamlTemplateService(app);
-        this.target = target;
+        this.target = target || null;
         this.template = settings.yamlTemplate || "date\nsummary\nsummary model\naudited\nrating";
     }
 
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Apply YAML Template' });
+        new Setting(contentEl).setName('Apply YAML template').setHeading();
 
         if (this.target) {
-            const type = this.target.extension ? 'File' : 'Folder';
+            const type = this.target instanceof TFile ? 'File' : 'Folder';
             contentEl.createEl('p', { text: `Target: ${this.target.name} (${type})` });
         } else {
             contentEl.createEl('p', { text: 'No target selected.', cls: 'error-text' });
@@ -29,7 +30,7 @@ export class YamlTemplateModal extends Modal {
         }
 
         new Setting(contentEl)
-            .setName('Template Fields')
+            .setName('Template fields')
             .setDesc('One field per line. These will be ordered first.')
             .addTextArea(text => text
                 .setValue(this.template)
@@ -37,11 +38,11 @@ export class YamlTemplateModal extends Modal {
                 .onChange(v => this.template = v));
 
         new Setting(contentEl)
-            .setName('Add Date from Filename')
+            .setName('Add date from filename')
             .setDesc('If filename starts with YYYY-MM-DD, add it to "date" field')
             .addToggle(t => t.setValue(this.addDate).onChange(v => this.addDate = v));
 
-        if (!this.target.extension) {
+        if (!(this.target instanceof TFile)) {
             new Setting(contentEl)
                 .setName('Recursive')
                 .addToggle(t => t.setValue(this.recursive).onChange(v => this.recursive = v));
@@ -49,14 +50,14 @@ export class YamlTemplateModal extends Modal {
 
         new Setting(contentEl)
             .addButton(btn => btn
-                .setButtonText('Apply Template')
+                .setButtonText('Apply template')
                 .setCta()
                 .onClick(async () => {
                     btn.setButtonText('Processing...').setDisabled(true);
                     const order = this.template.split('\n').map(s => s.trim()).filter(s => s);
 
                     try {
-                        if (this.target.extension) {
+                        if (this.target instanceof TFile) {
                             await this.service.processFile(this.target, order, this.addDate);
                             new Notice('YAML Updated');
                         } else {
@@ -67,7 +68,7 @@ export class YamlTemplateModal extends Modal {
                     } catch (e) {
                         new Notice('Error applying template');
                         console.error(e);
-                        btn.setButtonText('Apply Template').setDisabled(false);
+                        btn.setButtonText('Apply template').setDisabled(false);
                     }
                 }));
     }

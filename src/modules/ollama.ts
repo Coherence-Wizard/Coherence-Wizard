@@ -1,4 +1,4 @@
-import { requestUrl, RequestUrlParam } from 'obsidian';
+import { requestUrl } from 'obsidian';
 
 export class OllamaService {
     constructor(private baseUrl: string) { }
@@ -12,7 +12,7 @@ export class OllamaService {
 
             if (response.status === 200) {
                 const data = response.json;
-                return data.models.map((m: any) => m.name);
+                return data.models.map((m: { name: string }) => m.name);
             }
             return [];
         } catch (e) {
@@ -25,7 +25,7 @@ export class OllamaService {
         return this.listModels();
     }
 
-    async generate(model: string, prompt: string, options?: any): Promise<string> {
+    async generate(model: string, prompt: string, options?: Record<string, unknown>): Promise<string> {
         try {
             const response = await requestUrl({
                 url: `${this.baseUrl}/api/generate`,
@@ -48,9 +48,9 @@ export class OllamaService {
         }
     }
 
-    async chat(model: string, messages: { role: string, content: string }[], format?: any, options?: any): Promise<string> {
+    async chat(model: string, messages: { role: string, content: string }[], format?: Record<string, unknown> | string, options?: Record<string, unknown>): Promise<string> {
         try {
-            const body: any = {
+            const body: Record<string, unknown> = {
                 model: model,
                 messages: messages,
                 stream: false,

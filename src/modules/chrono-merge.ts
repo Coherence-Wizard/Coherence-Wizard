@@ -104,7 +104,7 @@ export class ChronoMergeService {
         // 1. Trash all files in the group EXCEPT the baseFile (if it exists)
         for (const file of sortedGroup) {
             if (file !== baseFile) {
-                await this.app.vault.trash(file, true); // Move to system trash
+                await this.app.fileManager.trashFile(file); // Move to trash
             }
         }
 

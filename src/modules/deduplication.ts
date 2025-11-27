@@ -1,4 +1,4 @@
-import { App, TFile, Notice } from 'obsidian';
+import { App, TFile, TFolder } from 'obsidian';
 import * as crypto from 'crypto';
 
 export interface DuplicateGroup {
@@ -28,8 +28,8 @@ export class DeduplicationService {
         const duplicates: DuplicateGroup[] = [];
 
         for (const [hash, groupA] of mapA.entries()) {
-            if (mapB.has(hash)) {
-                const groupB = mapB.get(hash)!;
+            const groupB = mapB.get(hash);
+            if (groupB) {
                 // Combine files from both sides
                 duplicates.push({
                     hash: hash,
@@ -80,8 +80,8 @@ export class DeduplicationService {
 
     private collectFiles(path: string, files: TFile[], recursive: boolean) {
         const folder = this.app.vault.getAbstractFileByPath(path);
-        if (folder && 'children' in folder) {
-            for (const child of (folder as any).children) {
+        if (folder instanceof TFolder) {
+            for (const child of folder.children) {
                 if (child instanceof TFile) {
                     files.push(child);
                 } else if (recursive && 'children' in child) {
@@ -98,6 +98,6 @@ export class DeduplicationService {
     }
 
     async deleteFile(file: TFile): Promise<void> {
-        await this.app.vault.delete(file);
+        await this.app.fileManager.trashFile(file);
     }
 }

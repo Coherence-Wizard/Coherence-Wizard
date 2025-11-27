@@ -7,9 +7,9 @@ export class DeduplicationModal extends Modal {
 
     // State
     searchScope: 'vault' | 'folder' | 'two-folders' = 'folder';
-    folderA: string = '';
-    folderB: string = '';
-    recursive: boolean = true;
+    folderA = '';
+    folderB = '';
+    recursive = true;
     duplicates: DuplicateGroup[] | null = null;
 
     constructor(app: App, target?: TFile | TFolder) {
@@ -31,7 +31,7 @@ export class DeduplicationModal extends Modal {
     display() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Deduplication' });
+        new Setting(contentEl).setName('Deduplication').setHeading();
 
         if (!this.duplicates) {
             this.renderSettings(contentEl);
@@ -51,7 +51,7 @@ export class DeduplicationModal extends Modal {
                 .addOption('two-folders', 'Compare Two Folders')
                 .setValue(this.searchScope)
                 .onChange(v => {
-                    this.searchScope = v as any;
+                    this.searchScope = v as 'vault' | 'folder' | 'two-folders';
                     this.display();
                 }));
 
@@ -88,7 +88,7 @@ export class DeduplicationModal extends Modal {
         // Action Button
         new Setting(contentEl)
             .addButton(btn => btn
-                .setButtonText('Find Duplicates')
+                .setButtonText('Find duplicates')
                 .setCta()
                 .onClick(async () => {
                     btn.setButtonText('Scanning...').setDisabled(true);
@@ -104,7 +104,7 @@ export class DeduplicationModal extends Modal {
                     } catch (e) {
                         new Notice('Error finding duplicates');
                         console.error(e);
-                        btn.setButtonText('Find Duplicates').setDisabled(false);
+                        btn.setButtonText('Find duplicates').setDisabled(false);
                     }
                 }));
     }
@@ -119,49 +119,32 @@ export class DeduplicationModal extends Modal {
 
         contentEl.createEl('p', { text: `Found ${this.duplicates?.length} groups of duplicates.` });
 
-        const container = contentEl.createDiv({ cls: 'dedup-results' });
-        // Add some basic styling for the grid
-        container.style.display = 'flex';
-        container.style.flexDirection = 'column';
-        container.style.gap = '20px';
+        const container = contentEl.createDiv({ cls: 'dedup-results coherence-dedup-container' });
 
         this.duplicates?.forEach((group, index) => {
-            const groupEl = container.createDiv({ cls: 'dedup-group' });
-            groupEl.style.border = '1px solid var(--background-modifier-border)';
-            groupEl.style.padding = '10px';
-            groupEl.style.borderRadius = '5px';
+            const groupEl = container.createDiv({ cls: 'dedup-group coherence-dedup-group' });
 
-            const header = groupEl.createDiv({ cls: 'dedup-header' });
-            header.style.marginBottom = '10px';
+            const header = groupEl.createDiv({ cls: 'dedup-header coherence-dedup-header' });
             header.createEl('strong', { text: `Group ${index + 1}` });
             header.createSpan({ text: ` (Size: ${this.formatSize(group.size)})`, cls: 'text-muted' });
 
-            const filesContainer = groupEl.createDiv({ cls: 'dedup-files' });
-            filesContainer.style.display = 'grid';
-            filesContainer.style.gridTemplateColumns = '1fr 1fr'; // Side by side
-            filesContainer.style.gap = '10px';
+            const filesContainer = groupEl.createDiv({ cls: 'dedup-files coherence-dedup-files' });
 
             group.files.forEach(file => {
-                const fileCard = filesContainer.createDiv({ cls: 'dedup-file-card' });
-                fileCard.style.background = 'var(--background-secondary)';
-                fileCard.style.padding = '10px';
-                fileCard.style.borderRadius = '5px';
+                const fileCard = filesContainer.createDiv({ cls: 'dedup-file-card coherence-dedup-card' });
 
                 fileCard.createEl('div', { text: file.name, cls: 'file-name' });
                 fileCard.createEl('div', { text: file.parent?.path || '/', cls: 'file-path text-muted' });
 
                 // Content Preview (first 100 chars)
-                this.app.vault.read(file).then(content => {
+                void this.app.vault.read(file).then(content => {
                     fileCard.createEl('div', {
                         text: content.substring(0, 100) + '...',
-                        cls: 'file-preview'
-                    }).style.fontSize = '0.8em';
+                        cls: 'file-preview coherence-file-preview'
+                    });
                 });
 
-                const actions = fileCard.createDiv({ cls: 'file-actions' });
-                actions.style.marginTop = '10px';
-                actions.style.display = 'flex';
-                actions.style.gap = '5px';
+                const actions = fileCard.createDiv({ cls: 'file-actions coherence-file-actions' });
 
                 new Setting(actions)
                     .addButton(btn => btn
@@ -187,16 +170,15 @@ export class DeduplicationModal extends Modal {
                     .addButton(btn => btn
                         .setButtonText('Open')
                         .onClick(() => {
-                            this.app.workspace.getLeaf().openFile(file);
+                            void this.app.workspace.getLeaf().openFile(file);
                         }));
             });
 
             // Skip Button for the whole group
-            const groupActions = groupEl.createDiv({ cls: 'group-actions' });
-            groupActions.style.marginTop = '10px';
+            const groupActions = groupEl.createDiv({ cls: 'group-actions coherence-group-actions' });
             new Setting(groupActions)
                 .addButton(btn => btn
-                    .setButtonText('Skip Group')
+                    .setButtonText('Skip group')
                     .onClick(() => {
                         const groupIdx = this.duplicates?.indexOf(group);
                         if (groupIdx !== undefined && groupIdx > -1) {

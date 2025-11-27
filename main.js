@@ -37,7 +37,7 @@ __export(main_exports, {
   default: () => CoherencePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian33 = require("obsidian");
+var import_obsidian32 = require("obsidian");
 
 // src/ui/atomizer-modal.ts
 var import_obsidian2 = require("obsidian");
@@ -61,12 +61,12 @@ var AtomizerService = class {
    * Generate a unique path if file already exists
    */
   async getUniquePath(folder, name) {
-    let base = (0, import_obsidian.normalizePath)(`${folder}/${name}.md`);
+    const base = (0, import_obsidian.normalizePath)(`${folder}/${name}.md`);
     if (!await this.vault.adapter.exists(base)) {
       return base;
     }
     let counter = 2;
-    while (true) {
+    while (counter < 1e3) {
       const candidate = (0, import_obsidian.normalizePath)(`${folder}/${name}-${counter}.md`);
       if (!await this.vault.adapter.exists(candidate)) {
         return candidate;
@@ -92,11 +92,9 @@ var AtomizerService = class {
    * Helper to extract YAML and Intro content
    */
   extractPreamble(lines) {
-    let yaml = [];
-    let intro = [];
-    let remainingLines = [];
+    const yaml = [];
+    const remainingLines = [];
     let inYaml = false;
-    let yamlEnded = false;
     let startIndex = 0;
     if (lines.length > 0 && lines[0].trim() === "---") {
       inYaml = true;
@@ -109,7 +107,6 @@ var AtomizerService = class {
         yaml.push(line);
         if (line.trim() === "---") {
           inYaml = false;
-          yamlEnded = true;
         }
       } else {
         remainingLines.push(line);
@@ -126,8 +123,8 @@ var AtomizerService = class {
     const rootDir = await this.createOutputDirectory(file);
     const { yaml, remainingLines } = this.extractPreamble(lines);
     const headingRegex = /^(#{1,6})[ \t]+(.+?)\s*$/;
-    let intro = [];
-    let sections = [];
+    const intro = [];
+    const sections = [];
     let current = null;
     for (const line of remainingLines) {
       const match = line.match(headingRegex);
@@ -188,8 +185,8 @@ var AtomizerService = class {
     const rootDir = await this.createOutputDirectory(file);
     const { yaml, remainingLines } = this.extractPreamble(lines);
     const dateRegex = /\d{4}-\d{2}-\d{2}/;
-    let intro = [];
-    let sections = [];
+    const intro = [];
+    const sections = [];
     let currentTitle = null;
     let currentBlock = [];
     for (const line of remainingLines) {
@@ -239,8 +236,8 @@ var AtomizerService = class {
     const rootDir = await this.createOutputDirectory(file);
     const { yaml, remainingLines } = this.extractPreamble(lines);
     const dividerRegex = new RegExp(`^\\s*${divider.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`);
-    let intro = [];
-    let sections = [];
+    const intro = [];
+    const sections = [];
     let currentBlock = [];
     let currentTitle = null;
     let needTitle = false;
@@ -309,15 +306,15 @@ var AtomizerModal = class extends import_obsidian2.Modal {
     const { contentEl } = this;
     contentEl.empty();
     const isFolder = this.target instanceof import_obsidian2.TFolder;
-    contentEl.createEl("h2", { text: isFolder ? `Atomize Folder: ${(_a = this.target) == null ? void 0 : _a.name}` : "Atomize File" });
-    new import_obsidian2.Setting(contentEl).setName("Atomization Mode").setDesc("How to split the content").addDropdown((drop) => drop.addOption("heading", "By Heading").addOption("date", "By ISO Date").addOption("divider", "By Divider").setValue(this.mode).onChange((value) => {
+    new import_obsidian2.Setting(contentEl).setName(isFolder ? `Atomize folder: ${(_a = this.target) == null ? void 0 : _a.name}` : "Atomize file").setHeading();
+    new import_obsidian2.Setting(contentEl).setName("Atomization mode").setDesc("How to split the content").addDropdown((drop) => drop.addOption("heading", "By Heading").addOption("date", "By ISO Date").addOption("divider", "By Divider").setValue(this.mode).onChange((value) => {
       this.mode = value;
       this.display();
     }));
     if (this.mode === "divider") {
-      new import_obsidian2.Setting(contentEl).setName("Divider String").setDesc("String to split on (e.g. ---)").addText((text) => text.setValue(this.divider).onChange((value) => this.divider = value));
+      new import_obsidian2.Setting(contentEl).setName("Divider string").setDesc("String to split on (e.g. ---)").addText((text) => text.setValue(this.divider).onChange((value) => this.divider = value));
     }
-    new import_obsidian2.Setting(contentEl).addButton((btn) => btn.setButtonText(isFolder ? "Atomize All Files" : "Atomize").setCta().setDisabled(!this.target).onClick(async () => {
+    new import_obsidian2.Setting(contentEl).addButton((btn) => btn.setButtonText(isFolder ? "Atomize all files" : "Atomize").setCta().setDisabled(!this.target).onClick(async () => {
       if (this.target) {
         this.close();
         if (this.target instanceof import_obsidian2.TFolder) {
@@ -424,7 +421,7 @@ ${(0, import_obsidian3.stringifyYaml)(frontmatter)}---
 Abstract:
 ${summary}`;
           let newTitle = await this.ollama.generate(model, titlePrompt);
-          newTitle = newTitle.replace(/[.@#%$&/\\<>\[\]():*?"|\n\r]/g, " ").trim();
+          newTitle = newTitle.replace(/[.@#%$&/\\<>[\]():*?"|\n\r]/g, " ").trim();
           newTitle = newTitle.replace(/\s+/g, " ");
           if (newTitle.length > 0) {
             const newStem = `${file.basename} ${newTitle} AIG`;
@@ -453,7 +450,7 @@ ${summary}`;
     const files = [];
     const collectFiles = (path) => {
       const folder = this.app.vault.getAbstractFileByPath(path);
-      if (folder && "children" in folder) {
+      if (folder instanceof import_obsidian3.TFolder) {
         for (const child of folder.children) {
           if (child instanceof import_obsidian3.TFile && child.extension === "md") {
             files.push(child);
@@ -556,12 +553,10 @@ var OllamaService = class {
 };
 
 // src/ui/summarizer-modal.ts
-var import_obsidian6 = require("obsidian");
 var SummarizerModal = class extends import_obsidian5.Modal {
   constructor(app, settings, target) {
     super(app);
     this.target = null;
-    // TFile or TFolder
     this.targetPath = "/";
     this.models = [];
     this.ollama = new OllamaService(settings.ollamaUrl);
@@ -587,7 +582,7 @@ var SummarizerModal = class extends import_obsidian5.Modal {
   async onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Summarize Files" });
+    new import_obsidian5.Setting(contentEl).setName("Summarize files").setHeading();
     contentEl.createEl("p", { text: "Loading models..." });
     try {
       this.models = await this.ollama.listModels();
@@ -599,16 +594,16 @@ var SummarizerModal = class extends import_obsidian5.Modal {
   display() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Summarize Files" });
-    new import_obsidian5.Setting(contentEl).setName("Ollama Model").addDropdown((drop) => {
+    new import_obsidian5.Setting(contentEl).setName("Summarize files").setHeading();
+    new import_obsidian5.Setting(contentEl).setName("Ollama model").addDropdown((drop) => {
       this.models.forEach((m) => drop.addOption(m, m));
       drop.setValue(this.selectedModel);
       drop.onChange((value) => this.selectedModel = value);
     });
     new import_obsidian5.Setting(contentEl).setName("Recursive").setDesc("Process subfolders (if target is folder)").addToggle((toggle) => toggle.setValue(this.recursive).onChange((value) => this.recursive = value));
-    new import_obsidian5.Setting(contentEl).setName("Overwrite Existing").setDesc("Re-summarize files that already have a summary").addToggle((toggle) => toggle.setValue(this.overwrite).onChange((value) => this.overwrite = value));
-    new import_obsidian5.Setting(contentEl).setName("Generate Title for Untitled").setDesc('Automatically rename "Untitled" files using AI generated title').addToggle((toggle) => toggle.setValue(this.generateTitle).onChange((value) => this.generateTitle = value));
-    new import_obsidian5.Setting(contentEl).addButton((btn) => btn.setButtonText("Start Summarization").setCta().onClick(async () => {
+    new import_obsidian5.Setting(contentEl).setName("Overwrite existing").setDesc("Re-summarize files that already have a summary").addToggle((toggle) => toggle.setValue(this.overwrite).onChange((value) => this.overwrite = value));
+    new import_obsidian5.Setting(contentEl).setName("Generate title for untitled").setDesc('Automatically rename "Untitled" files using AI generated title').addToggle((toggle) => toggle.setValue(this.generateTitle).onChange((value) => this.generateTitle = value));
+    new import_obsidian5.Setting(contentEl).addButton((btn) => btn.setButtonText("Start summarization").setCta().onClick(async () => {
       btn.setButtonText("Processing...").setDisabled(true);
       try {
         const prompts = [this.prompt, this.prompt2, this.prompt3, this.prompt4];
@@ -622,7 +617,7 @@ var SummarizerModal = class extends import_obsidian5.Modal {
               prompts,
               this.generateTitle
             );
-            new import_obsidian6.Notice(result ? "Summary added." : "Skipped (exists).");
+            new import_obsidian5.Notice(result ? "Summary added." : "Skipped (exists).");
           } else {
             const result = await this.service.summarizeFolder(
               this.targetPath,
@@ -632,14 +627,14 @@ var SummarizerModal = class extends import_obsidian5.Modal {
               prompts,
               this.generateTitle
             );
-            new import_obsidian6.Notice(`Complete: ${result.processed} processed, ${result.skipped} skipped, ${result.errors} errors.`);
+            new import_obsidian5.Notice(`Complete: ${result.processed} processed, ${result.skipped} skipped, ${result.errors} errors.`);
           }
         } else {
-          new import_obsidian6.Notice("Invalid path.");
+          new import_obsidian5.Notice("Invalid path.");
         }
         this.close();
       } catch (e) {
-        new import_obsidian6.Notice("Error during summarization. Check console.");
+        new import_obsidian5.Notice("Error during summarization. Check console.");
         console.error(e);
         btn.setButtonText("Start Summarization").setDisabled(false);
       }
@@ -652,23 +647,23 @@ var SummarizerModal = class extends import_obsidian5.Modal {
 };
 
 // src/ui/wisdom-modal.ts
-var import_obsidian8 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 
 // src/modules/wisdom.ts
-var import_obsidian7 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 var WisdomService = class {
   constructor(vault, ollama) {
     this.vault = vault;
     this.ollama = ollama;
   }
   async getUniquePath(folder, name) {
-    let base = (0, import_obsidian7.normalizePath)(`${folder}/${name}.md`);
+    const base = (0, import_obsidian6.normalizePath)(`${folder}/${name}.md`);
     if (!await this.vault.adapter.exists(base)) {
       return base;
     }
     let counter = 2;
-    while (true) {
-      const candidate = (0, import_obsidian7.normalizePath)(`${folder}/${name}-${counter}.md`);
+    while (counter < 1e3) {
+      const candidate = (0, import_obsidian6.normalizePath)(`${folder}/${name}-${counter}.md`);
       if (!await this.vault.adapter.exists(candidate)) {
         return candidate;
       }
@@ -683,7 +678,7 @@ var WisdomService = class {
     let body = content;
     if (match) {
       try {
-        frontmatter = (0, import_obsidian7.parseYaml)(match[1]);
+        frontmatter = (0, import_obsidian6.parseYaml)(match[1]);
         body = content.substring(match[0].length).trim();
       } catch (e) {
         console.error("Failed to parse YAML", e);
@@ -692,12 +687,12 @@ var WisdomService = class {
     if (file.basename.endsWith("_generalized") || file.basename.endsWith("_safe")) {
       return "Skipped (already processed)";
     }
-    const outputFolder = (0, import_obsidian7.normalizePath)(`${file.parent.path}/Generalized`);
+    const outputFolder = (0, import_obsidian6.normalizePath)(`${file.parent.path}/Generalized`);
     if (!await this.vault.adapter.exists(outputFolder)) {
       await this.vault.createFolder(outputFolder);
     }
     let newContent = body;
-    let suffix = mode === "safe" ? "_safe" : "_generalized";
+    const suffix = mode === "safe" ? "_safe" : "_generalized";
     if (mode === "generalized") {
       const defaultPrompt = `
             You are a wisdom extractor. Rewrite the following personal text into general wisdom and insights.
@@ -721,7 +716,7 @@ ${body.substring(0, 15e3)}`;
     }
     frontmatter.original_file = `[[${file.basename}]]`;
     const newFileContent = `---
-${(0, import_obsidian7.stringifyYaml)(frontmatter)}---
+${(0, import_obsidian6.stringifyYaml)(frontmatter)}---
 
 ${newContent}`;
     const newFilename = `${file.basename}${suffix}`;
@@ -733,9 +728,9 @@ ${newContent}`;
     const files = [];
     const collectFiles = (path) => {
       const folder = this.vault.getAbstractFileByPath(path);
-      if (folder && "children" in folder) {
+      if (folder instanceof import_obsidian6.TFolder) {
         for (const child of folder.children) {
-          if (child instanceof import_obsidian7.TFile && child.extension === "md") {
+          if (child instanceof import_obsidian6.TFile && child.extension === "md") {
             files.push(child);
           } else if ("children" in child) {
             collectFiles(child.path);
@@ -763,7 +758,7 @@ ${newContent}`;
 };
 
 // src/ui/wisdom-modal.ts
-var WisdomModal = class extends import_obsidian8.Modal {
+var WisdomModal = class extends import_obsidian7.Modal {
   constructor(app, settings, target) {
     super(app);
     this.target = null;
@@ -778,7 +773,7 @@ var WisdomModal = class extends import_obsidian8.Modal {
   async onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Wisdom Extractor" });
+    new import_obsidian7.Setting(contentEl).setName("Wisdom extractor").setHeading();
     contentEl.createEl("p", { text: "Loading models..." });
     try {
       this.models = await this.ollama.listModels();
@@ -790,31 +785,31 @@ var WisdomModal = class extends import_obsidian8.Modal {
   display() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Wisdom Extractor" });
+    new import_obsidian7.Setting(contentEl).setName("Wisdom extractor").setHeading();
     if (this.target) {
-      const type = this.target.extension ? "File" : "Folder";
+      const type = this.target instanceof import_obsidian7.TFile ? "File" : "Folder";
       contentEl.createEl("p", { text: `Target: ${this.target.name} (${type})` });
     } else {
       contentEl.createEl("p", { text: "No file or folder selected.", cls: "error-text" });
       return;
     }
-    new import_obsidian8.Setting(contentEl).setName("Ollama Model").addDropdown((drop) => {
+    new import_obsidian7.Setting(contentEl).setName("Ollama model").addDropdown((drop) => {
       this.models.forEach((m) => drop.addOption(m, m));
       drop.setValue(this.selectedModel);
       drop.onChange((value) => this.selectedModel = value);
     });
-    new import_obsidian8.Setting(contentEl).setName("Mode").setDesc("Generalized (AI Rewrite) or Safe (Copy as-is)").addDropdown((drop) => drop.addOption("generalized", "Generalized (AI)").addOption("safe", "Safe (Copy Only)").setValue(this.mode).onChange((value) => this.mode = value));
-    new import_obsidian8.Setting(contentEl).addButton((btn) => btn.setButtonText("Extract Wisdom").setCta().onClick(async () => {
+    new import_obsidian7.Setting(contentEl).setName("Mode").setDesc("Generalized (AI Rewrite) or Safe (Copy as-is)").addDropdown((drop) => drop.addOption("generalized", "Generalized (AI)").addOption("safe", "Safe (Copy Only)").setValue(this.mode).onChange((value) => this.mode = value));
+    new import_obsidian7.Setting(contentEl).addButton((btn) => btn.setButtonText("Extract wisdom").setCta().onClick(async () => {
       btn.setButtonText("Processing...").setDisabled(true);
       try {
-        if (this.target.extension) {
+        if (this.target instanceof import_obsidian7.TFile) {
           const result = await this.service.processFile(
             this.target,
             this.selectedModel,
             this.mode,
             this.prompt
           );
-          new import_obsidian8.Notice(result);
+          new import_obsidian7.Notice(result);
         } else {
           const result = await this.service.processFolder(
             this.target.path,
@@ -822,13 +817,13 @@ var WisdomModal = class extends import_obsidian8.Modal {
             this.mode,
             this.prompt
           );
-          new import_obsidian8.Notice(`Batch Complete: ${result.processed} processed, ${result.skipped} skipped, ${result.errors} errors.`);
+          new import_obsidian7.Notice(`Batch Complete: ${result.processed} processed, ${result.skipped} skipped, ${result.errors} errors.`);
         }
         this.close();
       } catch (e) {
-        new import_obsidian8.Notice("Error during extraction.");
+        new import_obsidian7.Notice("Error during extraction.");
         console.error(e);
-        btn.setButtonText("Extract Wisdom").setDisabled(false);
+        btn.setButtonText("Extract wisdom").setDisabled(false);
       }
     }));
   }
@@ -839,13 +834,13 @@ var WisdomModal = class extends import_obsidian8.Modal {
 };
 
 // src/ui/date-fix-modal.ts
-var import_obsidian10 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 
 // src/modules/date-fix.ts
-var import_obsidian9 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 var DateFixService = class {
-  constructor(vault) {
-    this.vault = vault;
+  constructor(app) {
+    this.app = app;
   }
   async fixDatesInFolder(folderPath, recursive, fallbackToCreationDate, dateFormat, exceptions) {
     const files = [];
@@ -862,8 +857,8 @@ var DateFixService = class {
         }
         const newName = await this.getNewFilename(file, fallbackToCreationDate, dateFormat);
         if (newName && newName !== file.name) {
-          const newPath = (0, import_obsidian9.normalizePath)(`${file.parent.path}/${newName}`);
-          await this.vault.rename(file, newPath);
+          const newPath = (0, import_obsidian8.normalizePath)(`${file.parent ? file.parent.path : ""}/${newName}`);
+          await this.app.fileManager.renameFile(file, newPath);
           renamed++;
         }
       } catch (e) {
@@ -881,8 +876,8 @@ var DateFixService = class {
       }
       const newName = await this.getNewFilename(file, fallbackToCreationDate, dateFormat);
       if (newName && newName !== file.name) {
-        const newPath = (0, import_obsidian9.normalizePath)(`${file.parent.path}/${newName}`);
-        await this.vault.rename(file, newPath);
+        const newPath = (0, import_obsidian8.normalizePath)(`${file.parent ? file.parent.path : ""}/${newName}`);
+        await this.app.fileManager.renameFile(file, newPath);
         return `Renamed to ${newName}`;
       }
       return "No change needed";
@@ -892,10 +887,10 @@ var DateFixService = class {
     }
   }
   collectFiles(path, files, recursive) {
-    const folder = this.vault.getAbstractFileByPath(path);
-    if (folder && "children" in folder) {
+    const folder = this.app.vault.getAbstractFileByPath(path);
+    if (folder instanceof import_obsidian8.TFolder) {
       for (const child of folder.children) {
-        if (child instanceof import_obsidian9.TFile) {
+        if (child instanceof import_obsidian8.TFile) {
           files.push(child);
         } else if (recursive && "children" in child) {
           this.collectFiles(child.path, files, recursive);
@@ -918,7 +913,6 @@ var DateFixService = class {
   }
   async getNewFilename(file, fallbackToCreationDate, dateFormat) {
     let name = file.name;
-    let originalName = name;
     if (/^\d{4}[-_]\d{2}[-_]\d{2}/.test(name)) {
       return name;
     }
@@ -945,14 +939,13 @@ var DateFixService = class {
           const day2 = matchBase[3];
           const date2 = window.moment(`${year2}-${month2}-${day2}`, "YYYY-MM-DD");
           if (date2.isValid()) {
-            const formattedDate2 = date2.format(dateFormat);
             let newBase = baseName.replace(matchBase[0], "").trim();
             newBase = newBase.replace(/^[-_ ]+|[-_ ]+$/g, "");
             newBase = newBase.replace(/[-_ ]{2,}/g, "_");
             if (newBase) {
-              name = `${formattedDate2}_${newBase}${ext}`;
+              name = `${formattedDate}_${newBase}${ext}`;
             } else {
-              name = `${formattedDate2}${ext}`;
+              name = `${formattedDate}${ext}`;
             }
             return name;
           }
@@ -969,11 +962,10 @@ var DateFixService = class {
 };
 
 // src/ui/date-fix-modal.ts
-var DateFixModal = class extends import_obsidian10.Modal {
+var DateFixModal = class extends import_obsidian9.Modal {
   constructor(app, settings, target) {
     super(app);
     this.target = null;
-    // TFile or TFolder
     this.recursive = true;
     this.fallbackToCreationDate = false;
     this.dateFormat = "YYYY-MM-DD";
@@ -988,24 +980,24 @@ var DateFixModal = class extends import_obsidian10.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Date Fix / Rename" });
+    new import_obsidian9.Setting(contentEl).setName("Date fix / rename").setHeading();
     if (this.target) {
-      const type = this.target.extension ? "File" : "Folder";
+      const type = this.target instanceof import_obsidian9.TFile ? "File" : "Folder";
       contentEl.createEl("p", { text: `Target: ${this.target.name} (${type})` });
     } else {
       contentEl.createEl("p", { text: "No file or folder selected.", cls: "error-text" });
       return;
     }
-    new import_obsidian10.Setting(contentEl).setName("Recursive").setDesc("Process subfolders (if target is folder)").addToggle((toggle) => toggle.setValue(this.recursive).onChange((value) => this.recursive = value));
-    new import_obsidian10.Setting(contentEl).setName("Fallback to Creation Date").setDesc("If no date is found in the filename, prepend the file's creation date.").addToggle((toggle) => toggle.setValue(this.fallbackToCreationDate).onChange((value) => this.fallbackToCreationDate = value));
-    new import_obsidian10.Setting(contentEl).setName("Preferred Date Format").setDesc("ISO format to use (e.g. YYYY-MM-DD)").addText((text) => text.setValue(this.dateFormat).onChange((value) => this.dateFormat = value));
-    new import_obsidian10.Setting(contentEl).setName("Exceptions").setDesc("Comma separated list of file extensions (e.g. *.py) or words to exclude").addTextArea((text) => text.setValue(this.exceptions).onChange((value) => this.exceptions = value));
-    new import_obsidian10.Setting(contentEl).addButton((btn) => btn.setButtonText("Run Date Fix").setCta().onClick(async () => {
+    new import_obsidian9.Setting(contentEl).setName("Recursive").setDesc("Process subfolders (if target is folder)").addToggle((toggle) => toggle.setValue(this.recursive).onChange((value) => this.recursive = value));
+    new import_obsidian9.Setting(contentEl).setName("Fallback to creation date").setDesc("If no date is found in the filename, prepend the file's creation date.").addToggle((toggle) => toggle.setValue(this.fallbackToCreationDate).onChange((value) => this.fallbackToCreationDate = value));
+    new import_obsidian9.Setting(contentEl).setName("Preferred date format").setDesc("ISO format to use (e.g. YYYY-MM-DD)").addText((text) => text.setValue(this.dateFormat).onChange((value) => this.dateFormat = value));
+    new import_obsidian9.Setting(contentEl).setName("Exceptions").setDesc("Comma separated list of file extensions (e.g. *.py) or words to exclude").addTextArea((text) => text.setValue(this.exceptions).onChange((value) => this.exceptions = value));
+    new import_obsidian9.Setting(contentEl).addButton((btn) => btn.setButtonText("Run date fix").setCta().onClick(async () => {
       btn.setButtonText("Processing...").setDisabled(true);
       try {
-        if (this.target.extension) {
+        if (this.target instanceof import_obsidian9.TFile) {
           const result = await this.service.fixDateInFile(this.target, this.fallbackToCreationDate, this.dateFormat, this.exceptions);
-          new import_obsidian10.Notice(result);
+          new import_obsidian9.Notice(result);
         } else {
           const result = await this.service.fixDatesInFolder(
             this.target.path,
@@ -1014,13 +1006,13 @@ var DateFixModal = class extends import_obsidian10.Modal {
             this.dateFormat,
             this.exceptions
           );
-          new import_obsidian10.Notice(`Complete: ${result.processed} processed, ${result.renamed} renamed, ${result.errors} errors.`);
+          new import_obsidian9.Notice(`Complete: ${result.processed} processed, ${result.renamed} renamed, ${result.errors} errors.`);
         }
         this.close();
       } catch (e) {
-        new import_obsidian10.Notice("Error during date fix.");
+        new import_obsidian9.Notice("Error during date fix.");
         console.error(e);
-        btn.setButtonText("Run Date Fix").setDisabled(false);
+        btn.setButtonText("Run date fix").setDisabled(false);
       }
     }));
   }
@@ -1031,10 +1023,10 @@ var DateFixModal = class extends import_obsidian10.Modal {
 };
 
 // src/ui/concatonizer-modal.ts
-var import_obsidian12 = require("obsidian");
+var import_obsidian11 = require("obsidian");
 
 // src/modules/concatonizer.ts
-var import_obsidian11 = require("obsidian");
+var import_obsidian10 = require("obsidian");
 var ConcatonizerService = class {
   constructor(vault) {
     this.vault = vault;
@@ -1064,10 +1056,10 @@ var ConcatonizerService = class {
 
 `;
     }
-    const outputPath = (0, import_obsidian11.normalizePath)(`${folderPath}/${outputName}`);
+    const outputPath = (0, import_obsidian10.normalizePath)(`${folderPath}/${outputName}`);
     if (await this.vault.adapter.exists(outputPath)) {
       const file = this.vault.getAbstractFileByPath(outputPath);
-      if (file instanceof import_obsidian11.TFile) {
+      if (file instanceof import_obsidian10.TFile) {
         await this.vault.modify(file, content);
       }
     } else {
@@ -1077,9 +1069,9 @@ var ConcatonizerService = class {
   }
   collectFiles(path, files, recursive) {
     const folder = this.vault.getAbstractFileByPath(path);
-    if (folder && "children" in folder) {
+    if (folder instanceof import_obsidian10.TFolder) {
       for (const child of folder.children) {
-        if (child instanceof import_obsidian11.TFile && child.extension === "md") {
+        if (child instanceof import_obsidian10.TFile && child.extension === "md") {
           files.push(child);
         } else if (recursive && "children" in child) {
           this.collectFiles(child.path, files, recursive);
@@ -1090,11 +1082,10 @@ var ConcatonizerService = class {
 };
 
 // src/ui/concatonizer-modal.ts
-var ConcatonizerModal = class extends import_obsidian12.Modal {
+var ConcatonizerModal = class extends import_obsidian11.Modal {
   constructor(app, settings, target) {
     super(app);
     this.target = null;
-    // TFolder
     this.recursive = false;
     this.stripYaml = false;
     this.outputName = "combined.md";
@@ -1105,7 +1096,7 @@ var ConcatonizerModal = class extends import_obsidian12.Modal {
     this.recursive = settings.concatonizerRecursive;
     this.stripYaml = settings.concatonizerStripYaml;
     const suffix = settings.concatonizerSuffix || "_combined";
-    if (this.target instanceof import_obsidian12.TFolder) {
+    if (this.target instanceof import_obsidian11.TFolder) {
       this.outputName = `${this.target.name}${suffix}.md`;
     } else if (this.target && this.target.parent) {
       this.outputName = `${this.target.parent.name}${suffix}.md`;
@@ -1114,10 +1105,10 @@ var ConcatonizerModal = class extends import_obsidian12.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Concatonizer" });
-    if (!this.target || this.target.extension) {
+    new import_obsidian11.Setting(contentEl).setName("Concatonizer").setHeading();
+    if (!this.target || this.target instanceof import_obsidian11.TFile) {
       contentEl.createEl("p", { text: "Please select a folder to concatonize.", cls: "error-text" });
-      if (this.target && this.target.extension) {
+      if (this.target instanceof import_obsidian11.TFile) {
         this.target = this.target.parent;
         contentEl.createEl("p", { text: `Using parent folder: ${this.target.path}` });
       } else {
@@ -1126,11 +1117,11 @@ var ConcatonizerModal = class extends import_obsidian12.Modal {
     } else {
       contentEl.createEl("p", { text: `Target Folder: ${this.target.path}` });
     }
-    new import_obsidian12.Setting(contentEl).setName("Output Filename").setDesc("Name of the combined file").addText((text) => text.setValue(this.outputName).onChange((value) => this.outputName = value));
-    new import_obsidian12.Setting(contentEl).setName("Recursive").setDesc("Include subfolders").addToggle((toggle) => toggle.setValue(this.recursive).onChange((value) => this.recursive = value));
-    new import_obsidian12.Setting(contentEl).setName("Strip YAML").setDesc("Remove YAML frontmatter from combined files").addToggle((toggle) => toggle.setValue(this.stripYaml).onChange((value) => this.stripYaml = value));
-    new import_obsidian12.Setting(contentEl).setName("Include Filename").setDesc("Add filename as header for each file content").addToggle((toggle) => toggle.setValue(this.includeFilename).onChange((value) => this.includeFilename = value));
-    new import_obsidian12.Setting(contentEl).addButton((btn) => btn.setButtonText("Concatonize").setCta().onClick(async () => {
+    new import_obsidian11.Setting(contentEl).setName("Output filename").setDesc("Name of the combined file").addText((text) => text.setValue(this.outputName).onChange((value) => this.outputName = value));
+    new import_obsidian11.Setting(contentEl).setName("Recursive").setDesc("Include subfolders").addToggle((toggle) => toggle.setValue(this.recursive).onChange((value) => this.recursive = value));
+    new import_obsidian11.Setting(contentEl).setName("Strip YAML").setDesc("Remove YAML frontmatter from combined files").addToggle((toggle) => toggle.setValue(this.stripYaml).onChange((value) => this.stripYaml = value));
+    new import_obsidian11.Setting(contentEl).setName("Include filename").setDesc("Add filename as header for each file content").addToggle((toggle) => toggle.setValue(this.includeFilename).onChange((value) => this.includeFilename = value));
+    new import_obsidian11.Setting(contentEl).addButton((btn) => btn.setButtonText("Concatonize").setCta().onClick(async () => {
       btn.setButtonText("Processing...").setDisabled(true);
       try {
         const result = await this.service.concatonizeFolder(
@@ -1140,10 +1131,10 @@ var ConcatonizerModal = class extends import_obsidian12.Modal {
           this.stripYaml,
           this.includeFilename
         );
-        new import_obsidian12.Notice(result);
+        new import_obsidian11.Notice(result);
         this.close();
       } catch (e) {
-        new import_obsidian12.Notice("Error during concatenation.");
+        new import_obsidian11.Notice("Error during concatenation.");
         console.error(e);
         btn.setButtonText("Concatonize").setDisabled(false);
       }
@@ -1156,10 +1147,10 @@ var ConcatonizerModal = class extends import_obsidian12.Modal {
 };
 
 // src/ui/rating-modal.ts
-var import_obsidian14 = require("obsidian");
+var import_obsidian13 = require("obsidian");
 
 // src/modules/rating.ts
-var import_obsidian13 = require("obsidian");
+var import_obsidian12 = require("obsidian");
 var RatingService = class {
   constructor(app, ollama) {
     this.app = app;
@@ -1211,9 +1202,9 @@ var RatingService = class {
   }
   collectFiles(path, files, recursive) {
     const folder = this.app.vault.getAbstractFileByPath(path);
-    if (folder && "children" in folder) {
+    if (folder instanceof import_obsidian12.TFolder) {
       for (const child of folder.children) {
-        if (child instanceof import_obsidian13.TFile && child.extension === "md") {
+        if (child instanceof import_obsidian12.TFile && child.extension === "md") {
           files.push(child);
         } else if (recursive && "children" in child) {
           this.collectFiles(child.path, files, recursive);
@@ -1263,7 +1254,7 @@ Return JSON only, matching the given schema, with a single integer rating from 1
 };
 
 // src/ui/rating-modal.ts
-var RatingModal = class extends import_obsidian14.Modal {
+var RatingModal = class extends import_obsidian13.Modal {
   constructor(app, settings, target) {
     var _a;
     super(app);
@@ -1271,7 +1262,7 @@ var RatingModal = class extends import_obsidian14.Modal {
     this.skipExisting = true;
     const ollama = new OllamaService(settings.ollamaUrl);
     this.service = new RatingService(app, ollama);
-    this.target = target;
+    this.target = target || null;
     this.model = settings.ratingModel || "llama3.1";
     this.params = settings.ratingParams || "coherence, profundity";
     this.skipExisting = (_a = settings.ratingSkipIfRated) != null ? _a : true;
@@ -1279,36 +1270,36 @@ var RatingModal = class extends import_obsidian14.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Automatic Rating" });
+    new import_obsidian13.Setting(contentEl).setName("Automatic rating").setHeading();
     if (this.target) {
-      const type = this.target.extension ? "File" : "Folder";
+      const type = this.target instanceof import_obsidian13.TFile ? "File" : "Folder";
       contentEl.createEl("p", { text: `Target: ${this.target.name} (${type})` });
     } else {
       contentEl.createEl("p", { text: "No target selected.", cls: "error-text" });
       return;
     }
-    new import_obsidian14.Setting(contentEl).setName("Model").addText((text) => text.setValue(this.model).onChange((v) => this.model = v));
-    new import_obsidian14.Setting(contentEl).setName("Quality Parameters").setDesc("Comma separated list").addText((text) => text.setValue(this.params).onChange((v) => this.params = v));
-    if (!this.target.extension) {
-      new import_obsidian14.Setting(contentEl).setName("Recursive").addToggle((t) => t.setValue(this.recursive).onChange((v) => this.recursive = v));
+    new import_obsidian13.Setting(contentEl).setName("Model").addText((text) => text.setValue(this.model).onChange((v) => this.model = v));
+    new import_obsidian13.Setting(contentEl).setName("Quality parameters").setDesc("Comma separated list").addText((text) => text.setValue(this.params).onChange((v) => this.params = v));
+    if (!(this.target instanceof import_obsidian13.TFile)) {
+      new import_obsidian13.Setting(contentEl).setName("Recursive").addToggle((t) => t.setValue(this.recursive).onChange((v) => this.recursive = v));
     }
-    new import_obsidian14.Setting(contentEl).setName("Skip Existing").setDesc("Skip files that already have a rating").addToggle((t) => t.setValue(this.skipExisting).onChange((v) => this.skipExisting = v));
-    new import_obsidian14.Setting(contentEl).addButton((btn) => btn.setButtonText("Start Rating").setCta().onClick(async () => {
+    new import_obsidian13.Setting(contentEl).setName("Skip existing").setDesc("Skip files that already have a rating").addToggle((t) => t.setValue(this.skipExisting).onChange((v) => this.skipExisting = v));
+    new import_obsidian13.Setting(contentEl).addButton((btn) => btn.setButtonText("Start rating").setCta().onClick(async () => {
       btn.setButtonText("Processing...").setDisabled(true);
       const params = this.params.split(",").map((p) => p.trim()).filter((p) => p);
       try {
-        if (this.target.extension) {
+        if (this.target instanceof import_obsidian13.TFile) {
           const rating = await this.service.rateFile(this.target, this.model, params);
-          new import_obsidian14.Notice(rating ? `Rated: ${rating}` : "Failed to rate");
+          new import_obsidian13.Notice(rating ? `Rated: ${rating}` : "Failed to rate");
         } else {
           const res = await this.service.rateFolder(this.target.path, this.model, params, this.recursive, this.skipExisting);
-          new import_obsidian14.Notice(`Processed: ${res.processed}, Rated: ${res.rated}, Errors: ${res.errors}`);
+          new import_obsidian13.Notice(`Processed: ${res.processed}, Rated: ${res.rated}, Errors: ${res.errors}`);
         }
         this.close();
       } catch (e) {
-        new import_obsidian14.Notice("Error during rating");
+        new import_obsidian13.Notice("Error during rating");
         console.error(e);
-        btn.setButtonText("Start Rating").setDisabled(false);
+        btn.setButtonText("Start rating").setDisabled(false);
       }
     }));
   }
@@ -1318,10 +1309,10 @@ var RatingModal = class extends import_obsidian14.Modal {
 };
 
 // src/ui/deduplication-modal.ts
-var import_obsidian16 = require("obsidian");
+var import_obsidian15 = require("obsidian");
 
 // src/modules/deduplication.ts
-var import_obsidian15 = require("obsidian");
+var import_obsidian14 = require("obsidian");
 var crypto = __toESM(require("crypto"));
 var DeduplicationService = class {
   constructor(app) {
@@ -1341,8 +1332,8 @@ var DeduplicationService = class {
     const mapB = await this.hashFiles(filesB);
     const duplicates = [];
     for (const [hash, groupA] of mapA.entries()) {
-      if (mapB.has(hash)) {
-        const groupB = mapB.get(hash);
+      const groupB = mapB.get(hash);
+      if (groupB) {
         duplicates.push({
           hash,
           size: groupA[0].stat.size,
@@ -1385,9 +1376,9 @@ var DeduplicationService = class {
   }
   collectFiles(path, files, recursive) {
     const folder = this.app.vault.getAbstractFileByPath(path);
-    if (folder && "children" in folder) {
+    if (folder instanceof import_obsidian14.TFolder) {
       for (const child of folder.children) {
-        if (child instanceof import_obsidian15.TFile) {
+        if (child instanceof import_obsidian14.TFile) {
           files.push(child);
         } else if (recursive && "children" in child) {
           this.collectFiles(child.path, files, recursive);
@@ -1401,12 +1392,12 @@ var DeduplicationService = class {
     return hash.digest("hex");
   }
   async deleteFile(file) {
-    await this.app.vault.delete(file);
+    await this.app.fileManager.trashFile(file);
   }
 };
 
 // src/ui/deduplication-modal.ts
-var DeduplicationModal = class extends import_obsidian16.Modal {
+var DeduplicationModal = class extends import_obsidian15.Modal {
   constructor(app, target) {
     super(app);
     // State
@@ -1417,9 +1408,9 @@ var DeduplicationModal = class extends import_obsidian16.Modal {
     this.duplicates = null;
     this.service = new DeduplicationService(app);
     this.target = target;
-    if (target instanceof import_obsidian16.TFolder) {
+    if (target instanceof import_obsidian15.TFolder) {
       this.folderA = target.path;
-    } else if (target instanceof import_obsidian16.TFile && target.parent) {
+    } else if (target instanceof import_obsidian15.TFile && target.parent) {
       this.folderA = target.parent.path;
     }
   }
@@ -1429,7 +1420,7 @@ var DeduplicationModal = class extends import_obsidian16.Modal {
   display() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Deduplication" });
+    new import_obsidian15.Setting(contentEl).setName("Deduplication").setHeading();
     if (!this.duplicates) {
       this.renderSettings(contentEl);
     } else {
@@ -1437,18 +1428,18 @@ var DeduplicationModal = class extends import_obsidian16.Modal {
     }
   }
   renderSettings(contentEl) {
-    new import_obsidian16.Setting(contentEl).setName("Scope").setDesc("Where to search for duplicates").addDropdown((drop) => drop.addOption("vault", "Entire Vault").addOption("folder", "Single Folder").addOption("two-folders", "Compare Two Folders").setValue(this.searchScope).onChange((v) => {
+    new import_obsidian15.Setting(contentEl).setName("Scope").setDesc("Where to search for duplicates").addDropdown((drop) => drop.addOption("vault", "Entire Vault").addOption("folder", "Single Folder").addOption("two-folders", "Compare Two Folders").setValue(this.searchScope).onChange((v) => {
       this.searchScope = v;
       this.display();
     }));
     if (this.searchScope === "folder") {
-      new import_obsidian16.Setting(contentEl).setName("Folder").addText((text) => text.setValue(this.folderA).setPlaceholder("Example: Folder/Subfolder").onChange((v) => this.folderA = v));
+      new import_obsidian15.Setting(contentEl).setName("Folder").addText((text) => text.setValue(this.folderA).setPlaceholder("Example: Folder/Subfolder").onChange((v) => this.folderA = v));
     } else if (this.searchScope === "two-folders") {
-      new import_obsidian16.Setting(contentEl).setName("Folder A").addText((text) => text.setValue(this.folderA).setPlaceholder("Example: Folder/A").onChange((v) => this.folderA = v));
-      new import_obsidian16.Setting(contentEl).setName("Folder B").addText((text) => text.setValue(this.folderB).setPlaceholder("Example: Folder/B").onChange((v) => this.folderB = v));
+      new import_obsidian15.Setting(contentEl).setName("Folder A").addText((text) => text.setValue(this.folderA).setPlaceholder("Example: Folder/A").onChange((v) => this.folderA = v));
+      new import_obsidian15.Setting(contentEl).setName("Folder B").addText((text) => text.setValue(this.folderB).setPlaceholder("Example: Folder/B").onChange((v) => this.folderB = v));
     }
-    new import_obsidian16.Setting(contentEl).setName("Recursive").setDesc("Search in subfolders").addToggle((t) => t.setValue(this.recursive).onChange((v) => this.recursive = v));
-    new import_obsidian16.Setting(contentEl).addButton((btn) => btn.setButtonText("Find Duplicates").setCta().onClick(async () => {
+    new import_obsidian15.Setting(contentEl).setName("Recursive").setDesc("Search in subfolders").addToggle((t) => t.setValue(this.recursive).onChange((v) => this.recursive = v));
+    new import_obsidian15.Setting(contentEl).addButton((btn) => btn.setButtonText("Find duplicates").setCta().onClick(async () => {
       btn.setButtonText("Scanning...").setDisabled(true);
       try {
         if (this.searchScope === "vault") {
@@ -1460,9 +1451,9 @@ var DeduplicationModal = class extends import_obsidian16.Modal {
         }
         this.display();
       } catch (e) {
-        new import_obsidian16.Notice("Error finding duplicates");
+        new import_obsidian15.Notice("Error finding duplicates");
         console.error(e);
-        btn.setButtonText("Find Duplicates").setDisabled(false);
+        btn.setButtonText("Find duplicates").setDisabled(false);
       }
     }));
   }
@@ -1470,46 +1461,30 @@ var DeduplicationModal = class extends import_obsidian16.Modal {
     var _a, _b, _c;
     if (((_a = this.duplicates) == null ? void 0 : _a.length) === 0) {
       contentEl.createEl("p", { text: "No duplicates found." });
-      new import_obsidian16.Setting(contentEl).addButton((btn) => btn.setButtonText("Close").onClick(() => this.close()));
+      new import_obsidian15.Setting(contentEl).addButton((btn) => btn.setButtonText("Close").onClick(() => this.close()));
       return;
     }
     contentEl.createEl("p", { text: `Found ${(_b = this.duplicates) == null ? void 0 : _b.length} groups of duplicates.` });
-    const container = contentEl.createDiv({ cls: "dedup-results" });
-    container.style.display = "flex";
-    container.style.flexDirection = "column";
-    container.style.gap = "20px";
+    const container = contentEl.createDiv({ cls: "dedup-results coherence-dedup-container" });
     (_c = this.duplicates) == null ? void 0 : _c.forEach((group, index) => {
-      const groupEl = container.createDiv({ cls: "dedup-group" });
-      groupEl.style.border = "1px solid var(--background-modifier-border)";
-      groupEl.style.padding = "10px";
-      groupEl.style.borderRadius = "5px";
-      const header = groupEl.createDiv({ cls: "dedup-header" });
-      header.style.marginBottom = "10px";
+      const groupEl = container.createDiv({ cls: "dedup-group coherence-dedup-group" });
+      const header = groupEl.createDiv({ cls: "dedup-header coherence-dedup-header" });
       header.createEl("strong", { text: `Group ${index + 1}` });
       header.createSpan({ text: ` (Size: ${this.formatSize(group.size)})`, cls: "text-muted" });
-      const filesContainer = groupEl.createDiv({ cls: "dedup-files" });
-      filesContainer.style.display = "grid";
-      filesContainer.style.gridTemplateColumns = "1fr 1fr";
-      filesContainer.style.gap = "10px";
+      const filesContainer = groupEl.createDiv({ cls: "dedup-files coherence-dedup-files" });
       group.files.forEach((file) => {
         var _a2;
-        const fileCard = filesContainer.createDiv({ cls: "dedup-file-card" });
-        fileCard.style.background = "var(--background-secondary)";
-        fileCard.style.padding = "10px";
-        fileCard.style.borderRadius = "5px";
+        const fileCard = filesContainer.createDiv({ cls: "dedup-file-card coherence-dedup-card" });
         fileCard.createEl("div", { text: file.name, cls: "file-name" });
         fileCard.createEl("div", { text: ((_a2 = file.parent) == null ? void 0 : _a2.path) || "/", cls: "file-path text-muted" });
-        this.app.vault.read(file).then((content) => {
+        void this.app.vault.read(file).then((content) => {
           fileCard.createEl("div", {
             text: content.substring(0, 100) + "...",
-            cls: "file-preview"
-          }).style.fontSize = "0.8em";
+            cls: "file-preview coherence-file-preview"
+          });
         });
-        const actions = fileCard.createDiv({ cls: "file-actions" });
-        actions.style.marginTop = "10px";
-        actions.style.display = "flex";
-        actions.style.gap = "5px";
-        new import_obsidian16.Setting(actions).addButton((btn) => btn.setButtonText("Delete").setWarning().onClick(async () => {
+        const actions = fileCard.createDiv({ cls: "file-actions coherence-file-actions" });
+        new import_obsidian15.Setting(actions).addButton((btn) => btn.setButtonText("Delete").setWarning().onClick(async () => {
           var _a3, _b2;
           await this.service.deleteFile(file);
           const fileIdx = group.files.indexOf(file);
@@ -1523,13 +1498,12 @@ var DeduplicationModal = class extends import_obsidian16.Modal {
           }
           this.display();
         }));
-        new import_obsidian16.Setting(actions).addButton((btn) => btn.setButtonText("Open").onClick(() => {
-          this.app.workspace.getLeaf().openFile(file);
+        new import_obsidian15.Setting(actions).addButton((btn) => btn.setButtonText("Open").onClick(() => {
+          void this.app.workspace.getLeaf().openFile(file);
         }));
       });
-      const groupActions = groupEl.createDiv({ cls: "group-actions" });
-      groupActions.style.marginTop = "10px";
-      new import_obsidian16.Setting(groupActions).addButton((btn) => btn.setButtonText("Skip Group").onClick(() => {
+      const groupActions = groupEl.createDiv({ cls: "group-actions coherence-group-actions" });
+      new import_obsidian15.Setting(groupActions).addButton((btn) => btn.setButtonText("Skip group").onClick(() => {
         var _a2, _b2;
         const groupIdx = (_a2 = this.duplicates) == null ? void 0 : _a2.indexOf(group);
         if (groupIdx !== void 0 && groupIdx > -1) {
@@ -1553,10 +1527,10 @@ var DeduplicationModal = class extends import_obsidian16.Modal {
 };
 
 // src/ui/parse-and-move-modal.ts
-var import_obsidian18 = require("obsidian");
+var import_obsidian17 = require("obsidian");
 
 // src/modules/parse-and-move.ts
-var import_obsidian17 = require("obsidian");
+var import_obsidian16 = require("obsidian");
 var ParseAndMoveService = class {
   constructor(app) {
     this.app = app;
@@ -1603,11 +1577,11 @@ var ParseAndMoveService = class {
     for (const [category, content] of Object.entries(categorizedContent)) {
       if (content.trim()) {
         hasContent = true;
-        const categoryDir = (0, import_obsidian17.normalizePath)(`${outputDir}/${category}`);
+        const categoryDir = (0, import_obsidian16.normalizePath)(`${outputDir}/${category}`);
         if (!await this.app.vault.adapter.exists(categoryDir)) {
           await this.app.vault.createFolder(categoryDir);
         }
-        const outputFile = (0, import_obsidian17.normalizePath)(`${categoryDir}/${file.name}`);
+        const outputFile = (0, import_obsidian16.normalizePath)(`${categoryDir}/${file.name}`);
         let existingContent = "";
         if (await this.app.vault.adapter.exists(outputFile)) {
           existingContent = await this.app.vault.adapter.read(outputFile);
@@ -1619,12 +1593,12 @@ var ParseAndMoveService = class {
     if (shouldMove && targetDir && hasContent) {
       for (const category of Object.keys(categorizedContent)) {
         if (categorizedContent[category].trim()) {
-          const sourceFile = (0, import_obsidian17.normalizePath)(`${outputDir}/${category}/${file.name}`);
-          const targetCategoryDir = (0, import_obsidian17.normalizePath)(`${targetDir}/${category}/Resources`);
+          const sourceFile = (0, import_obsidian16.normalizePath)(`${outputDir}/${category}/${file.name}`);
+          const targetCategoryDir = (0, import_obsidian16.normalizePath)(`${targetDir}/${category}/Resources`);
           if (!await this.app.vault.adapter.exists(targetCategoryDir)) {
             await this.app.vault.createFolder(targetCategoryDir);
           }
-          const targetFile = (0, import_obsidian17.normalizePath)(`${targetCategoryDir}/${file.name}`);
+          const targetFile = (0, import_obsidian16.normalizePath)(`${targetCategoryDir}/${file.name}`);
           if (await this.app.vault.adapter.exists(sourceFile)) {
             await this.app.vault.adapter.rename(sourceFile, targetFile);
           }
@@ -1655,9 +1629,9 @@ var ParseAndMoveService = class {
   }
   collectFiles(path, files, recursive) {
     const folder = this.app.vault.getAbstractFileByPath(path);
-    if (folder && "children" in folder) {
+    if (folder instanceof import_obsidian16.TFolder) {
       for (const child of folder.children) {
-        if (child instanceof import_obsidian17.TFile && child.extension === "md") {
+        if (child instanceof import_obsidian16.TFile && child.extension === "md") {
           files.push(child);
         } else if (recursive && "children" in child) {
           this.collectFiles(child.path, files, recursive);
@@ -1668,7 +1642,7 @@ var ParseAndMoveService = class {
 };
 
 // src/ui/parse-and-move-modal.ts
-var ParseAndMoveModal = class extends import_obsidian18.Modal {
+var ParseAndMoveModal = class extends import_obsidian17.Modal {
   constructor(app, settings, fileOrFolder) {
     super(app);
     this.fileOrFolder = fileOrFolder;
@@ -1740,56 +1714,56 @@ WRI - Writing Career: #WRI`;
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Parse and Move" });
+    new import_obsidian17.Setting(contentEl).setName("Parse and move").setHeading();
     if (this.fileOrFolder) {
       contentEl.createEl("p", { text: `Target: ${this.fileOrFolder.path}` });
     } else {
-      new import_obsidian18.Setting(contentEl).setName("Target Folder").setDesc("Select the folder to parse (leave empty for root)").addText((text) => text.setPlaceholder("Example: Folder/Subfolder").onChange((value) => {
+      new import_obsidian17.Setting(contentEl).setName("Target folder").setDesc("Select the folder to parse (leave empty for root)").addText((text) => text.setPlaceholder("Example: Folder/Subfolder").onChange((value) => {
         const folder = this.app.vault.getAbstractFileByPath(value);
-        if (folder instanceof import_obsidian18.TFolder) {
+        if (folder instanceof import_obsidian17.TFolder) {
           this.targetFolder = folder;
         } else {
           this.targetFolder = null;
         }
       }));
     }
-    new import_obsidian18.Setting(contentEl).setName("Output Directory").setDesc("Directory where categorized files will be created").addText((text) => text.setValue(this.outputDir).onChange((value) => this.outputDir = value));
-    new import_obsidian18.Setting(contentEl).setName("Move to Target Directory").setDesc("If enabled, files will be moved from Output Directory to Target Directory/Category/Resources").addToggle((toggle) => toggle.setValue(this.shouldMove).onChange((value) => {
+    new import_obsidian17.Setting(contentEl).setName("Output directory").setDesc("Directory where categorized files will be created").addText((text) => text.setValue(this.outputDir).onChange((value) => this.outputDir = value));
+    new import_obsidian17.Setting(contentEl).setName("Move to target directory").setDesc("If enabled, files will be moved from Output Directory to Target Directory/Category/Resources").addToggle((toggle) => toggle.setValue(this.shouldMove).onChange((value) => {
       this.shouldMove = value;
       this.display();
     }));
     if (this.shouldMove) {
-      new import_obsidian18.Setting(contentEl).setName("Target Directory").setDesc("Final destination for categorized files").addText((text) => text.setValue(this.targetDir).onChange((value) => this.targetDir = value));
+      new import_obsidian17.Setting(contentEl).setName("Target directory").setDesc("Final destination for categorized files").addText((text) => text.setValue(this.targetDir).onChange((value) => this.targetDir = value));
     }
-    new import_obsidian18.Setting(contentEl).setName("Categories").setDesc("Format: Category Name: #Tag").addTextArea((text) => text.setValue(this.categoriesText).setPlaceholder("Category: #TAG").onChange((value) => this.categoriesText = value).inputEl.rows = 10);
-    new import_obsidian18.Setting(contentEl).addButton((btn) => btn.setButtonText("Parse").setCta().onClick(() => this.parse()));
+    new import_obsidian17.Setting(contentEl).setName("Categories").setDesc("Format: Category Name: #Tag").addTextArea((text) => text.setValue(this.categoriesText).setPlaceholder("Category: #TAG").onChange((value) => this.categoriesText = value).inputEl.rows = 10);
+    new import_obsidian17.Setting(contentEl).addButton((btn) => btn.setButtonText("Parse").setCta().onClick(() => this.parse()));
   }
   display() {
     this.onOpen();
   }
   async parse() {
-    const folder = this.fileOrFolder instanceof import_obsidian18.TFolder ? this.fileOrFolder : this.fileOrFolder instanceof import_obsidian18.TFile ? this.fileOrFolder.parent : this.targetFolder || this.app.vault.getRoot();
+    const folder = this.fileOrFolder instanceof import_obsidian17.TFolder ? this.fileOrFolder : this.fileOrFolder instanceof import_obsidian17.TFile ? this.fileOrFolder.parent : this.targetFolder || this.app.vault.getRoot();
     if (!folder) {
-      new import_obsidian18.Notice("Invalid folder selected");
+      new import_obsidian17.Notice("Invalid folder selected");
       return;
     }
     const categories = this.parseCategories(this.categoriesText);
     const files = this.getFiles(folder);
-    new import_obsidian18.Notice(`Parsing ${files.length} files...`);
+    new import_obsidian17.Notice(`Parsing ${files.length} files...`);
     this.close();
     let processedCount = 0;
     for (const file of files) {
       await this.service.processFile(file, categories, this.outputDir, this.shouldMove, this.targetDir);
       processedCount++;
     }
-    new import_obsidian18.Notice(`Parsed ${processedCount} files.`);
+    new import_obsidian17.Notice(`Parsed ${processedCount} files.`);
   }
   getFiles(folder) {
     let files = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian18.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian17.TFile && child.extension === "md") {
         files.push(child);
-      } else if (child instanceof import_obsidian18.TFolder) {
+      } else if (child instanceof import_obsidian17.TFolder) {
         files = files.concat(this.getFiles(child));
       }
     }
@@ -1817,10 +1791,10 @@ WRI - Writing Career: #WRI`;
 };
 
 // src/ui/censor-modal.ts
-var import_obsidian20 = require("obsidian");
+var import_obsidian19 = require("obsidian");
 
 // src/modules/censor.ts
-var import_obsidian19 = require("obsidian");
+var import_obsidian18 = require("obsidian");
 var CensorService = class {
   constructor(app) {
     this.app = app;
@@ -1833,17 +1807,17 @@ var CensorService = class {
       if (outputMode === "folder") {
         const parentPath = file.parent ? file.parent.path : "/";
         const parentDir = parentPath === "/" ? "" : parentPath;
-        const outputDir = (0, import_obsidian19.normalizePath)(`${parentDir}/Censored`);
+        const outputDir = (0, import_obsidian18.normalizePath)(`${parentDir}/Censored`);
         await this.ensureFolderExists(outputDir);
-        targetPath = (0, import_obsidian19.normalizePath)(`${outputDir}/${file.basename}${suffix}.${file.extension}`);
+        targetPath = (0, import_obsidian18.normalizePath)(`${outputDir}/${file.basename}${suffix}.${file.extension}`);
       } else {
         const parentPath = file.parent ? file.parent.path : "/";
         const parentDir = parentPath === "/" ? "" : parentPath;
-        targetPath = (0, import_obsidian19.normalizePath)(`${parentDir}/${file.basename}${suffix}.${file.extension}`);
+        targetPath = (0, import_obsidian18.normalizePath)(`${parentDir}/${file.basename}${suffix}.${file.extension}`);
       }
       if (await this.app.vault.adapter.exists(targetPath)) {
         const existing = this.app.vault.getAbstractFileByPath(targetPath);
-        if (existing instanceof import_obsidian19.TFile) {
+        if (existing instanceof import_obsidian18.TFile) {
           await this.app.vault.modify(existing, newContent);
         }
       } else {
@@ -1883,9 +1857,9 @@ var CensorService = class {
   }
   collectFiles(path, files, recursive) {
     const folder = this.app.vault.getAbstractFileByPath(path);
-    if (folder && "children" in folder) {
+    if (folder instanceof import_obsidian18.TFolder) {
       for (const child of folder.children) {
-        if (child instanceof import_obsidian19.TFile && child.extension === "md") {
+        if (child instanceof import_obsidian18.TFile && child.extension === "md") {
           files.push(child);
         } else if (recursive && "children" in child) {
           this.collectFiles(child.path, files, recursive);
@@ -1980,6 +1954,7 @@ var CensorService = class {
     return new RegExp(`(?<!\\w)${escaped}(?!\\w)`, "gi");
   }
   findSentenceRange(text, matchIndex) {
+    var _a, _b;
     const prefix = text.substring(0, matchIndex);
     const suffix = text.substring(matchIndex);
     let sentStart = 0;
@@ -1993,9 +1968,9 @@ var CensorService = class {
     let sentEnd = text.length;
     if (endMatch) {
       if (endMatch[0] === "\n") {
-        sentEnd = matchIndex + endMatch.index;
+        sentEnd = matchIndex + ((_a = endMatch.index) != null ? _a : 0);
       } else {
-        sentEnd = matchIndex + endMatch.index + 1;
+        sentEnd = matchIndex + ((_b = endMatch.index) != null ? _b : 0) + 1;
       }
     }
     return { start: sentStart, end: sentEnd };
@@ -2003,7 +1978,7 @@ var CensorService = class {
 };
 
 // src/ui/censor-modal.ts
-var CensorModal = class extends import_obsidian20.Modal {
+var CensorModal = class extends import_obsidian19.Modal {
   constructor(app, settings, fileOrFolder) {
     super(app);
     this.settings = settings;
@@ -2032,37 +2007,37 @@ var CensorModal = class extends import_obsidian20.Modal {
   display() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Censor and Alias" });
+    new import_obsidian19.Setting(contentEl).setName("Censor and alias").setHeading();
     if (this.fileOrFolder) {
-      const type = this.fileOrFolder instanceof import_obsidian20.TFile ? "File" : "Folder";
+      const type = this.fileOrFolder instanceof import_obsidian19.TFile ? "File" : "Folder";
       contentEl.createEl("p", { text: `Target: ${this.fileOrFolder.path} (${type})` });
     } else {
-      new import_obsidian20.Setting(contentEl).setName("Target Folder").setDesc("Select the folder to process").addText((text) => text.setPlaceholder("Example: Folder/Subfolder").onChange((value) => {
+      new import_obsidian19.Setting(contentEl).setName("Target folder").setDesc("Select the folder to process").addText((text) => text.setPlaceholder("Example: Folder/Subfolder").onChange((value) => {
         const folder = this.app.vault.getAbstractFileByPath(value);
-        if (folder instanceof import_obsidian20.TFolder) {
+        if (folder instanceof import_obsidian19.TFolder) {
           this.targetFolder = folder;
         } else {
           this.targetFolder = null;
         }
       }));
     }
-    new import_obsidian20.Setting(contentEl).setName("Direction").setDesc("Forward (Censor) or Reverse (Uncensor)").addDropdown((drop) => drop.addOption("forward", "Forward (Censor)").addOption("reverse", "Reverse (Uncensor)").setValue(this.direction).onChange((value) => {
+    new import_obsidian19.Setting(contentEl).setName("Direction").setDesc("Forward (Censor) or Reverse (Uncensor)").addDropdown((drop) => drop.addOption("forward", "Forward (Censor)").addOption("reverse", "Reverse (Uncensor)").setValue(this.direction).onChange((value) => {
       this.direction = value;
       this.display();
     }));
     if (this.direction === "forward") {
-      new import_obsidian20.Setting(contentEl).setName("Use Masking").setDesc("Replace with \u2588 instead of alias").addToggle((toggle) => toggle.setValue(this.useMasking).onChange((value) => {
+      new import_obsidian19.Setting(contentEl).setName("Use masking").setDesc("Replace with \u2588 instead of alias").addToggle((toggle) => toggle.setValue(this.useMasking).onChange((value) => {
         this.useMasking = value;
         this.display();
       }));
       if (this.useMasking) {
-        new import_obsidian20.Setting(contentEl).setName("Sentence Level Masking").setDesc("Block entire sentence containing censored word").addToggle((toggle) => toggle.setValue(this.sentenceLevel).onChange((value) => this.sentenceLevel = value));
+        new import_obsidian19.Setting(contentEl).setName("Sentence level masking").setDesc("Block entire sentence containing censored word").addToggle((toggle) => toggle.setValue(this.sentenceLevel).onChange((value) => this.sentenceLevel = value));
       }
     }
-    if (!this.fileOrFolder || this.fileOrFolder instanceof import_obsidian20.TFolder) {
-      new import_obsidian20.Setting(contentEl).setName("Recursive").setDesc("Process subfolders").addToggle((toggle) => toggle.setValue(this.recursive).onChange((value) => this.recursive = value));
+    if (!this.fileOrFolder || this.fileOrFolder instanceof import_obsidian19.TFolder) {
+      new import_obsidian19.Setting(contentEl).setName("Recursive").setDesc("Process subfolders").addToggle((toggle) => toggle.setValue(this.recursive).onChange((value) => this.recursive = value));
     }
-    new import_obsidian20.Setting(contentEl).setName("Dictionary").setDesc("Select dictionary to use").addDropdown((drop) => {
+    new import_obsidian19.Setting(contentEl).setName("Dictionary").setDesc("Select dictionary to use").addDropdown((drop) => {
       this.settings.censorDictionaries.forEach((d) => drop.addOption(d.name, d.name));
       drop.setValue(this.selectedDictionaryName).onChange((value) => {
         this.selectedDictionaryName = value;
@@ -2070,27 +2045,27 @@ var CensorModal = class extends import_obsidian20.Modal {
         this.display();
       });
     });
-    new import_obsidian20.Setting(contentEl).setName("Dictionary Content").setDesc("Edit the censored words and aliases (Changes here are temporary unless saved in settings)").addTextArea((text) => text.setValue(this.dictionaryText).setPlaceholder("Variant1, Variant2 = Alias").onChange((value) => this.dictionaryText = value).inputEl.rows = 10);
-    new import_obsidian20.Setting(contentEl).addButton((btn) => btn.setButtonText("Process").setCta().onClick(() => this.process()));
+    new import_obsidian19.Setting(contentEl).setName("Dictionary content").setDesc("Edit the censored words and aliases (Changes here are temporary unless saved in settings)").addTextArea((text) => text.setValue(this.dictionaryText).setPlaceholder("Variant1, Variant2 = Alias").onChange((value) => this.dictionaryText = value).inputEl.rows = 10);
+    new import_obsidian19.Setting(contentEl).addButton((btn) => btn.setButtonText("Process").setCta().onClick(() => this.process()));
   }
   async process() {
     const target = this.fileOrFolder || this.targetFolder;
     if (!target) {
-      new import_obsidian20.Notice("Invalid target selected");
+      new import_obsidian19.Notice("Invalid target selected");
       return;
     }
     const dictionary = this.parseDictionary(this.dictionaryText);
     let files = [];
-    if (target instanceof import_obsidian20.TFile) {
+    if (target instanceof import_obsidian19.TFile) {
       files.push(target);
-    } else if (target instanceof import_obsidian20.TFolder) {
+    } else if (target instanceof import_obsidian19.TFolder) {
       files = this.getFiles(target, this.recursive);
     }
     if (files.length === 0) {
-      new import_obsidian20.Notice("No markdown files found to process.");
+      new import_obsidian19.Notice("No markdown files found to process.");
       return;
     }
-    new import_obsidian20.Notice(`Processing ${files.length} files...`);
+    new import_obsidian19.Notice(`Processing ${files.length} files...`);
     this.close();
     let processedCount = 0;
     for (const file of files) {
@@ -2107,14 +2082,14 @@ var CensorModal = class extends import_obsidian20.Modal {
       );
       processedCount++;
     }
-    new import_obsidian20.Notice(`Processed ${processedCount} files.`);
+    new import_obsidian19.Notice(`Processed ${processedCount} files.`);
   }
   getFiles(folder, recursive) {
     let files = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian20.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian19.TFile && child.extension === "md") {
         files.push(child);
-      } else if (child instanceof import_obsidian20.TFolder && recursive) {
+      } else if (child instanceof import_obsidian19.TFolder && recursive) {
         files = files.concat(this.getFiles(child, recursive));
       }
     }
@@ -2144,13 +2119,13 @@ var CensorModal = class extends import_obsidian20.Modal {
 };
 
 // src/ui/merge-modal.ts
-var import_obsidian23 = require("obsidian");
-
-// src/ui/chrono-merge-modal.ts
 var import_obsidian22 = require("obsidian");
 
-// src/modules/chrono-merge.ts
+// src/ui/chrono-merge-modal.ts
 var import_obsidian21 = require("obsidian");
+
+// src/modules/chrono-merge.ts
+var import_obsidian20 = require("obsidian");
 var ChronoMergeService = class {
   constructor(app) {
     this.app = app;
@@ -2230,11 +2205,11 @@ var ChronoMergeService = class {
       mergedContent = await this.getMergedContent(group, useCreationTime);
     }
     const newFileName = outputName.endsWith(".md") ? outputName : `${outputName}.md`;
-    const newFilePath = (0, import_obsidian21.normalizePath)(`${parent.path}/${newFileName}`);
+    const newFilePath = (0, import_obsidian20.normalizePath)(`${parent.path}/${newFileName}`);
     const baseFile = group.find((f) => f.path === newFilePath);
     for (const file of sortedGroup) {
       if (file !== baseFile) {
-        await this.app.vault.trash(file, true);
+        await this.app.fileManager.trashFile(file);
       }
     }
     if (baseFile) {
@@ -2244,11 +2219,11 @@ var ChronoMergeService = class {
       if (existingFile) {
         let counter2 = 1;
         let safeName = newFileName;
-        while (this.app.vault.getAbstractFileByPath((0, import_obsidian21.normalizePath)(`${parent.path}/${safeName}`))) {
+        while (this.app.vault.getAbstractFileByPath((0, import_obsidian20.normalizePath)(`${parent.path}/${safeName}`))) {
           safeName = `${outputName.replace(".md", "")}_${counter2}.md`;
           counter2++;
         }
-        const safePath = (0, import_obsidian21.normalizePath)(`${parent.path}/${safeName}`);
+        const safePath = (0, import_obsidian20.normalizePath)(`${parent.path}/${safeName}`);
         await this.app.vault.create(safePath, mergedContent);
       } else {
         await this.app.vault.create(newFilePath, mergedContent);
@@ -2261,7 +2236,7 @@ var ChronoMergeService = class {
     for (const file of sortedGroup) {
       const baseName = file.basename;
       for (const child of folderFiles) {
-        if (child instanceof import_obsidian21.TFile && child.basename === baseName && child.extension !== "md") {
+        if (child instanceof import_obsidian20.TFile && child.basename === baseName && child.extension !== "md") {
           let newAssocName = "";
           if (counter === 1) {
             newAssocName = `${outputName.replace(".md", "")}.${child.extension}`;
@@ -2273,7 +2248,7 @@ var ChronoMergeService = class {
             tempCounter++;
             newAssocName = `${outputName.replace(".md", "")}_${tempCounter}.${child.extension}`;
           }
-          const newAssocPath = (0, import_obsidian21.normalizePath)(`${parent.path}/${newAssocName}`);
+          const newAssocPath = (0, import_obsidian20.normalizePath)(`${parent.path}/${newAssocName}`);
           if (!this.app.vault.getAbstractFileByPath(newAssocPath)) {
             await this.app.fileManager.renameFile(child, newAssocPath);
             usedNames.add(newAssocName);
@@ -2286,9 +2261,9 @@ var ChronoMergeService = class {
   getFiles(folder, recursive) {
     let files = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian21.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian20.TFile && child.extension === "md") {
         files.push(child);
-      } else if (recursive && child instanceof import_obsidian21.TFolder) {
+      } else if (recursive && child instanceof import_obsidian20.TFolder) {
         files = files.concat(this.getFiles(child, recursive));
       }
     }
@@ -2306,7 +2281,7 @@ var ChronoMergeService = class {
 };
 
 // src/ui/chrono-merge-modal.ts
-var ChronoMergeModal = class extends import_obsidian22.Modal {
+var ChronoMergeModal = class extends import_obsidian21.Modal {
   constructor(app, settings, folder) {
     super(app);
     this.targetFolder = null;
@@ -2326,35 +2301,32 @@ var ChronoMergeModal = class extends import_obsidian22.Modal {
   display() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Chrono Merge" });
+    new import_obsidian21.Setting(contentEl).setName("Chrono merge").setHeading();
     if (!this.groups.length) {
       if (this.folder) {
         contentEl.createEl("p", { text: `Folder: ${this.folder.path}` });
       } else {
-        new import_obsidian22.Setting(contentEl).setName("Folder").setDesc("Select folder to scan").addText((text) => text.setPlaceholder("Example: Folder/Subfolder").onChange((value) => {
+        new import_obsidian21.Setting(contentEl).setName("Folder").setDesc("Select folder to scan").addText((text) => text.setPlaceholder("Example: Folder/Subfolder").onChange((value) => {
           const f = this.app.vault.getAbstractFileByPath(value);
-          if (f instanceof import_obsidian22.TFolder)
+          if (f instanceof import_obsidian21.TFolder)
             this.targetFolder = f;
           else
             this.targetFolder = null;
         }));
       }
-      new import_obsidian22.Setting(contentEl).setName("Recursive").setDesc("Scan subfolders").addToggle((toggle) => toggle.setValue(this.recursive).onChange((value) => this.recursive = value));
-      new import_obsidian22.Setting(contentEl).setName("Time Threshold (Minutes)").setDesc("Max time difference between files to group them").addText((text) => text.setValue(this.threshold.toString()).onChange((value) => {
+      new import_obsidian21.Setting(contentEl).setName("Recursive").setDesc("Scan subfolders").addToggle((toggle) => toggle.setValue(this.recursive).onChange((value) => this.recursive = value));
+      new import_obsidian21.Setting(contentEl).setName("Time threshold (minutes)").setDesc("Max time difference between files to group them").addText((text) => text.setValue(this.threshold.toString()).onChange((value) => {
         const num = parseInt(value);
         if (!isNaN(num))
           this.threshold = num;
       }));
-      new import_obsidian22.Setting(contentEl).addButton((btn) => btn.setButtonText("Scan").setCta().onClick(() => this.scan()));
+      new import_obsidian21.Setting(contentEl).addButton((btn) => btn.setButtonText("Scan").setCta().onClick(() => this.scan()));
     } else {
-      contentEl.createEl("h3", { text: `Found ${this.groups.length} groups` });
+      new import_obsidian21.Setting(contentEl).setName(`Found ${this.groups.length} groups`).setHeading();
       this.groups.forEach((group, index) => {
         const groupEl = contentEl.createDiv({ cls: "chrono-group" });
-        groupEl.style.marginBottom = "20px";
-        groupEl.style.padding = "15px";
-        groupEl.style.border = "1px solid var(--background-modifier-border)";
-        groupEl.style.borderRadius = "5px";
-        groupEl.createEl("h4", { text: `Group ${index + 1} (${group.length} files)` });
+        groupEl.addClass("coherence-chrono-group");
+        new import_obsidian21.Setting(groupEl).setName(`Group ${index + 1} (${group.length} files)`).setHeading();
         const fileList = groupEl.createEl("ul");
         group.forEach((file) => {
           fileList.createEl("li", { text: file.name });
@@ -2366,27 +2338,24 @@ var ChronoMergeModal = class extends import_obsidian22.Modal {
         nameContainer.style.marginBottom = "10px";
         nameContainer.createEl("div", { text: "Output Filename", cls: "setting-item-name" });
         const nameInput = nameContainer.createEl("input", { type: "text" });
-        nameInput.style.width = "100%";
+        nameInput.addClass("coherence-input-full");
         nameInput.value = outputName;
         nameInput.onchange = (e) => outputName = e.target.value;
         const contentContainer = groupEl.createDiv();
         contentContainer.style.marginBottom = "10px";
         contentContainer.createEl("div", { text: "Merged Content", cls: "setting-item-name" });
         const contentArea = contentContainer.createEl("textarea");
-        contentArea.style.width = "100%";
-        contentArea.style.height = "200px";
-        contentArea.style.resize = "vertical";
+        contentArea.addClass("coherence-textarea-full");
+        contentArea.rows = 10;
         contentArea.value = "Loading content...";
         contentArea.onchange = (e) => mergedContent = e.target.value;
-        this.service.getMergedContent(group, this.useCreationTime).then((content) => {
+        void this.service.getMergedContent(group, this.useCreationTime).then((content) => {
           mergedContent = content;
           contentArea.value = content;
         });
-        const btnContainer = groupEl.createDiv();
-        btnContainer.style.display = "flex";
-        btnContainer.style.justifyContent = "flex-end";
+        const btnContainer = groupEl.createDiv({ cls: "coherence-btn-container-right" });
         const skipBtn = btnContainer.createEl("button", { text: "Skip Group" });
-        skipBtn.style.marginRight = "10px";
+        skipBtn.addClass("coherence-btn-margin-right");
         skipBtn.onclick = () => {
           groupEl.remove();
           const idx = this.groups.indexOf(group);
@@ -2400,7 +2369,7 @@ var ChronoMergeModal = class extends import_obsidian22.Modal {
         btn.addClass("mod-cta");
         btn.onclick = async () => {
           await this.service.mergeGroup(group, outputName, this.useCreationTime, mergedContent);
-          new import_obsidian22.Notice(`Merged group into ${outputName}.md`);
+          new import_obsidian21.Notice(`Merged group into ${outputName}.md`);
           groupEl.remove();
           const idx = this.groups.indexOf(group);
           if (idx > -1)
@@ -2410,7 +2379,7 @@ var ChronoMergeModal = class extends import_obsidian22.Modal {
           }
         };
       });
-      new import_obsidian22.Setting(contentEl).addButton((btn) => btn.setButtonText("Back to Scan").onClick(() => {
+      new import_obsidian21.Setting(contentEl).addButton((btn) => btn.setButtonText("Back to Scan").onClick(() => {
         this.groups = [];
         this.display();
       }));
@@ -2419,13 +2388,13 @@ var ChronoMergeModal = class extends import_obsidian22.Modal {
   async scan() {
     const folder = this.targetFolder || (this.folder ? this.folder : this.app.vault.getRoot());
     if (!folder) {
-      new import_obsidian22.Notice("Invalid folder");
+      new import_obsidian21.Notice("Invalid folder");
       return;
     }
-    new import_obsidian22.Notice("Scanning...");
+    new import_obsidian21.Notice("Scanning...");
     this.groups = await this.service.scanFolder(folder, this.threshold, this.recursive, this.useCreationTime);
     if (this.groups.length === 0) {
-      new import_obsidian22.Notice("No groups found matching the criteria.");
+      new import_obsidian21.Notice("No groups found matching the criteria.");
     } else {
       this.display();
     }
@@ -2440,7 +2409,7 @@ var ChronoMergeModal = class extends import_obsidian22.Modal {
 };
 
 // src/ui/merge-modal.ts
-var MergeModal = class extends import_obsidian23.Modal {
+var MergeModal = class extends import_obsidian22.Modal {
   constructor(app, settings, fileOrFolder) {
     super(app);
     this.settings = settings;
@@ -2453,19 +2422,19 @@ var MergeModal = class extends import_obsidian23.Modal {
   display() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Merge Tools" });
+    new import_obsidian22.Setting(contentEl).setName("Merge tools").setHeading();
     if (this.fileOrFolder) {
-      const type = this.fileOrFolder instanceof import_obsidian23.TFile ? "File" : "Folder";
+      const type = this.fileOrFolder instanceof import_obsidian22.TFile ? "File" : "Folder";
       contentEl.createEl("p", { text: `Target: ${this.fileOrFolder.path} (${type})` });
     }
-    new import_obsidian23.Setting(contentEl).setName("Select Merge Tool").setDesc("Choose the merge strategy to use.").addDropdown((drop) => drop.addOption("chrono", "Chrono Merge (Time-based)").addOption("concat", "Combine (Append files)").addOption("dedup", "Find Duplicates").setValue(this.mode).onChange((value) => {
+    new import_obsidian22.Setting(contentEl).setName("Select merge tool").setDesc("Choose the merge strategy to use.").addDropdown((drop) => drop.addOption("chrono", "Chrono Merge (Time-based)").addOption("concat", "Combine (Append files)").addOption("dedup", "Find Duplicates").setValue(this.mode).onChange((value) => {
       this.mode = value;
     }));
-    new import_obsidian23.Setting(contentEl).addButton((btn) => btn.setButtonText("Continue").setCta().onClick(() => {
+    new import_obsidian22.Setting(contentEl).addButton((btn) => btn.setButtonText("Continue").setCta().onClick(() => {
       var _a;
       this.close();
       if (this.mode === "chrono") {
-        const folder = this.fileOrFolder instanceof import_obsidian23.TFolder ? this.fileOrFolder : (_a = this.fileOrFolder) == null ? void 0 : _a.parent;
+        const folder = this.fileOrFolder instanceof import_obsidian22.TFolder ? this.fileOrFolder : (_a = this.fileOrFolder) == null ? void 0 : _a.parent;
         new ChronoMergeModal(this.app, this.settings, folder).open();
       } else if (this.mode === "concat") {
         new ConcatonizerModal(this.app, this.settings, this.fileOrFolder).open();
@@ -2481,13 +2450,13 @@ var MergeModal = class extends import_obsidian23.Modal {
 };
 
 // src/ui/categorize-hub-modal.ts
-var import_obsidian26 = require("obsidian");
-
-// src/ui/categorizer-modal.ts
 var import_obsidian25 = require("obsidian");
 
-// src/modules/categorizer.ts
+// src/ui/categorizer-modal.ts
 var import_obsidian24 = require("obsidian");
+
+// src/modules/categorizer.ts
+var import_obsidian23 = require("obsidian");
 var CategorizerService = class {
   constructor(app, ollama) {
     this.app = app;
@@ -2552,20 +2521,20 @@ ${backlinks}`);
     if (options.moveToFolder && assignedCategories.length > 0) {
       const parentPath = file.parent ? file.parent.path : "";
       const firstCategory = assignedCategories[0];
-      const firstDestFolder = (0, import_obsidian24.normalizePath)(`${parentPath}/${this.sanitizeFileName(firstCategory)}`);
-      const firstDestPath = (0, import_obsidian24.normalizePath)(`${firstDestFolder}/${file.name}`);
+      const firstDestFolder = (0, import_obsidian23.normalizePath)(`${parentPath}/${this.sanitizeFileName(firstCategory)}`);
+      const firstDestPath = (0, import_obsidian23.normalizePath)(`${firstDestFolder}/${file.name}`);
       if (!await this.app.vault.adapter.exists(firstDestFolder)) {
         await this.app.vault.createFolder(firstDestFolder);
       }
       if (await this.app.vault.adapter.exists(firstDestPath)) {
-        new import_obsidian24.Notice(`File ${file.name} already exists in ${firstCategory}. Skipping move.`);
+        new import_obsidian23.Notice(`File ${file.name} already exists in ${firstCategory}. Skipping move.`);
       } else {
         await this.app.fileManager.renameFile(file, firstDestPath);
       }
       for (let i = 1; i < assignedCategories.length; i++) {
         const category = assignedCategories[i];
-        const destFolder = (0, import_obsidian24.normalizePath)(`${parentPath}/${this.sanitizeFileName(category)}`);
-        const destPath = (0, import_obsidian24.normalizePath)(`${destFolder}/${file.name}`);
+        const destFolder = (0, import_obsidian23.normalizePath)(`${parentPath}/${this.sanitizeFileName(category)}`);
+        const destPath = (0, import_obsidian23.normalizePath)(`${destFolder}/${file.name}`);
         if (!await this.app.vault.adapter.exists(destFolder)) {
           await this.app.vault.createFolder(destFolder);
         }
@@ -2597,9 +2566,9 @@ ${backlinks}`);
   }
   collectFiles(path, files, recursive) {
     const folder = this.app.vault.getAbstractFileByPath(path);
-    if (folder && "children" in folder) {
+    if (folder instanceof import_obsidian23.TFolder) {
       for (const child of folder.children) {
-        if (child instanceof import_obsidian24.TFile && child.extension === "md") {
+        if (child instanceof import_obsidian23.TFile && child.extension === "md") {
           files.push(child);
         } else if (recursive && "children" in child) {
           this.collectFiles(child.path, files, recursive);
@@ -2651,7 +2620,7 @@ If multiple categories are plausible, pick the most relevant ones, up to the lim
 };
 
 // src/ui/categorizer-modal.ts
-var CategorizerModal = class extends import_obsidian25.Modal {
+var CategorizerModal = class extends import_obsidian24.Modal {
   constructor(app, settings, target) {
     super(app);
     this.recursive = false;
@@ -2659,7 +2628,7 @@ var CategorizerModal = class extends import_obsidian25.Modal {
     this.settings = settings;
     const ollama = new OllamaService(settings.ollamaUrl);
     this.service = new CategorizerService(app, ollama);
-    this.target = target;
+    this.target = target || null;
     this.model = settings.categorizerModel || "llama3";
     this.selectedDictionary = settings.categorizerActiveDictionary || "General";
     this.maxCategories = settings.categorizerMaxCategories || 1;
@@ -2686,46 +2655,46 @@ var CategorizerModal = class extends import_obsidian25.Modal {
   display() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Categorizer" });
+    new import_obsidian24.Setting(contentEl).setName("Categorizer").setHeading();
     if (this.target) {
-      const type = this.target instanceof import_obsidian25.TFile ? "File" : "Folder";
+      const type = this.target instanceof import_obsidian24.TFile ? "File" : "Folder";
       contentEl.createEl("p", { text: `Target: ${this.target.name} (${type})` });
     } else {
       contentEl.createEl("p", { text: "No target selected.", cls: "error-text" });
       return;
     }
-    new import_obsidian25.Setting(contentEl).setName("Model").addDropdown((drop) => {
+    new import_obsidian24.Setting(contentEl).setName("Model").addDropdown((drop) => {
       this.ollamaModels.forEach((m) => drop.addOption(m, m));
       if (!this.ollamaModels.includes(this.model)) {
         drop.addOption(this.model, this.model);
       }
       drop.setValue(this.model).onChange((v) => this.model = v);
     });
-    new import_obsidian25.Setting(contentEl).setName("Dictionary").setDesc("Select the category dictionary to use").addDropdown((drop) => {
+    new import_obsidian24.Setting(contentEl).setName("Dictionary").setDesc("Select the category dictionary to use").addDropdown((drop) => {
       if (this.settings.categorizerDictionaries) {
         this.settings.categorizerDictionaries.forEach((d) => drop.addOption(d.name, d.name));
       }
       drop.setValue(this.selectedDictionary).onChange((v) => this.selectedDictionary = v);
     });
-    new import_obsidian25.Setting(contentEl).setName("Max Categories").setDesc("Maximum number of categories to apply per file").addText((text) => text.setValue(String(this.maxCategories)).onChange((v) => {
+    new import_obsidian24.Setting(contentEl).setName("Max categories").setDesc("Maximum number of categories to apply per file").addText((text) => text.setValue(String(this.maxCategories)).onChange((v) => {
       const num = parseInt(v);
       if (!isNaN(num) && num > 0)
         this.maxCategories = num;
     }));
-    contentEl.createEl("h3", { text: "Application Options" });
-    new import_obsidian25.Setting(contentEl).setName("Apply as Tag").addToggle((t) => t.setValue(this.applyAsTag).onChange((v) => this.applyAsTag = v));
-    new import_obsidian25.Setting(contentEl).setName("Apply as Backlink").addToggle((t) => t.setValue(this.applyAsBacklink).onChange((v) => this.applyAsBacklink = v));
-    new import_obsidian25.Setting(contentEl).setName("Move to Folder").setDesc("Move/Copy file to category folder(s)").addToggle((t) => t.setValue(this.moveToFolder).onChange((v) => this.moveToFolder = v));
-    if (!(this.target instanceof import_obsidian25.TFile)) {
-      new import_obsidian25.Setting(contentEl).setName("Recursive").setDesc("Process subfolders").addToggle((t) => t.setValue(this.recursive).onChange((v) => this.recursive = v));
+    new import_obsidian24.Setting(contentEl).setName("Application options").setHeading();
+    new import_obsidian24.Setting(contentEl).setName("Apply as tag").addToggle((t) => t.setValue(this.applyAsTag).onChange((v) => this.applyAsTag = v));
+    new import_obsidian24.Setting(contentEl).setName("Apply as backlink").addToggle((t) => t.setValue(this.applyAsBacklink).onChange((v) => this.applyAsBacklink = v));
+    new import_obsidian24.Setting(contentEl).setName("Move to folder").setDesc("Move/Copy file to category folder(s)").addToggle((t) => t.setValue(this.moveToFolder).onChange((v) => this.moveToFolder = v));
+    if (!(this.target instanceof import_obsidian24.TFile)) {
+      new import_obsidian24.Setting(contentEl).setName("Recursive").setDesc("Process subfolders").addToggle((t) => t.setValue(this.recursive).onChange((v) => this.recursive = v));
     }
-    new import_obsidian25.Setting(contentEl).addButton((btn) => btn.setButtonText("Start Categorizing").setCta().onClick(async () => {
+    new import_obsidian24.Setting(contentEl).addButton((btn) => btn.setButtonText("Start categorizing").setCta().onClick(async () => {
       btn.setButtonText("Processing...").setDisabled(true);
       const dict = this.settings.categorizerDictionaries.find((d) => d.name === this.selectedDictionary);
       const categories = dict ? dict.content.split("\n").map((c) => c.split(";")[0].trim()).filter((c) => c.length > 0) : [];
       if (categories.length === 0) {
-        new import_obsidian25.Notice("Selected dictionary is empty!");
-        btn.setButtonText("Start Categorizing").setDisabled(false);
+        new import_obsidian24.Notice("Selected dictionary is empty!");
+        btn.setButtonText("Start categorizing").setDisabled(false);
         return;
       }
       const options = {
@@ -2737,22 +2706,22 @@ var CategorizerModal = class extends import_obsidian25.Modal {
         moveToFolder: this.moveToFolder
       };
       try {
-        if (this.target instanceof import_obsidian25.TFile) {
+        if (this.target instanceof import_obsidian24.TFile) {
           const cats = await this.service.categorizeFile(this.target, options);
           if (cats.length > 0) {
-            new import_obsidian25.Notice(`Categorized as: ${cats.join(", ")}`);
+            new import_obsidian24.Notice(`Categorized as: ${cats.join(", ")}`);
           } else {
-            new import_obsidian25.Notice("No categories assigned.");
+            new import_obsidian24.Notice("No categories assigned.");
           }
         } else {
           const res = await this.service.processFolder(this.target.path, options, this.recursive);
-          new import_obsidian25.Notice(`Processed: ${res.processed}, Categorized: ${res.categorized}, Errors: ${res.errors}`);
+          new import_obsidian24.Notice(`Processed: ${res.processed}, Categorized: ${res.categorized}, Errors: ${res.errors}`);
         }
         this.close();
       } catch (e) {
-        new import_obsidian25.Notice("Error during categorization");
+        new import_obsidian24.Notice("Error during categorization");
         console.error(e);
-        btn.setButtonText("Start Categorizing").setDisabled(false);
+        btn.setButtonText("Start categorizing").setDisabled(false);
       }
     }));
   }
@@ -2762,7 +2731,7 @@ var CategorizerModal = class extends import_obsidian25.Modal {
 };
 
 // src/ui/categorize-hub-modal.ts
-var CategorizeHubModal = class extends import_obsidian26.Modal {
+var CategorizeHubModal = class extends import_obsidian25.Modal {
   constructor(app, settings, fileOrFolder) {
     super(app);
     this.settings = settings;
@@ -2775,15 +2744,15 @@ var CategorizeHubModal = class extends import_obsidian26.Modal {
   display() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Categorize Tools" });
+    new import_obsidian25.Setting(contentEl).setName("Categorize tools").setHeading();
     if (this.fileOrFolder) {
-      const type = this.fileOrFolder instanceof import_obsidian26.TFile ? "File" : "Folder";
+      const type = this.fileOrFolder instanceof import_obsidian25.TFile ? "File" : "Folder";
       contentEl.createEl("p", { text: `Target: ${this.fileOrFolder.path} (${type})` });
     }
-    new import_obsidian26.Setting(contentEl).setName("Select Tool").setDesc("Choose the categorization or rating tool to use.").addDropdown((drop) => drop.addOption("categorize", "Categorize (Assign Categories)").addOption("rate", "Auto Rate (Assign Quality Score)").setValue(this.mode).onChange((value) => {
+    new import_obsidian25.Setting(contentEl).setName("Select tool").setDesc("Choose the categorization or rating tool to use.").addDropdown((drop) => drop.addOption("categorize", "Categorize (Assign Categories)").addOption("rate", "Auto Rate (Assign Quality Score)").setValue(this.mode).onChange((value) => {
       this.mode = value;
     }));
-    new import_obsidian26.Setting(contentEl).addButton((btn) => btn.setButtonText("Continue").setCta().onClick(() => {
+    new import_obsidian25.Setting(contentEl).addButton((btn) => btn.setButtonText("Continue").setCta().onClick(() => {
       this.close();
       if (this.mode === "categorize") {
         new CategorizerModal(this.app, this.settings, this.fileOrFolder).open();
@@ -2799,13 +2768,13 @@ var CategorizeHubModal = class extends import_obsidian26.Modal {
 };
 
 // src/ui/distill-modal.ts
-var import_obsidian29 = require("obsidian");
-
-// src/ui/generalizer-modal.ts
 var import_obsidian28 = require("obsidian");
 
-// src/modules/generalizer.ts
+// src/ui/generalizer-modal.ts
 var import_obsidian27 = require("obsidian");
+
+// src/modules/generalizer.ts
+var import_obsidian26 = require("obsidian");
 var GeneralizerService = class {
   constructor(app, settings) {
     this.app = app;
@@ -2875,9 +2844,9 @@ ${generalizedText}` : generalizedText;
   }
   collectFiles(path, files, recursive) {
     const folder = this.app.vault.getAbstractFileByPath(path);
-    if (folder && "children" in folder) {
+    if (folder instanceof import_obsidian26.TFolder) {
       for (const child of folder.children) {
-        if (child instanceof import_obsidian27.TFile && child.extension === "md") {
+        if (child instanceof import_obsidian26.TFile && child.extension === "md") {
           files.push(child);
         } else if (recursive && "children" in child) {
           this.collectFiles(child.path, files, recursive);
@@ -2897,19 +2866,19 @@ ${generalizedText}` : generalizedText;
     if (outputMode === "folder") {
       const parentPath = file.parent ? file.parent.path : "/";
       const parentDir = parentPath === "/" ? "" : parentPath;
-      const outputDir = (0, import_obsidian27.normalizePath)(`${parentDir}/Generalized`);
+      const outputDir = (0, import_obsidian26.normalizePath)(`${parentDir}/Generalized`);
       if (!await this.app.vault.adapter.exists(outputDir)) {
         await this.app.vault.createFolder(outputDir);
       }
-      targetPath = (0, import_obsidian27.normalizePath)(`${outputDir}/${file.basename}${suffix}.${file.extension}`);
+      targetPath = (0, import_obsidian26.normalizePath)(`${outputDir}/${file.basename}${suffix}.${file.extension}`);
     } else {
       const parentPath = file.parent ? file.parent.path : "/";
       const parentDir = parentPath === "/" ? "" : parentPath;
-      targetPath = (0, import_obsidian27.normalizePath)(`${parentDir}/${file.basename}${suffix}.${file.extension}`);
+      targetPath = (0, import_obsidian26.normalizePath)(`${parentDir}/${file.basename}${suffix}.${file.extension}`);
     }
     if (await this.app.vault.adapter.exists(targetPath)) {
       const existing = this.app.vault.getAbstractFileByPath(targetPath);
-      if (existing instanceof import_obsidian27.TFile) {
+      if (existing instanceof import_obsidian26.TFile) {
         await this.app.vault.modify(existing, content);
       }
     } else {
@@ -2919,7 +2888,7 @@ ${generalizedText}` : generalizedText;
 };
 
 // src/ui/generalizer-modal.ts
-var GeneralizerModal = class extends import_obsidian28.Modal {
+var GeneralizerModal = class extends import_obsidian27.Modal {
   constructor(app, settings, fileOrFolder) {
     super(app);
     this.settings = settings;
@@ -2947,21 +2916,21 @@ var GeneralizerModal = class extends import_obsidian28.Modal {
   display() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Generalizer (Wisdom Extractor)" });
+    new import_obsidian27.Setting(contentEl).setName("Generalizer (Wisdom extractor)").setHeading();
     if (this.fileOrFolder) {
-      const type = this.fileOrFolder instanceof import_obsidian28.TFile ? "File" : "Folder";
+      const type = this.fileOrFolder instanceof import_obsidian27.TFile ? "File" : "Folder";
       contentEl.createEl("p", { text: `Target: ${this.fileOrFolder.path} (${type})` });
     } else {
-      new import_obsidian28.Setting(contentEl).setName("Target Folder").setDesc("Select the folder to process").addText((text) => text.setPlaceholder("Example: Folder/Subfolder").onChange((value) => {
+      new import_obsidian27.Setting(contentEl).setName("Target folder").setDesc("Select the folder to process").addText((text) => text.setPlaceholder("Example: Folder/Subfolder").onChange((value) => {
         const folder = this.app.vault.getAbstractFileByPath(value);
-        if (folder instanceof import_obsidian28.TFolder) {
+        if (folder instanceof import_obsidian27.TFolder) {
           this.targetFolder = folder;
         } else {
           this.targetFolder = null;
         }
       }));
     }
-    new import_obsidian28.Setting(contentEl).setName("Mode").setDesc("Select the generalization strategy").addDropdown((drop) => drop.addOption("generalize", "Standard Generalization").addOption("wisdom", "Wisdom Extractor (Self-Help)").setValue(this.mode).onChange((value) => {
+    new import_obsidian27.Setting(contentEl).setName("Mode").setDesc("Select the generalization strategy").addDropdown((drop) => drop.addOption("generalize", "Standard Generalization").addOption("wisdom", "Wisdom Extractor (Self-Help)").setValue(this.mode).onChange((value) => {
       this.mode = value;
       if (this.mode === "wisdom") {
         this.suffix = "_wisdom";
@@ -2970,28 +2939,28 @@ var GeneralizerModal = class extends import_obsidian28.Modal {
       }
       this.display();
     }));
-    new import_obsidian28.Setting(contentEl).setName("Model").setDesc("Select Ollama model").addDropdown((drop) => {
+    new import_obsidian27.Setting(contentEl).setName("Model").setDesc("Select Ollama model").addDropdown((drop) => {
       this.models.forEach((m) => drop.addOption(m, m));
       drop.setValue(this.model).onChange((value) => this.model = value);
     });
-    new import_obsidian28.Setting(contentEl).setName("Multi-Stage Processing").setDesc("Summarize text before generalizing (improves compliance for large files)").addToggle((toggle) => toggle.setValue(this.multiStage).onChange((value) => this.multiStage = value));
-    if (!this.fileOrFolder || this.fileOrFolder instanceof import_obsidian28.TFolder) {
-      new import_obsidian28.Setting(contentEl).setName("Recursive").setDesc("Process subfolders").addToggle((toggle) => toggle.setValue(this.recursive).onChange((value) => this.recursive = value));
+    new import_obsidian27.Setting(contentEl).setName("Multi-stage processing").setDesc("Summarize text before generalizing (improves compliance for large files)").addToggle((toggle) => toggle.setValue(this.multiStage).onChange((value) => this.multiStage = value));
+    if (!this.fileOrFolder || this.fileOrFolder instanceof import_obsidian27.TFolder) {
+      new import_obsidian27.Setting(contentEl).setName("Recursive").setDesc("Process subfolders").addToggle((toggle) => toggle.setValue(this.recursive).onChange((value) => this.recursive = value));
     }
-    new import_obsidian28.Setting(contentEl).setName("Output Mode").setDesc("Where to save generalized files").addDropdown((drop) => drop.addOption("folder", 'New "Generalized" Folder').addOption("same-folder", "Same Folder (Next to original)").setValue(this.outputMode).onChange((value) => this.outputMode = value));
-    new import_obsidian28.Setting(contentEl).setName("Filename Suffix").setDesc("Suffix to append to generalized files").addText((text) => text.setValue(this.suffix).onChange((value) => this.suffix = value));
-    new import_obsidian28.Setting(contentEl).addButton((btn) => btn.setButtonText("Generalize").setCta().onClick(() => this.process()));
+    new import_obsidian27.Setting(contentEl).setName("Output mode").setDesc("Where to save generalized files").addDropdown((drop) => drop.addOption("folder", 'New "Generalized" Folder').addOption("same-folder", "Same Folder (Next to original)").setValue(this.outputMode).onChange((value) => this.outputMode = value));
+    new import_obsidian27.Setting(contentEl).setName("Filename suffix").setDesc("Suffix to append to generalized files").addText((text) => text.setValue(this.suffix).onChange((value) => this.suffix = value));
+    new import_obsidian27.Setting(contentEl).addButton((btn) => btn.setButtonText("Generalize").setCta().onClick(() => this.process()));
   }
   async process() {
     const target = this.fileOrFolder || this.targetFolder;
     if (!target) {
-      new import_obsidian28.Notice("Invalid target selected");
+      new import_obsidian27.Notice("Invalid target selected");
       return;
     }
     this.close();
-    new import_obsidian28.Notice("Generalizing...");
+    new import_obsidian27.Notice("Generalizing...");
     const prompt = this.mode === "wisdom" ? this.settings.generalizerWisdomPrompt : this.settings.generalizerPrompt;
-    if (target instanceof import_obsidian28.TFile) {
+    if (target instanceof import_obsidian27.TFile) {
       try {
         await this.service.processFile(
           target,
@@ -3005,11 +2974,11 @@ var GeneralizerModal = class extends import_obsidian28.Modal {
           this.multiStage,
           this.settings.generalizerIntermediatePrompt
         );
-        new import_obsidian28.Notice(`Generalized ${target.basename}`);
+        new import_obsidian27.Notice(`Generalized ${target.basename}`);
       } catch (e) {
-        new import_obsidian28.Notice(`Error generalizing ${target.basename}`);
+        new import_obsidian27.Notice(`Error generalizing ${target.basename}`);
       }
-    } else if (target instanceof import_obsidian28.TFolder) {
+    } else if (target instanceof import_obsidian27.TFolder) {
       const result = await this.service.processFolder(
         target.path,
         this.model,
@@ -3023,7 +2992,7 @@ var GeneralizerModal = class extends import_obsidian28.Modal {
         this.multiStage,
         this.settings.generalizerIntermediatePrompt
       );
-      new import_obsidian28.Notice(`Processed ${result.processed} files. Errors: ${result.errors}`);
+      new import_obsidian27.Notice(`Processed ${result.processed} files. Errors: ${result.errors}`);
     }
   }
   onClose() {
@@ -3033,7 +3002,7 @@ var GeneralizerModal = class extends import_obsidian28.Modal {
 };
 
 // src/ui/distill-modal.ts
-var DistillModal = class extends import_obsidian29.Modal {
+var DistillModal = class extends import_obsidian28.Modal {
   constructor(app, settings, fileOrFolder) {
     super(app);
     this.settings = settings;
@@ -3046,15 +3015,15 @@ var DistillModal = class extends import_obsidian29.Modal {
   display() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Distill Tools" });
+    new import_obsidian28.Setting(contentEl).setName("Distill tools").setHeading();
     if (this.fileOrFolder) {
-      const type = this.fileOrFolder instanceof import_obsidian29.TFile ? "File" : "Folder";
+      const type = this.fileOrFolder instanceof import_obsidian28.TFile ? "File" : "Folder";
       contentEl.createEl("p", { text: `Target: ${this.fileOrFolder.path} (${type})` });
     }
-    new import_obsidian29.Setting(contentEl).setName("Select Tool").setDesc("Choose the distillation tool to use.").addDropdown((drop) => drop.addOption("censor", "Censor / Alias").addOption("generalize", "Generalize (AI)").setValue(this.mode).onChange((value) => {
+    new import_obsidian28.Setting(contentEl).setName("Select tool").setDesc("Choose the distillation tool to use.").addDropdown((drop) => drop.addOption("censor", "Censor / Alias").addOption("generalize", "Generalize (AI)").setValue(this.mode).onChange((value) => {
       this.mode = value;
     }));
-    new import_obsidian29.Setting(contentEl).addButton((btn) => btn.setButtonText("Continue").setCta().onClick(() => {
+    new import_obsidian28.Setting(contentEl).addButton((btn) => btn.setButtonText("Continue").setCta().onClick(() => {
       this.close();
       if (this.mode === "censor") {
         new CensorModal(this.app, this.settings, this.fileOrFolder).open();
@@ -3070,10 +3039,10 @@ var DistillModal = class extends import_obsidian29.Modal {
 };
 
 // src/ui/wizard-view.ts
-var import_obsidian31 = require("obsidian");
+var import_obsidian30 = require("obsidian");
 
 // src/modules/yaml-template.ts
-var import_obsidian30 = require("obsidian");
+var import_obsidian29 = require("obsidian");
 var YamlTemplateService = class {
   constructor(app) {
     this.app = app;
@@ -3127,9 +3096,9 @@ var YamlTemplateService = class {
   }
   collectFiles(path, files, recursive) {
     const folder = this.app.vault.getAbstractFileByPath(path);
-    if (folder && "children" in folder) {
+    if (folder instanceof import_obsidian29.TFolder) {
       for (const child of folder.children) {
-        if (child instanceof import_obsidian30.TFile && child.extension === "md") {
+        if (child instanceof import_obsidian29.TFile && child.extension === "md") {
           files.push(child);
         } else if (recursive && "children" in child) {
           this.collectFiles(child.path, files, recursive);
@@ -3144,7 +3113,7 @@ var YamlTemplateService = class {
 
 // src/ui/wizard-view.ts
 var VIEW_TYPE_WIZARD = "coherence-wizard-view";
-var WizardView = class extends import_obsidian31.ItemView {
+var WizardView = class extends import_obsidian30.ItemView {
   constructor(leaf, app, settings) {
     super(leaf);
     this.step = 0;
@@ -3171,7 +3140,7 @@ var WizardView = class extends import_obsidian31.ItemView {
   async display() {
     const container = this.contentEl;
     container.empty();
-    container.createEl("h2", { text: "Coherence Wizard" });
+    new import_obsidian30.Setting(container).setName("Coherence Wizard").setHeading();
     await this.fetchModels();
     await this.ensureFolder(this.inboxDir);
     await this.ensureFolder(this.chronoDir);
@@ -3179,15 +3148,15 @@ var WizardView = class extends import_obsidian31.ItemView {
     const inbox = this.app.vault.getAbstractFileByPath(this.inboxDir);
     const chrono = this.app.vault.getAbstractFileByPath(this.chronoDir);
     const living = this.app.vault.getAbstractFileByPath(this.livingDir);
-    if (!inbox || !(inbox instanceof import_obsidian31.TFolder)) {
+    if (!inbox || !(inbox instanceof import_obsidian30.TFolder)) {
       container.createEl("p", { text: `Error: '${this.inboxDir}' exists but is not a folder.`, cls: "error-text" });
       return;
     }
-    if (!chrono || !(chrono instanceof import_obsidian31.TFolder)) {
+    if (!chrono || !(chrono instanceof import_obsidian30.TFolder)) {
       container.createEl("p", { text: `Error: '${this.chronoDir}' exists but is not a folder.`, cls: "error-text" });
       return;
     }
-    if (!living || !(living instanceof import_obsidian31.TFolder)) {
+    if (!living || !(living instanceof import_obsidian30.TFolder)) {
       container.createEl("p", { text: `Error: '${this.livingDir}' exists but is not a folder.`, cls: "error-text" });
       return;
     }
@@ -3209,16 +3178,16 @@ var WizardView = class extends import_obsidian31.ItemView {
     if (!file) {
       try {
         await this.app.vault.createFolder(path);
-        new import_obsidian31.Notice(`Created folder: ${path}`);
+        new import_obsidian30.Notice(`Created folder: ${path}`);
       } catch (e) {
         console.error(`Failed to create folder ${path}`, e);
-        new import_obsidian31.Notice(`Failed to create folder: ${path}`);
+        new import_obsidian30.Notice(`Failed to create folder: ${path}`);
       }
     }
   }
   renderStep(container) {
     container.empty();
-    container.createEl("h2", { text: "Coherence Wizard" });
+    new import_obsidian30.Setting(container).setName("Coherence Wizard").setHeading();
     switch (this.step) {
       case 0:
         this.stepDateFix(container);
@@ -3255,7 +3224,7 @@ var WizardView = class extends import_obsidian31.ItemView {
         break;
       default:
         container.createEl("p", { text: "Wizard Complete!" });
-        new import_obsidian31.Setting(container).addButton((btn) => btn.setButtonText("Close").onClick(() => {
+        new import_obsidian30.Setting(container).addButton((btn) => btn.setButtonText("Close").onClick(() => {
           this.leaf.detach();
         }));
     }
@@ -3266,25 +3235,25 @@ var WizardView = class extends import_obsidian31.ItemView {
   }
   // --- Steps ---
   stepDateFix(container) {
-    container.createEl("h3", { text: "Step 1: Date Fix" });
+    new import_obsidian30.Setting(container).setName("Step 1: Date fix").setHeading();
     container.createEl("p", { text: `Standardize dates in filenames in '${this.inboxDir}'?` });
     let recursive = this.settings.dateFixRecursive;
     let fallback = this.settings.dateFixFallbackToCreationDate;
     let format = this.settings.dateFixDateFormat;
-    new import_obsidian31.Setting(container).setName("Recursive").addToggle((t) => t.setValue(recursive).onChange((v) => recursive = v));
-    new import_obsidian31.Setting(container).setName("Fallback to Creation Date").addToggle((t) => t.setValue(fallback).onChange((v) => fallback = v));
-    new import_obsidian31.Setting(container).setName("Date Format").addText((t) => t.setValue(format).onChange((v) => format = v));
-    new import_obsidian31.Setting(container).addButton((btn) => btn.setButtonText("Run Date Fix").setCta().onClick(async () => {
-      const service = new DateFixService(this.app.vault);
+    new import_obsidian30.Setting(container).setName("Recursive").addToggle((t) => t.setValue(recursive).onChange((v) => recursive = v));
+    new import_obsidian30.Setting(container).setName("Fallback to Creation Date").addToggle((t) => t.setValue(fallback).onChange((v) => fallback = v));
+    new import_obsidian30.Setting(container).setName("Date Format").addText((t) => t.setValue(format).onChange((v) => format = v));
+    new import_obsidian30.Setting(container).addButton((btn) => btn.setButtonText("Run Date Fix").setCta().onClick(async () => {
+      const service = new DateFixService(this.app);
       await service.fixDatesInFolder(this.inboxDir, recursive, fallback, format, this.settings.dateFixExceptions);
-      new import_obsidian31.Notice("Date Fix Complete");
+      new import_obsidian30.Notice("Date Fix Complete");
       this.next();
     })).addButton((btn) => btn.setButtonText("Skip").onClick(() => this.next()));
   }
   stepChronoMerge(container) {
-    container.createEl("h3", { text: "Step 2: Chrono Merge" });
+    new import_obsidian30.Setting(container).setName("Step 2: Chrono merge").setHeading();
     container.createEl("p", { text: `Merge chronological notes in '${this.inboxDir}'?` });
-    new import_obsidian31.Setting(container).addButton((btn) => btn.setButtonText("Open Chrono Merge").setCta().onClick(() => {
+    new import_obsidian30.Setting(container).addButton((btn) => btn.setButtonText("Open Chrono Merge").setCta().onClick(() => {
       const folder = this.app.vault.getAbstractFileByPath(this.inboxDir);
       const modal = new ChronoMergeModal(this.app, this.settings, folder);
       modal.onCloseCallback = () => {
@@ -3294,19 +3263,19 @@ var WizardView = class extends import_obsidian31.ItemView {
     })).addButton((btn) => btn.setButtonText("Skip").onClick(() => this.next()));
   }
   stepAtomize(container) {
-    container.createEl("h3", { text: "Step 3: Atomize" });
+    new import_obsidian30.Setting(container).setName("Step 3: Atomize").setHeading();
     container.createEl("p", { text: `Atomize notes in '${this.inboxDir}'?` });
     let mode = "heading";
     let divider = this.settings.atomizerDivider || "---";
-    new import_obsidian31.Setting(container).setName("Mode").addDropdown((d) => d.addOption("heading", "Heading").addOption("date", "Date").addOption("divider", "Divider").setValue(mode).onChange((v) => {
+    new import_obsidian30.Setting(container).setName("Mode").addDropdown((d) => d.addOption("heading", "Heading").addOption("date", "Date").addOption("divider", "Divider").setValue(mode).onChange((v) => {
       mode = v;
     }));
-    new import_obsidian31.Setting(container).setName("Divider (if mode is Divider)").addText((t) => t.setValue(divider).onChange((v) => divider = v));
-    new import_obsidian31.Setting(container).addButton((btn) => btn.setButtonText("Atomize").setCta().onClick(async () => {
+    new import_obsidian30.Setting(container).setName("Divider (if mode is Divider)").addText((t) => t.setValue(divider).onChange((v) => divider = v));
+    new import_obsidian30.Setting(container).addButton((btn) => btn.setButtonText("Atomize").setCta().onClick(async () => {
       const service = new AtomizerService(this.app.vault);
       const folder = this.app.vault.getAbstractFileByPath(this.inboxDir);
-      new import_obsidian31.Notice("Atomizing...");
-      const files = folder.children.filter((c) => c instanceof import_obsidian31.TFile && c.extension === "md");
+      new import_obsidian30.Notice("Atomizing...");
+      const files = folder.children.filter((c) => c instanceof import_obsidian30.TFile && c.extension === "md");
       for (const child of files) {
         if (mode === "heading")
           await service.atomizeByHeading(child);
@@ -3315,16 +3284,16 @@ var WizardView = class extends import_obsidian31.ItemView {
         else
           await service.atomizeByDivider(child, divider);
       }
-      new import_obsidian31.Notice("Atomization Complete");
+      new import_obsidian30.Notice("Atomization Complete");
       this.next();
     })).addButton((btn) => btn.setButtonText("Skip").onClick(() => this.next()));
   }
   stepYaml(container) {
-    container.createEl("h3", { text: "Step 4: YAML Template" });
+    new import_obsidian30.Setting(container).setName("Step 4: YAML template").setHeading();
     container.createEl("p", { text: `Apply YAML Template to '${this.inboxDir}'?` });
     let templateStr = this.settings.yamlTemplate;
     let addDate = this.settings.yamlAddDate;
-    new import_obsidian31.Setting(container).setName("Add Date").addToggle((t) => t.setValue(addDate).onChange((v) => addDate = v));
+    new import_obsidian30.Setting(container).setName("Add Date").addToggle((t) => t.setValue(addDate).onChange((v) => addDate = v));
     const templateContainer = container.createDiv();
     templateContainer.createEl("p", { text: "Template:" });
     const textArea = templateContainer.createEl("textarea");
@@ -3332,75 +3301,75 @@ var WizardView = class extends import_obsidian31.ItemView {
     textArea.style.height = "100px";
     textArea.value = templateStr;
     textArea.onchange = (e) => templateStr = e.target.value;
-    new import_obsidian31.Setting(container).addButton((btn) => btn.setButtonText("Apply Template").setCta().onClick(async () => {
+    new import_obsidian30.Setting(container).addButton((btn) => btn.setButtonText("Apply Template").setCta().onClick(async () => {
       const service = new YamlTemplateService(this.app);
       const template = templateStr.split("\n").map((s) => s.trim()).filter((s) => s.length > 0);
       await service.processFolder(this.inboxDir, template, addDate, false);
-      new import_obsidian31.Notice("YAML Template Applied");
+      new import_obsidian30.Notice("YAML Template Applied");
       this.next();
     })).addButton((btn) => btn.setButtonText("Skip").onClick(() => this.next()));
   }
   stepSummarize(container) {
-    container.createEl("h3", { text: "Step 5: Summarize" });
+    new import_obsidian30.Setting(container).setName("Step 5: Summarize").setHeading();
     container.createEl("p", { text: `Summarize notes in '${this.inboxDir}'?` });
     let model = this.settings.summarizerModel;
     let overwrite = this.settings.summarizerOverwrite;
     let genTitle = this.settings.summarizerGenerateTitle;
-    new import_obsidian31.Setting(container).setName("Model").addDropdown((d) => {
+    new import_obsidian30.Setting(container).setName("Model").addDropdown((d) => {
       this.availableModels.forEach((m) => d.addOption(m, m));
       d.setValue(model).onChange((v) => model = v);
     });
-    new import_obsidian31.Setting(container).setName("Overwrite Existing").addToggle((t) => t.setValue(overwrite).onChange((v) => overwrite = v));
-    new import_obsidian31.Setting(container).setName("Generate Title").addToggle((t) => t.setValue(genTitle).onChange((v) => genTitle = v));
-    new import_obsidian31.Setting(container).addButton((btn) => btn.setButtonText("Summarize").setCta().onClick(async () => {
+    new import_obsidian30.Setting(container).setName("Overwrite Existing").addToggle((t) => t.setValue(overwrite).onChange((v) => overwrite = v));
+    new import_obsidian30.Setting(container).setName("Generate Title").addToggle((t) => t.setValue(genTitle).onChange((v) => genTitle = v));
+    new import_obsidian30.Setting(container).addButton((btn) => btn.setButtonText("Summarize").setCta().onClick(async () => {
       const service = new SummarizerService(this.app, this.ollama);
-      new import_obsidian31.Notice("Summarizing... this may take a while.");
+      new import_obsidian30.Notice("Summarizing... this may take a while.");
       const prompts = [this.settings.summarizerPrompt, this.settings.summarizerPrompt2, this.settings.summarizerPrompt3, this.settings.summarizerPrompt4];
       await service.summarizeFolder(this.inboxDir, model, false, overwrite, prompts, genTitle);
-      new import_obsidian31.Notice("Summarization Complete");
+      new import_obsidian30.Notice("Summarization Complete");
       this.next();
     })).addButton((btn) => btn.setButtonText("Skip").onClick(() => this.next()));
   }
   stepRate(container) {
-    container.createEl("h3", { text: "Step 6: Auto Rate" });
+    new import_obsidian30.Setting(container).setName("Step 6: Auto rate").setHeading();
     container.createEl("p", { text: `Rate notes in '${this.inboxDir}'?` });
     let model = this.settings.ratingModel;
-    new import_obsidian31.Setting(container).setName("Model").addDropdown((d) => {
+    new import_obsidian30.Setting(container).setName("Model").addDropdown((d) => {
       this.availableModels.forEach((m) => d.addOption(m, m));
       d.setValue(model).onChange((v) => model = v);
     });
-    new import_obsidian31.Setting(container).addButton((btn) => btn.setButtonText("Rate").setCta().onClick(async () => {
+    new import_obsidian30.Setting(container).addButton((btn) => btn.setButtonText("Rate").setCta().onClick(async () => {
       const service = new RatingService(this.app, this.ollama);
-      new import_obsidian31.Notice("Rating...");
+      new import_obsidian30.Notice("Rating...");
       const params = this.settings.ratingParams.split(",").map((s) => s.trim());
       await service.rateFolder(this.inboxDir, model, params, false, this.settings.ratingSkipIfRated);
-      new import_obsidian31.Notice("Rating Complete");
+      new import_obsidian30.Notice("Rating Complete");
       this.next();
     })).addButton((btn) => btn.setButtonText("Skip").onClick(() => this.next()));
   }
   stepCategorize(container) {
-    container.createEl("h3", { text: "Step 7: Categorize" });
+    new import_obsidian30.Setting(container).setName("Step 7: Categorize").setHeading();
     container.createEl("p", { text: `Categorize notes in '${this.inboxDir}'?` });
     container.createEl("p", { text: "Note: This will add categories as tags in the YAML frontmatter. The next step will prompt you to move files to their respective Living folders based on these tags.", cls: "setting-item-description" });
     let selectedDict = this.settings.categorizerActiveDictionary;
     let maxCats = this.settings.categorizerMaxCategories;
     let model = this.settings.categorizerModel;
-    new import_obsidian31.Setting(container).setName("Model").addDropdown((d) => {
+    new import_obsidian30.Setting(container).setName("Model").addDropdown((d) => {
       this.availableModels.forEach((m) => d.addOption(m, m));
       d.setValue(model).onChange((v) => model = v);
     });
-    new import_obsidian31.Setting(container).setName("Dictionary").addDropdown((d) => {
+    new import_obsidian30.Setting(container).setName("Dictionary").addDropdown((d) => {
       this.settings.categorizerDictionaries.forEach((dict) => d.addOption(dict.name, dict.name));
       d.setValue(selectedDict);
       d.onChange((v) => selectedDict = v);
     });
-    new import_obsidian31.Setting(container).setName("Max Categories").addText((t) => t.setValue(maxCats.toString()).onChange((v) => maxCats = parseInt(v) || 1));
-    new import_obsidian31.Setting(container).addButton((btn) => btn.setButtonText("Categorize").setCta().onClick(async () => {
+    new import_obsidian30.Setting(container).setName("Max Categories").addText((t) => t.setValue(maxCats.toString()).onChange((v) => maxCats = parseInt(v) || 1));
+    new import_obsidian30.Setting(container).addButton((btn) => btn.setButtonText("Categorize").setCta().onClick(async () => {
       const service = new CategorizerService(this.app, this.ollama);
       const dict = this.settings.categorizerDictionaries.find((d) => d.name === selectedDict);
       if (!dict)
         return;
-      new import_obsidian31.Notice("Categorizing...");
+      new import_obsidian30.Notice("Categorizing...");
       const options = {
         model,
         categories: dict.content.split("\n").map((line) => {
@@ -3413,23 +3382,23 @@ var WizardView = class extends import_obsidian31.ItemView {
         moveToFolder: false
       };
       await service.processFolder(this.inboxDir, options, false);
-      new import_obsidian31.Notice("Categorization Complete");
+      new import_obsidian30.Notice("Categorization Complete");
       this.next();
     })).addButton((btn) => btn.setButtonText("Skip").onClick(() => this.next()));
   }
   stepMoveCopy(container) {
-    container.createEl("h3", { text: "Step 8: Move & Copy" });
+    new import_obsidian30.Setting(container).setName("Step 8: Move & copy").setHeading();
     container.createEl("p", { text: `Move categorized files to '${this.livingDir}' and copy to '${this.chronoDir}'?` });
-    new import_obsidian31.Setting(container).addButton((btn) => btn.setButtonText("Execute").setCta().onClick(async () => {
-      new import_obsidian31.Notice("Moving and Copying...");
+    new import_obsidian30.Setting(container).addButton((btn) => btn.setButtonText("Execute").setCta().onClick(async () => {
+      new import_obsidian30.Notice("Moving and Copying...");
       await this.moveAndCopyLogic();
-      new import_obsidian31.Notice("Move & Copy Complete");
+      new import_obsidian30.Notice("Move & Copy Complete");
       this.next();
     })).addButton((btn) => btn.setButtonText("Skip").onClick(() => this.next()));
   }
   async moveAndCopyLogic() {
     const inbox = this.app.vault.getAbstractFileByPath(this.inboxDir);
-    const files = inbox.children.filter((f) => f instanceof import_obsidian31.TFile && f.extension === "md");
+    const files = inbox.children.filter((f) => f instanceof import_obsidian30.TFile && f.extension === "md");
     for (const file of files) {
       let category = "";
       await this.app.fileManager.processFrontMatter(file, (fm) => {
@@ -3458,41 +3427,41 @@ var WizardView = class extends import_obsidian31.ItemView {
     }
   }
   stepCombine(container) {
-    container.createEl("h3", { text: "Step 9: Combine" });
+    new import_obsidian30.Setting(container).setName("Step 9: Combine").setHeading();
     container.createEl("p", { text: `Combine files in '${this.livingDir}' subfolders?` });
     let stripYaml = this.settings.concatonizerStripYaml;
-    new import_obsidian31.Setting(container).setName("Strip YAML").addToggle((t) => t.setValue(stripYaml).onChange((v) => stripYaml = v));
-    new import_obsidian31.Setting(container).addButton((btn) => btn.setButtonText("Combine").setCta().onClick(async () => {
+    new import_obsidian30.Setting(container).setName("Strip YAML").addToggle((t) => t.setValue(stripYaml).onChange((v) => stripYaml = v));
+    new import_obsidian30.Setting(container).addButton((btn) => btn.setButtonText("Combine").setCta().onClick(async () => {
       const service = new ConcatonizerService(this.app.vault);
       const living = this.app.vault.getAbstractFileByPath(this.livingDir);
-      new import_obsidian31.Notice("Combining...");
+      new import_obsidian30.Notice("Combining...");
       for (const child of living.children) {
-        if (child instanceof import_obsidian31.TFolder) {
+        if (child instanceof import_obsidian30.TFolder) {
           const outputName = `${child.name}_Combined.md`;
           await service.concatonizeFolder(child.path, outputName, false, stripYaml, true);
         }
       }
-      new import_obsidian31.Notice("Combine Complete");
+      new import_obsidian30.Notice("Combine Complete");
       this.next();
     })).addButton((btn) => btn.setButtonText("Skip").onClick(() => this.next()));
   }
   stepWisdom(container) {
-    container.createEl("h3", { text: "Step 10: Extract Wisdom" });
+    new import_obsidian30.Setting(container).setName("Step 10: Extract wisdom").setHeading();
     container.createEl("p", { text: `Extract wisdom from combined files in '${this.livingDir}'?` });
     let model = this.settings.generalizerModel;
-    new import_obsidian31.Setting(container).setName("Model").addDropdown((d) => {
+    new import_obsidian30.Setting(container).setName("Model").addDropdown((d) => {
       this.availableModels.forEach((m) => d.addOption(m, m));
       d.setValue(model).onChange((v) => model = v);
     });
-    new import_obsidian31.Setting(container).addButton((btn) => btn.setButtonText("Extract").setCta().onClick(async () => {
+    new import_obsidian30.Setting(container).addButton((btn) => btn.setButtonText("Extract").setCta().onClick(async () => {
       const service = new GeneralizerService(this.app, this.settings);
       const living = this.app.vault.getAbstractFileByPath(this.livingDir);
-      new import_obsidian31.Notice("Extracting Wisdom...");
+      new import_obsidian30.Notice("Extracting Wisdom...");
       for (const child of living.children) {
-        if (child instanceof import_obsidian31.TFolder) {
+        if (child instanceof import_obsidian30.TFolder) {
           const combinedPath = `${child.path}/${child.name}_Combined.md`;
           const file = this.app.vault.getAbstractFileByPath(combinedPath);
-          if (file instanceof import_obsidian31.TFile) {
+          if (file instanceof import_obsidian30.TFile) {
             await service.processFile(
               file,
               model,
@@ -3508,22 +3477,21 @@ var WizardView = class extends import_obsidian31.ItemView {
           }
         }
       }
-      new import_obsidian31.Notice("Wisdom Extraction Complete");
+      new import_obsidian30.Notice("Wisdom Extraction Complete");
       this.next();
     })).addButton((btn) => btn.setButtonText("Skip").onClick(() => this.next()));
   }
   stepFinalMerge(container) {
-    container.createEl("h3", { text: "Step 11: Final Merge" });
+    new import_obsidian30.Setting(container).setName("Step 11: Final merge").setHeading();
     container.createEl("p", { text: `Merge all Wisdom files into a final output?` });
-    new import_obsidian31.Setting(container).addButton((btn) => btn.setButtonText("Merge").setCta().onClick(async () => {
-      const service = new ConcatonizerService(this.app.vault);
+    new import_obsidian30.Setting(container).addButton((btn) => btn.setButtonText("Merge").setCta().onClick(async () => {
       let finalContent = "# Final Wisdom\n\n";
       const living = this.app.vault.getAbstractFileByPath(this.livingDir);
       for (const child of living.children) {
-        if (child instanceof import_obsidian31.TFolder) {
+        if (child instanceof import_obsidian30.TFolder) {
           const wisdomPath = `${child.path}/${child.name}_Combined_Wisdom.md`;
           const file = this.app.vault.getAbstractFileByPath(wisdomPath);
-          if (file instanceof import_obsidian31.TFile) {
+          if (file instanceof import_obsidian30.TFile) {
             const content = await this.app.vault.read(file);
             finalContent += `## ${child.name}
 
@@ -3534,55 +3502,55 @@ ${content}
         }
       }
       await this.app.vault.create(`${this.livingDir}/Final_Wisdom.md`, finalContent);
-      new import_obsidian31.Notice("Final Merge Complete");
+      new import_obsidian30.Notice("Final Merge Complete");
       this.leaf.detach();
     })).addButton((btn) => btn.setButtonText("Skip").onClick(() => this.leaf.detach()));
   }
 };
 
 // src/ui/yaml-template-modal.ts
-var import_obsidian32 = require("obsidian");
-var YamlTemplateModal = class extends import_obsidian32.Modal {
+var import_obsidian31 = require("obsidian");
+var YamlTemplateModal = class extends import_obsidian31.Modal {
   constructor(app, settings, target) {
     super(app);
     this.recursive = true;
     this.addDate = true;
     this.service = new YamlTemplateService(app);
-    this.target = target;
+    this.target = target || null;
     this.template = settings.yamlTemplate || "date\nsummary\nsummary model\naudited\nrating";
   }
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Apply YAML Template" });
+    new import_obsidian31.Setting(contentEl).setName("Apply YAML template").setHeading();
     if (this.target) {
-      const type = this.target.extension ? "File" : "Folder";
+      const type = this.target instanceof import_obsidian31.TFile ? "File" : "Folder";
       contentEl.createEl("p", { text: `Target: ${this.target.name} (${type})` });
     } else {
       contentEl.createEl("p", { text: "No target selected.", cls: "error-text" });
       return;
     }
-    new import_obsidian32.Setting(contentEl).setName("Template Fields").setDesc("One field per line. These will be ordered first.").addTextArea((text) => text.setValue(this.template).setPlaceholder("date\nsummary\ntags").onChange((v) => this.template = v));
-    new import_obsidian32.Setting(contentEl).setName("Add Date from Filename").setDesc('If filename starts with YYYY-MM-DD, add it to "date" field').addToggle((t) => t.setValue(this.addDate).onChange((v) => this.addDate = v));
-    if (!this.target.extension) {
-      new import_obsidian32.Setting(contentEl).setName("Recursive").addToggle((t) => t.setValue(this.recursive).onChange((v) => this.recursive = v));
+    new import_obsidian31.Setting(contentEl).setName("Template fields").setDesc("One field per line. These will be ordered first.").addTextArea((text) => text.setValue(this.template).setPlaceholder("date\nsummary\ntags").onChange((v) => this.template = v));
+    new import_obsidian31.Setting(contentEl).setName("Add date from filename").setDesc('If filename starts with YYYY-MM-DD, add it to "date" field').addToggle((t) => t.setValue(this.addDate).onChange((v) => this.addDate = v));
+    if (!(this.target instanceof import_obsidian31.TFile)) {
+      new import_obsidian31.Setting(contentEl).setName("Recursive").addToggle((t) => t.setValue(this.recursive).onChange((v) => this.recursive = v));
     }
-    new import_obsidian32.Setting(contentEl).addButton((btn) => btn.setButtonText("Apply Template").setCta().onClick(async () => {
+    new import_obsidian31.Setting(contentEl).addButton((btn) => btn.setButtonText("Apply template").setCta().onClick(async () => {
       btn.setButtonText("Processing...").setDisabled(true);
       const order = this.template.split("\n").map((s) => s.trim()).filter((s) => s);
       try {
-        if (this.target.extension) {
+        if (this.target instanceof import_obsidian31.TFile) {
           await this.service.processFile(this.target, order, this.addDate);
-          new import_obsidian32.Notice("YAML Updated");
+          new import_obsidian31.Notice("YAML Updated");
         } else {
           const res = await this.service.processFolder(this.target.path, order, this.addDate, this.recursive);
-          new import_obsidian32.Notice(`Processed: ${res.processed}, Errors: ${res.errors}`);
+          new import_obsidian31.Notice(`Processed: ${res.processed}, Errors: ${res.errors}`);
         }
         this.close();
       } catch (e) {
-        new import_obsidian32.Notice("Error applying template");
+        new import_obsidian31.Notice("Error applying template");
         console.error(e);
-        btn.setButtonText("Apply Template").setDisabled(false);
+        btn.setButtonText("Apply template").setDisabled(false);
       }
     }));
   }
@@ -3782,7 +3750,7 @@ Here is the text:
   generalizerRecursive: false,
   // Wisdom
   wisdomModel: "llama3",
-  wisdomMode: "advice",
+  wisdomMode: "generalized",
   wisdomPrompt: "Extract wisdom from this text.",
   censorDictionaries: [
     {
@@ -3814,7 +3782,7 @@ High School = Academy`
   contextMenuParseAndMove: true,
   contextMenuDistill: true
 };
-var CoherencePlugin = class extends import_obsidian33.Plugin {
+var CoherencePlugin = class extends import_obsidian32.Plugin {
   async activateWizardView() {
     const { workspace } = this.app;
     let leaf = null;
@@ -3825,71 +3793,70 @@ var CoherencePlugin = class extends import_obsidian33.Plugin {
       leaf = workspace.getRightLeaf(false);
       await leaf.setViewState({ type: VIEW_TYPE_WIZARD, active: true });
     }
-    workspace.revealLeaf(leaf);
+    await workspace.revealLeaf(leaf);
   }
   async onload() {
-    console.log("Coherence Plugin: Loaded version 1.0.14");
     await this.loadSettings();
     this.registerView(
       VIEW_TYPE_WIZARD,
       (leaf) => new WizardView(leaf, this.app, this.settings)
     );
-    this.addRibbonIcon("wand-2", "Coherence Wizard", (evt) => {
-      this.activateWizardView();
+    this.addRibbonIcon("wand-2", "Coherence Wizard", () => {
+      void this.activateWizardView();
     });
     const statusBarItemEl = this.addStatusBarItem();
     statusBarItemEl.setText("Coherence Wizard Active");
     this.addCommand({
-      id: "open-atomizer-modal",
-      name: "Open Atomizer",
+      id: "atomizer",
+      name: "Atomizer",
       callback: () => {
         const file = this.app.workspace.getActiveFile();
         if (file) {
           new AtomizerModal(this.app, this.settings, file).open();
         } else {
-          new import_obsidian33.Notice("No active file.");
+          new import_obsidian32.Notice("No active file.");
         }
       }
     });
     this.addCommand({
-      id: "open-summarizer-modal",
-      name: "Open Summarizer",
+      id: "summarizer",
+      name: "Summarize",
       callback: () => {
         const file = this.app.workspace.getActiveFile();
         if (file) {
           new SummarizerModal(this.app, this.settings, file).open();
         } else {
-          new import_obsidian33.Notice("No active file.");
+          new import_obsidian32.Notice("No active file.");
         }
       }
     });
     this.addCommand({
-      id: "open-wisdom-modal",
-      name: "Open Wisdom Extractor",
+      id: "wisdom",
+      name: "Wisdom extractor",
       callback: () => {
         const file = this.app.workspace.getActiveFile();
         if (file) {
           new WisdomModal(this.app, this.settings, file).open();
         } else {
-          new import_obsidian33.Notice("No active file.");
+          new import_obsidian32.Notice("No active file.");
         }
       }
     });
     this.addCommand({
-      id: "open-date-fix-modal",
-      name: "Open Date Fix",
+      id: "date-fix",
+      name: "Date fix",
       callback: () => {
         const file = this.app.workspace.getActiveFile();
         if (file) {
           new DateFixModal(this.app, this.settings, file).open();
         } else {
-          new import_obsidian33.Notice("No active file.");
+          new import_obsidian32.Notice("No active file.");
         }
       }
     });
     this.addCommand({
-      id: "open-concatonizer-modal",
-      name: "Open Concatonizer",
+      id: "concatonizer",
+      name: "Concatonizer",
       callback: () => {
         const file = this.app.workspace.getActiveFile();
         if (file) {
@@ -3897,143 +3864,143 @@ var CoherencePlugin = class extends import_obsidian33.Plugin {
             new ConcatonizerModal(this.app, this.settings, file.parent).open();
           }
         } else {
-          new import_obsidian33.Notice("No active file to determine folder.");
+          new import_obsidian32.Notice("No active file to determine folder.");
         }
       }
     });
     this.addCommand({
-      id: "open-rating-modal",
-      name: "Open Rating",
+      id: "rating",
+      name: "Rating",
       callback: () => {
         const file = this.app.workspace.getActiveFile();
         if (file) {
           new RatingModal(this.app, this.settings, file).open();
         } else {
-          new import_obsidian33.Notice("No active file.");
+          new import_obsidian32.Notice("No active file.");
         }
       }
     });
     this.addCommand({
-      id: "open-categorizer-modal",
-      name: "Open Categorizer",
+      id: "categorizer",
+      name: "Categorizer",
       callback: () => {
         const file = this.app.workspace.getActiveFile();
         if (file) {
           new CategorizeHubModal(this.app, this.settings, file).open();
         } else {
-          new import_obsidian33.Notice("No active file.");
+          new import_obsidian32.Notice("No active file.");
         }
       }
     });
     this.addCommand({
-      id: "open-deduplication-modal",
-      name: "Open Deduplication",
+      id: "deduplication",
+      name: "Deduplication",
       callback: () => {
         const file = this.app.workspace.getActiveFile();
         if (file && file.parent) {
           new DeduplicationModal(this.app, file.parent).open();
         } else {
-          new import_obsidian33.Notice("No active file.");
+          new import_obsidian32.Notice("No active file.");
         }
       }
     });
     this.addCommand({
-      id: "open-parse-and-move-modal",
-      name: "Open Parse and Move",
+      id: "parse-and-move",
+      name: "Parse and move",
       callback: () => {
         const file = this.app.workspace.getActiveFile();
         if (file) {
           new ParseAndMoveModal(this.app, this.settings, file).open();
         } else {
-          new import_obsidian33.Notice("No active file.");
+          new import_obsidian32.Notice("No active file.");
         }
       }
     });
     this.addCommand({
-      id: "open-censor-modal",
-      name: "Open Censor and Alias",
+      id: "censor",
+      name: "Censor and alias",
       callback: () => {
         const file = this.app.workspace.getActiveFile();
         if (file) {
           new CensorModal(this.app, this.settings, file).open();
         } else {
-          new import_obsidian33.Notice("No active file.");
+          new import_obsidian32.Notice("No active file.");
         }
       }
     });
     this.addCommand({
-      id: "open-chrono-merge-modal",
-      name: "Open Chrono Merge",
+      id: "chrono-merge",
+      name: "Chrono merge",
       callback: () => {
         const file = this.app.workspace.getActiveFile();
         if (file && file.parent) {
           new ChronoMergeModal(this.app, this.settings, file.parent).open();
         } else {
-          new import_obsidian33.Notice("No active file.");
+          new import_obsidian32.Notice("No active file.");
         }
       }
     });
     this.addCommand({
-      id: "open-coherence-wizard",
-      name: "Open Coherence Wizard",
+      id: "wizard-view",
+      name: "Open wizard view",
       callback: () => {
-        this.activateWizardView();
+        void this.activateWizardView();
       }
     });
     this.registerEvent(
       this.app.workspace.on("editor-menu", (menu, editor, view) => {
         if (this.settings.contextMenuDateFix) {
           menu.addItem((item) => {
-            item.setTitle("Coherence: Date Fix").setIcon("calendar").onClick(async () => {
+            item.setTitle("Coherence: Date Fix").setIcon("calendar").onClick(() => {
               new DateFixModal(this.app, this.settings, view.file).open();
             });
           });
         }
         if (this.settings.contextMenuMerge) {
           menu.addItem((item) => {
-            item.setTitle("Coherence: Merge").setIcon("merge").onClick(async () => {
+            item.setTitle("Coherence: Merge").setIcon("merge").onClick(() => {
               new MergeModal(this.app, this.settings, view.file).open();
             });
           });
         }
         if (this.settings.contextMenuAtomize) {
           menu.addItem((item) => {
-            item.setTitle("Coherence: Atomize").setIcon("scissors").onClick(async () => {
+            item.setTitle("Coherence: Atomize").setIcon("scissors").onClick(() => {
               new AtomizerModal(this.app, this.settings, view.file).open();
             });
           });
         }
         if (this.settings.contextMenuYamlTemplate) {
           menu.addItem((item) => {
-            item.setTitle("Coherence: Apply YAML Template").setIcon("layout-template").onClick(async () => {
+            item.setTitle("Coherence: Apply YAML Template").setIcon("layout-template").onClick(() => {
               new YamlTemplateModal(this.app, this.settings, view.file).open();
             });
           });
         }
         if (this.settings.contextMenuSummarize) {
           menu.addItem((item) => {
-            item.setTitle("Coherence: Summarize").setIcon("lines-of-text").onClick(async () => {
+            item.setTitle("Coherence: Summarize").setIcon("lines-of-text").onClick(() => {
               new SummarizerModal(this.app, this.settings, view.file).open();
             });
           });
         }
         if (this.settings.contextMenuCategorize) {
           menu.addItem((item) => {
-            item.setTitle("Coherence: Categorize").setIcon("folder").onClick(async () => {
+            item.setTitle("Coherence: Categorize").setIcon("folder").onClick(() => {
               new CategorizeHubModal(this.app, this.settings, view.file).open();
             });
           });
         }
         if (this.settings.contextMenuParseAndMove) {
           menu.addItem((item) => {
-            item.setTitle("Coherence: Parse and Move").setIcon("folder-input").onClick(async () => {
+            item.setTitle("Coherence: Parse and Move").setIcon("folder-input").onClick(() => {
               new ParseAndMoveModal(this.app, this.settings, view.file).open();
             });
           });
         }
         if (this.settings.contextMenuDistill) {
           menu.addItem((item) => {
-            item.setTitle("Coherence: Distill").setIcon("flask-conical").onClick(async () => {
+            item.setTitle("Coherence: Distill").setIcon("flask-conical").onClick(() => {
               new DistillModal(this.app, this.settings, view.file).open();
             });
           });
@@ -4044,8 +4011,8 @@ var CoherencePlugin = class extends import_obsidian33.Plugin {
       this.app.workspace.on("file-menu", (menu, file) => {
         if (this.settings.contextMenuDateFix) {
           menu.addItem((item) => {
-            item.setTitle("Coherence: Date Fix").setIcon("calendar").onClick(async () => {
-              if (file instanceof import_obsidian33.TFile || file instanceof import_obsidian33.TFolder) {
+            item.setTitle("Coherence: Date Fix").setIcon("calendar").onClick(() => {
+              if (file instanceof import_obsidian32.TFile || file instanceof import_obsidian32.TFolder) {
                 new DateFixModal(this.app, this.settings, file).open();
               }
             });
@@ -4053,8 +4020,8 @@ var CoherencePlugin = class extends import_obsidian33.Plugin {
         }
         if (this.settings.contextMenuMerge) {
           menu.addItem((item) => {
-            item.setTitle("Coherence: Merge").setIcon("merge").onClick(async () => {
-              if (file instanceof import_obsidian33.TFile || file instanceof import_obsidian33.TFolder) {
+            item.setTitle("Coherence: Merge").setIcon("merge").onClick(() => {
+              if (file instanceof import_obsidian32.TFile || file instanceof import_obsidian32.TFolder) {
                 new MergeModal(this.app, this.settings, file).open();
               }
             });
@@ -4062,8 +4029,8 @@ var CoherencePlugin = class extends import_obsidian33.Plugin {
         }
         if (this.settings.contextMenuAtomize) {
           menu.addItem((item) => {
-            item.setTitle("Coherence: Atomize").setIcon("scissors").onClick(async () => {
-              if (file instanceof import_obsidian33.TFile || file instanceof import_obsidian33.TFolder) {
+            item.setTitle("Coherence: Atomize").setIcon("scissors").onClick(() => {
+              if (file instanceof import_obsidian32.TFile || file instanceof import_obsidian32.TFolder) {
                 new AtomizerModal(this.app, this.settings, file).open();
               }
             });
@@ -4071,38 +4038,38 @@ var CoherencePlugin = class extends import_obsidian33.Plugin {
         }
         if (this.settings.contextMenuYamlTemplate) {
           menu.addItem((item) => {
-            item.setTitle("Coherence: Apply YAML Template").setIcon("layout-template").onClick(async () => {
-              if (file instanceof import_obsidian33.TFile || file instanceof import_obsidian33.TFolder) {
+            item.setTitle("Coherence: Apply YAML Template").setIcon("layout-template").onClick(() => {
+              if (file instanceof import_obsidian32.TFile || file instanceof import_obsidian32.TFolder) {
                 new YamlTemplateModal(this.app, this.settings, file).open();
               }
             });
           });
         }
-        if (file instanceof import_obsidian33.TFile || file instanceof import_obsidian33.TFolder) {
+        if (file instanceof import_obsidian32.TFile || file instanceof import_obsidian32.TFolder) {
           if (this.settings.contextMenuSummarize) {
             menu.addItem((item) => {
-              item.setTitle("Coherence: Summarize").setIcon("lines-of-text").onClick(async () => {
+              item.setTitle("Coherence: Summarize").setIcon("lines-of-text").onClick(() => {
                 new SummarizerModal(this.app, this.settings, file).open();
               });
             });
           }
           if (this.settings.contextMenuCategorize) {
             menu.addItem((item) => {
-              item.setTitle("Coherence: Categorize").setIcon("folder").onClick(async () => {
+              item.setTitle("Coherence: Categorize").setIcon("folder").onClick(() => {
                 new CategorizeHubModal(this.app, this.settings, file).open();
               });
             });
           }
           if (this.settings.contextMenuParseAndMove) {
             menu.addItem((item) => {
-              item.setTitle("Coherence: Parse and Move").setIcon("folder-input").onClick(async () => {
+              item.setTitle("Coherence: Parse and Move").setIcon("folder-input").onClick(() => {
                 new ParseAndMoveModal(this.app, this.settings, file).open();
               });
             });
           }
           if (this.settings.contextMenuDistill) {
             menu.addItem((item) => {
-              item.setTitle("Coherence: Distill").setIcon("flask-conical").onClick(async () => {
+              item.setTitle("Coherence: Distill").setIcon("flask-conical").onClick(() => {
                 new DistillModal(this.app, this.settings, file).open();
               });
             });
@@ -4112,8 +4079,6 @@ var CoherencePlugin = class extends import_obsidian33.Plugin {
     );
     this.addSettingTab(new CoherenceSettingTab(this.app, this));
   }
-  onunload() {
-  }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
   }
@@ -4121,7 +4086,7 @@ var CoherencePlugin = class extends import_obsidian33.Plugin {
     await this.saveData(this.settings);
   }
 };
-var CoherenceSettingTab = class extends import_obsidian33.PluginSettingTab {
+var CoherenceSettingTab = class extends import_obsidian32.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.activeTab = "about";
@@ -4140,17 +4105,15 @@ var CoherenceSettingTab = class extends import_obsidian33.PluginSettingTab {
       this.ollamaModels = ["llama3", "mistral", "gemma"];
     }
   }
-  async display() {
-    console.log("Coherence Settings: Displaying tab", this.activeTab);
+  display() {
+    void this.displayAsync();
+  }
+  async displayAsync() {
     await this.fetchModels();
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h1", { text: "Coherence Wizard Settings" });
-    const navContainer = containerEl.createDiv({ cls: "settings-nav-container" });
-    navContainer.style.display = "flex";
-    navContainer.style.flexWrap = "wrap";
-    navContainer.style.marginBottom = "20px";
-    navContainer.style.gap = "10px";
+    new import_obsidian32.Setting(containerEl).setName("Coherence Wizard settings").setHeading();
+    const navContainer = containerEl.createDiv({ cls: "coherence-settings-nav" });
     const tabs = [
       { id: "about", name: "About" },
       { id: "contextmenu", name: "Context Menu" },
@@ -4180,38 +4143,37 @@ var CoherenceSettingTab = class extends import_obsidian33.PluginSettingTab {
       } else if (this.activeTab === "wizard") {
         this.renderWizardSettings(containerEl);
       } else if (this.activeTab === "contextmenu") {
-        console.log("Rendering Context Menu Settings (Inlined)");
-        containerEl.createEl("h2", { text: "Context Menu Settings" });
+        new import_obsidian32.Setting(containerEl).setName("Context menu settings").setHeading();
         containerEl.createEl("p", { text: "Select which features should appear in the right-click context menu." });
-        new import_obsidian33.Setting(containerEl).setName("Date Fix").setDesc("Available in: File, Folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuDateFix).onChange(async (value) => {
+        new import_obsidian32.Setting(containerEl).setName("Date Fix").setDesc("Available in: File, Folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuDateFix).onChange(async (value) => {
           this.plugin.settings.contextMenuDateFix = value;
           await this.plugin.saveSettings();
         }));
-        new import_obsidian33.Setting(containerEl).setName("Merge").setDesc("Available in: File, Folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuMerge).onChange(async (value) => {
+        new import_obsidian32.Setting(containerEl).setName("Merge").setDesc("Available in: File, Folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuMerge).onChange(async (value) => {
           this.plugin.settings.contextMenuMerge = value;
           await this.plugin.saveSettings();
         }));
-        new import_obsidian33.Setting(containerEl).setName("Atomize").setDesc("Available in: File, Folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuAtomize).onChange(async (value) => {
+        new import_obsidian32.Setting(containerEl).setName("Atomize").setDesc("Available in: File, Folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuAtomize).onChange(async (value) => {
           this.plugin.settings.contextMenuAtomize = value;
           await this.plugin.saveSettings();
         }));
-        new import_obsidian33.Setting(containerEl).setName("YAML Template").setDesc("Available in: File, Folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuYamlTemplate).onChange(async (value) => {
+        new import_obsidian32.Setting(containerEl).setName("YAML Template").setDesc("Available in: File, Folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuYamlTemplate).onChange(async (value) => {
           this.plugin.settings.contextMenuYamlTemplate = value;
           await this.plugin.saveSettings();
         }));
-        new import_obsidian33.Setting(containerEl).setName("Summarize").setDesc("Available in: File").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuSummarize).onChange(async (value) => {
+        new import_obsidian32.Setting(containerEl).setName("Summarize").setDesc("Available in: File").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuSummarize).onChange(async (value) => {
           this.plugin.settings.contextMenuSummarize = value;
           await this.plugin.saveSettings();
         }));
-        new import_obsidian33.Setting(containerEl).setName("Categorize").setDesc("Available in: File").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuCategorize).onChange(async (value) => {
+        new import_obsidian32.Setting(containerEl).setName("Categorize").setDesc("Available in: File").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuCategorize).onChange(async (value) => {
           this.plugin.settings.contextMenuCategorize = value;
           await this.plugin.saveSettings();
         }));
-        new import_obsidian33.Setting(containerEl).setName("Parse and Move").setDesc("Available in: File").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuParseAndMove).onChange(async (value) => {
+        new import_obsidian32.Setting(containerEl).setName("Parse and Move").setDesc("Available in: File").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuParseAndMove).onChange(async (value) => {
           this.plugin.settings.contextMenuParseAndMove = value;
           await this.plugin.saveSettings();
         }));
-        new import_obsidian33.Setting(containerEl).setName("Distill").setDesc("Available in: File").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuDistill).onChange(async (value) => {
+        new import_obsidian32.Setting(containerEl).setName("Distill").setDesc("Available in: File").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuDistill).onChange(async (value) => {
           this.plugin.settings.contextMenuDistill = value;
           await this.plugin.saveSettings();
         }));
@@ -4238,7 +4200,7 @@ var CoherenceSettingTab = class extends import_obsidian33.PluginSettingTab {
     }
   }
   renderAboutSettings(containerEl) {
-    containerEl.createEl("h2", { text: "About Coherence Wizard" });
+    new import_obsidian32.Setting(containerEl).setName("About Coherence Wizard").setHeading();
     containerEl.createEl("p", { text: "Version: 1.0.9", cls: "version-text" });
     containerEl.createEl("p", { text: "The intention is to streamline coherence by using tools to convert chaos into order." });
     containerEl.createEl("p", { text: "The included tools have significantly enhanced my PKM workflows and I want to help others passionate about self-development using Obsidian." });
@@ -4246,9 +4208,7 @@ var CoherenceSettingTab = class extends import_obsidian33.PluginSettingTab {
     const warning = containerEl.createEl("p");
     warning.createEl("strong", { text: "Many people without GPUs or large CPUs will struggle to use local models large enough to generate quality output. Without GPU, local AI models will be slow and potentially laggy. So use this beta plugin at your own risk. I recommend testing on a test vault or a test folder to see how all the tools work." });
     containerEl.createEl("p", { text: "You will need to install Ollama on your computer and pull your favorite local AI models. I recommend gemma3:12b-it-qat if your computer can handle it. Otherwise gemma3:4b-it-qat for constrained resources." });
-    const bmcContainer = containerEl.createDiv();
-    bmcContainer.style.marginTop = "20px";
-    bmcContainer.style.marginBottom = "20px";
+    const bmcContainer = containerEl.createDiv({ cls: "coherence-bmc-container" });
     const bmcLink = bmcContainer.createEl("a", { href: "https://www.buymeacoffee.com/rastovich" });
     const bmcImg = bmcLink.createEl("img", {
       attr: {
@@ -4256,9 +4216,9 @@ var CoherenceSettingTab = class extends import_obsidian33.PluginSettingTab {
         alt: "Buy me a coffee"
       }
     });
-    bmcImg.style.height = "40px";
-    containerEl.createEl("h3", { text: "Configuration" });
-    new import_obsidian33.Setting(containerEl).setName("Ollama URL").setDesc("URL of your local Ollama instance").addText((text) => text.setPlaceholder("http://localhost:11434").setValue(this.plugin.settings.ollamaUrl).onChange(async (value) => {
+    bmcImg.addClass("coherence-bmc-img");
+    new import_obsidian32.Setting(containerEl).setName("Configuration").setHeading();
+    new import_obsidian32.Setting(containerEl).setName("Ollama URL").setDesc("URL of your local Ollama instance").addText((text) => text.setPlaceholder("http://localhost:11434").setValue(this.plugin.settings.ollamaUrl).onChange(async (value) => {
       this.plugin.settings.ollamaUrl = value;
       await this.plugin.saveSettings();
     }));
@@ -4274,67 +4234,62 @@ var CoherenceSettingTab = class extends import_obsidian33.PluginSettingTab {
     const aliasList = containerEl.createEl("ul");
     aliasList.createEl("li", { text: "John, Jon, Joan, Johnathon, Johnny = Bob" });
     containerEl.createEl("p", { text: "Each settings tab will explain what each function does." });
-    containerEl.createEl("h3", { text: "Support" });
+    new import_obsidian32.Setting(containerEl).setName("Support").setHeading();
     containerEl.createEl("p", { text: 'If this app benefits you and want to encourage me to develop these and other tools. Please consider "Buying Me A Coffee" which would go a long way in encouraging me!' });
     containerEl.createEl("p", { text: "If this tool saves you just one hour of time per month, please consider donating or subscribing!" });
   }
   renderContextMenuSettings(containerEl) {
-    console.log("Rendering Context Menu Settings");
-    containerEl.createEl("h2", { text: "Context Menu Settings" });
+    new import_obsidian32.Setting(containerEl).setName("Context menu settings").setHeading();
     containerEl.createEl("p", { text: "Select which features should appear in the right-click context menu." });
-    new import_obsidian33.Setting(containerEl).setName("Date Fix").setDesc("Available in: File, Folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuDateFix).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Date Fix").setDesc("Available in: File, Folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuDateFix).onChange(async (value) => {
       this.plugin.settings.contextMenuDateFix = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Merge").setDesc("Available in: File, Folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuMerge).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Merge").setDesc("Available in: File, Folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuMerge).onChange(async (value) => {
       this.plugin.settings.contextMenuMerge = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Atomize").setDesc("Available in: File, Folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuAtomize).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Atomize").setDesc("Available in: File, Folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuAtomize).onChange(async (value) => {
       this.plugin.settings.contextMenuAtomize = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("YAML Template").setDesc("Available in: File, Folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuYamlTemplate).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("YAML Template").setDesc("Available in: File, Folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuYamlTemplate).onChange(async (value) => {
       this.plugin.settings.contextMenuYamlTemplate = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Summarize").setDesc("Available in: File").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuSummarize).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Summarize").setDesc("Available in: File").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuSummarize).onChange(async (value) => {
       this.plugin.settings.contextMenuSummarize = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Categorize").setDesc("Available in: File").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuCategorize).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Categorize").setDesc("Available in: File").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuCategorize).onChange(async (value) => {
       this.plugin.settings.contextMenuCategorize = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Parse and Move").setDesc("Available in: File").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuParseAndMove).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Parse and Move").setDesc("Available in: File").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuParseAndMove).onChange(async (value) => {
       this.plugin.settings.contextMenuParseAndMove = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Distill").setDesc("Available in: File").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuDistill).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Distill").setDesc("Available in: File").addToggle((toggle) => toggle.setValue(this.plugin.settings.contextMenuDistill).onChange(async (value) => {
       this.plugin.settings.contextMenuDistill = value;
       await this.plugin.saveSettings();
     }));
   }
   renderAtomizerSettings(containerEl) {
-    containerEl.createEl("h2", { text: "Atomizer Settings" });
-    const desc = containerEl.createDiv({ cls: "setting-item-description" });
-    desc.style.marginBottom = "20px";
-    desc.innerHTML = `
-            <p><strong>Atomization Modes:</strong></p>
-            <ul>
-                <li><strong>By Heading:</strong> Splits the file based on markdown headings (H1, H2, etc.). Each section becomes a new file.</li>
-                <li><strong>By ISO Date:</strong> Splits the file based on ISO 8601 date patterns found in the text (e.g. YYYY-MM-DD). Useful for splitting daily logs.</li>
-                <li><strong>By Divider:</strong> Splits the file using a custom divider string (e.g. '---').</li>
-            </ul>
-        `;
-    new import_obsidian33.Setting(containerEl).setName("Default Divider").setDesc('The default divider string for "By Divider" mode').addText((text) => text.setPlaceholder("---").setValue(this.plugin.settings.atomizerDivider).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Atomizer settings").setHeading();
+    const desc = containerEl.createDiv({ cls: "setting-item-description coherence-setting-desc" });
+    desc.createEl("p").createEl("strong", { text: "Atomization Modes:" });
+    const ul = desc.createEl("ul");
+    ul.createEl("li").innerHTML = "<strong>By Heading:</strong> Splits the file based on markdown headings (H1, H2, etc.). Each section becomes a new file.";
+    ul.createEl("li").innerHTML = "<strong>By ISO Date:</strong> Splits the file based on ISO 8601 date patterns found in the text (e.g. YYYY-MM-DD). Useful for splitting daily logs.";
+    ul.createEl("li").innerHTML = "<strong>By Divider:</strong> Splits the file using a custom divider string (e.g. '---').";
+    new import_obsidian32.Setting(containerEl).setName("Default Divider").setDesc('The default divider string for "By Divider" mode').addText((text) => text.setPlaceholder("---").setValue(this.plugin.settings.atomizerDivider).onChange(async (value) => {
       this.plugin.settings.atomizerDivider = value;
       await this.plugin.saveSettings();
     }));
   }
   renderSummarizerSettings(containerEl) {
-    containerEl.createEl("h2", { text: "Summarizer Settings" });
-    new import_obsidian33.Setting(containerEl).setName("Default Model").setDesc("Ollama model to use for summarization").addDropdown((drop) => {
+    new import_obsidian32.Setting(containerEl).setName("Summarizer settings").setHeading();
+    new import_obsidian32.Setting(containerEl).setName("Default Model").setDesc("Ollama model to use for summarization").addDropdown((drop) => {
       this.ollamaModels.forEach((model) => drop.addOption(model, model));
       if (!this.ollamaModels.includes(this.plugin.settings.summarizerModel)) {
         drop.addOption(this.plugin.settings.summarizerModel, this.plugin.settings.summarizerModel);
@@ -4344,78 +4299,74 @@ var CoherenceSettingTab = class extends import_obsidian33.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian33.Setting(containerEl).setName("Recursive Processing").setDesc("Process subfolders by default").addToggle((toggle) => toggle.setValue(this.plugin.settings.summarizerRecursive).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Recursive Processing").setDesc("Process subfolders by default").addToggle((toggle) => toggle.setValue(this.plugin.settings.summarizerRecursive).onChange(async (value) => {
       this.plugin.settings.summarizerRecursive = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Overwrite Existing").setDesc("Overwrite existing summaries by default").addToggle((toggle) => toggle.setValue(this.plugin.settings.summarizerOverwrite).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Overwrite Existing").setDesc("Overwrite existing summaries by default").addToggle((toggle) => toggle.setValue(this.plugin.settings.summarizerOverwrite).onChange(async (value) => {
       this.plugin.settings.summarizerOverwrite = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Include YAML").setDesc("Include YAML frontmatter in the input sent to the model").addToggle((toggle) => toggle.setValue(this.plugin.settings.summarizerIncludeYaml).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Include YAML").setDesc("Include YAML frontmatter in the input sent to the model").addToggle((toggle) => toggle.setValue(this.plugin.settings.summarizerIncludeYaml).onChange(async (value) => {
       this.plugin.settings.summarizerIncludeYaml = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Max Characters").setDesc("Maximum characters to process per file").addText((text) => text.setValue(String(this.plugin.settings.summarizerMaxChars)).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Max Characters").setDesc("Maximum characters to process per file").addText((text) => text.setValue(String(this.plugin.settings.summarizerMaxChars)).onChange(async (value) => {
       const num = parseInt(value);
       if (!isNaN(num)) {
         this.plugin.settings.summarizerMaxChars = num;
         await this.plugin.saveSettings();
       }
     }));
-    new import_obsidian33.Setting(containerEl).setName("Auto-Generate Title").setDesc("Append AI-generated title to filename (useful for Untitled or Daily Notes)").addToggle((toggle) => toggle.setValue(this.plugin.settings.summarizerGenerateTitle).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Auto-Generate Title").setDesc("Append AI-generated title to filename (useful for Untitled or Daily Notes)").addToggle((toggle) => toggle.setValue(this.plugin.settings.summarizerGenerateTitle).onChange(async (value) => {
       this.plugin.settings.summarizerGenerateTitle = value;
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h3", { text: "Progressive Sequential Summarization Prompts" });
-    new import_obsidian33.Setting(containerEl).setName("Prompt 1 (General Summary)").setDesc("Initial comprehensive summary. Placeholders: {filename}, {text}").addTextArea((text) => text.setValue(this.plugin.settings.summarizerPrompt).setPlaceholder("Enter prompt...").then((t) => t.inputEl.rows = 6).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Progressive sequential summarization prompts").setHeading();
+    new import_obsidian32.Setting(containerEl).setName("Prompt 1 (General Summary)").setDesc("Initial comprehensive summary. Placeholders: {filename}, {text}").addTextArea((text) => text.setValue(this.plugin.settings.summarizerPrompt).setPlaceholder("Enter prompt...").then((t) => t.inputEl.rows = 6).onChange(async (value) => {
       this.plugin.settings.summarizerPrompt = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Prompt 2 (Concise Summary)").setDesc("Condense the summary. Placeholders: {filename}, {summary}").addTextArea((text) => text.setValue(this.plugin.settings.summarizerPrompt2).setPlaceholder("Enter prompt...").then((t) => t.inputEl.rows = 6).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Prompt 2 (Concise Summary)").setDesc("Condense the summary. Placeholders: {filename}, {summary}").addTextArea((text) => text.setValue(this.plugin.settings.summarizerPrompt2).setPlaceholder("Enter prompt...").then((t) => t.inputEl.rows = 6).onChange(async (value) => {
       this.plugin.settings.summarizerPrompt2 = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Prompt 3 (De-fluff)").setDesc("Remove filler. Placeholders: {summary}").addTextArea((text) => text.setValue(this.plugin.settings.summarizerPrompt3).setPlaceholder("Enter prompt...").then((t) => t.inputEl.rows = 6).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Prompt 3 (De-fluff)").setDesc("Remove filler. Placeholders: {summary}").addTextArea((text) => text.setValue(this.plugin.settings.summarizerPrompt3).setPlaceholder("Enter prompt...").then((t) => t.inputEl.rows = 6).onChange(async (value) => {
       this.plugin.settings.summarizerPrompt3 = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Prompt 4 (Capitalize)").setDesc("Capitalize important words. Placeholders: {summary}").addTextArea((text) => text.setValue(this.plugin.settings.summarizerPrompt4).setPlaceholder("Enter prompt...").then((t) => t.inputEl.rows = 6).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Prompt 4 (Capitalize)").setDesc("Capitalize important words. Placeholders: {summary}").addTextArea((text) => text.setValue(this.plugin.settings.summarizerPrompt4).setPlaceholder("Enter prompt...").then((t) => t.inputEl.rows = 6).onChange(async (value) => {
       this.plugin.settings.summarizerPrompt4 = value;
       await this.plugin.saveSettings();
     }));
   }
   renderYamlSettings(containerEl) {
-    containerEl.createEl("h2", { text: "YAML Template Settings" });
-    const desc = containerEl.createDiv({ cls: "setting-item-description" });
-    desc.style.marginBottom = "20px";
-    desc.innerHTML = `
-            <p><strong>Note:</strong></p>
-            <ul>
-                <li>Any YAML keys that are not in the template will be preserved and added after the main template keys.</li>
-                <li>Existing values for keys in the template will be preserved but reordered.</li>
-            </ul>
-        `;
-    new import_obsidian33.Setting(containerEl).setName("Default Template").setDesc("Default fields for YAML template (one per line)").addTextArea((text) => {
+    new import_obsidian32.Setting(containerEl).setName("YAML template settings").setHeading();
+    const desc = containerEl.createDiv({ cls: "setting-item-description coherence-setting-desc" });
+    desc.createEl("p").createEl("strong", { text: "Note:" });
+    const ul = desc.createEl("ul");
+    ul.createEl("li", { text: "Any YAML keys that are not in the template will be preserved and added after the main template keys." });
+    ul.createEl("li", { text: "Existing values for keys in the template will be preserved but reordered." });
+    new import_obsidian32.Setting(containerEl).setName("Default Template").setDesc("Default fields for YAML template (one per line)").addTextArea((text) => {
       text.inputEl.rows = 10;
-      text.inputEl.style.width = "100%";
+      text.inputEl.addClass("coherence-textarea-full");
       text.setValue(this.plugin.settings.yamlTemplate).onChange(async (value) => {
         this.plugin.settings.yamlTemplate = value;
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian33.Setting(containerEl).setName("Add Date From Filename").setDesc('If filename starts with YYYY-MM-DD, add it to "date" field').addToggle((toggle) => toggle.setValue(this.plugin.settings.yamlAddDate).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Add Date From Filename").setDesc('If filename starts with YYYY-MM-DD, add it to "date" field').addToggle((toggle) => toggle.setValue(this.plugin.settings.yamlAddDate).onChange(async (value) => {
       this.plugin.settings.yamlAddDate = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Recursive").setDesc("Process subfolders when running on a folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.yamlRecursive).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Recursive").setDesc("Process subfolders when running on a folder").addToggle((toggle) => toggle.setValue(this.plugin.settings.yamlRecursive).onChange(async (value) => {
       this.plugin.settings.yamlRecursive = value;
       await this.plugin.saveSettings();
     }));
   }
   renderCategorizerSettings(containerEl) {
-    containerEl.createEl("h2", { text: "Categorizer Settings" });
-    new import_obsidian33.Setting(containerEl).setName("Categorizer Model").setDesc("The Ollama model to use for categorization").addDropdown((drop) => {
+    new import_obsidian32.Setting(containerEl).setName("Categorizer settings").setHeading();
+    new import_obsidian32.Setting(containerEl).setName("Categorizer Model").setDesc("The Ollama model to use for categorization").addDropdown((drop) => {
       this.ollamaModels.forEach((model) => drop.addOption(model, model));
       if (!this.ollamaModels.includes(this.plugin.settings.categorizerModel)) {
         drop.addOption(this.plugin.settings.categorizerModel, this.plugin.settings.categorizerModel);
@@ -4425,18 +4376,14 @@ var CoherenceSettingTab = class extends import_obsidian33.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
-    containerEl.createEl("h3", { text: "Dictionaries" });
-    const dictDesc = containerEl.createDiv({ cls: "setting-item-description" });
-    dictDesc.style.marginBottom = "10px";
-    dictDesc.innerHTML = `
-            <p><strong>Dictionary Syntax:</strong></p>
-            <p>Each line represents a category. You can optionally provide a description after a semicolon.</p>
-            <pre>Category Name; Description of the category</pre>
-            <p>Example:</p>
-            <pre>Personal; Notes related to personal life
-Work; Job related tasks and projects</pre>
-        `;
-    const dictSetting = new import_obsidian33.Setting(containerEl).setName("Active Dictionary").setDesc("Select, rename, or delete dictionaries").addDropdown((drop) => {
+    new import_obsidian32.Setting(containerEl).setName("Dictionaries").setHeading();
+    const dictDesc = containerEl.createDiv({ cls: "setting-item-description coherence-dict-desc" });
+    dictDesc.createEl("p").createEl("strong", { text: "Dictionary Syntax:" });
+    dictDesc.createEl("p", { text: "Each line represents a category. You can optionally provide a description after a semicolon." });
+    dictDesc.createEl("pre", { text: "Category Name; Description of the category" });
+    dictDesc.createEl("p", { text: "Example:" });
+    dictDesc.createEl("pre", { text: "Personal; Notes related to personal life\nWork; Job related tasks and projects" });
+    new import_obsidian32.Setting(containerEl).setName("Active Dictionary").setDesc("Select, rename, or delete dictionaries").addDropdown((drop) => {
       this.plugin.settings.categorizerDictionaries.forEach((d) => drop.addOption(d.name, d.name));
       drop.setValue(this.plugin.settings.categorizerActiveDictionary).onChange(async (value) => {
         this.plugin.settings.categorizerActiveDictionary = value;
@@ -4455,7 +4402,7 @@ Work; Job related tasks and projects</pre>
       this.display();
     })).addExtraButton((btn) => btn.setIcon("trash").setTooltip("Delete Dictionary").onClick(async () => {
       if (this.plugin.settings.categorizerDictionaries.length <= 1) {
-        new import_obsidian33.Notice("Cannot delete the last dictionary.");
+        new import_obsidian32.Notice("Cannot delete the last dictionary.");
         return;
       }
       this.plugin.settings.categorizerDictionaries = this.plugin.settings.categorizerDictionaries.filter((d) => d.name !== this.plugin.settings.categorizerActiveDictionary);
@@ -4465,10 +4412,10 @@ Work; Job related tasks and projects</pre>
     }));
     const activeDict = this.plugin.settings.categorizerDictionaries.find((d) => d.name === this.plugin.settings.categorizerActiveDictionary);
     if (activeDict) {
-      new import_obsidian33.Setting(containerEl).setName("Rename Dictionary").addText((text) => text.setValue(activeDict.name).onChange(async (value) => {
+      new import_obsidian32.Setting(containerEl).setName("Rename Dictionary").addText((text) => text.setValue(activeDict.name).onChange(async (value) => {
         if (value && value !== activeDict.name) {
           if (this.plugin.settings.categorizerDictionaries.some((d) => d.name === value)) {
-            new import_obsidian33.Notice("Dictionary name already exists.");
+            new import_obsidian32.Notice("Dictionary name already exists.");
             return;
           }
           activeDict.name = value;
@@ -4476,37 +4423,37 @@ Work; Job related tasks and projects</pre>
           await this.plugin.saveSettings();
         }
       })).addExtraButton((btn) => btn.setIcon("check").setTooltip("Apply Rename (Refresh)").onClick(() => this.display()));
-      new import_obsidian33.Setting(containerEl).setName("Dictionary Content").setDesc("Edit the categories for the selected dictionary").addTextArea((text) => {
+      new import_obsidian32.Setting(containerEl).setName("Dictionary Content").setDesc("Edit the categories for the selected dictionary").addTextArea((text) => {
         text.inputEl.rows = 15;
-        text.inputEl.style.width = "100%";
+        text.inputEl.addClass("coherence-textarea-full");
         text.setValue(activeDict.content).onChange(async (value) => {
           activeDict.content = value;
           await this.plugin.saveSettings();
         });
       });
     }
-    containerEl.createEl("h3", { text: "Default Options" });
-    new import_obsidian33.Setting(containerEl).setName("Apply as Tag").setDesc("Add category as #tag in YAML").addToggle((toggle) => toggle.setValue(this.plugin.settings.categorizerApplyAsTag).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Default options").setHeading();
+    new import_obsidian32.Setting(containerEl).setName("Apply as Tag").setDesc("Add category as #tag in YAML").addToggle((toggle) => toggle.setValue(this.plugin.settings.categorizerApplyAsTag).onChange(async (value) => {
       this.plugin.settings.categorizerApplyAsTag = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Apply as Backlink").setDesc("Append category as [[backlink]] at end of file").addToggle((toggle) => toggle.setValue(this.plugin.settings.categorizerApplyAsBacklink).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Apply as Backlink").setDesc("Append category as [[backlink]] at end of file").addToggle((toggle) => toggle.setValue(this.plugin.settings.categorizerApplyAsBacklink).onChange(async (value) => {
       this.plugin.settings.categorizerApplyAsBacklink = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Move to Folder").setDesc("Move file to a subfolder named after the category").addToggle((toggle) => toggle.setValue(this.plugin.settings.categorizerMoveToFolder).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Move to Folder").setDesc("Move file to a subfolder named after the category").addToggle((toggle) => toggle.setValue(this.plugin.settings.categorizerMoveToFolder).onChange(async (value) => {
       this.plugin.settings.categorizerMoveToFolder = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Max Categories").setDesc("Maximum number of categories to apply (default 1)").addText((text) => text.setValue(String(this.plugin.settings.categorizerMaxCategories)).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Max Categories").setDesc("Maximum number of categories to apply (default 1)").addText((text) => text.setValue(String(this.plugin.settings.categorizerMaxCategories)).onChange(async (value) => {
       const num = parseInt(value);
       if (!isNaN(num) && num > 0) {
         this.plugin.settings.categorizerMaxCategories = num;
         await this.plugin.saveSettings();
       }
     }));
-    containerEl.createEl("h2", { text: "Automatic Rating Settings" });
-    new import_obsidian33.Setting(containerEl).setName("Default Model").setDesc("Ollama model to use for rating").addDropdown((drop) => {
+    new import_obsidian32.Setting(containerEl).setName("Automatic rating settings").setHeading();
+    new import_obsidian32.Setting(containerEl).setName("Default Model").setDesc("Ollama model to use for rating").addDropdown((drop) => {
       this.ollamaModels.forEach((model) => drop.addOption(model, model));
       if (!this.ollamaModels.includes(this.plugin.settings.ratingModel)) {
         drop.addOption(this.plugin.settings.ratingModel, this.plugin.settings.ratingModel);
@@ -4516,72 +4463,72 @@ Work; Job related tasks and projects</pre>
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian33.Setting(containerEl).setName("Quality Parameters").setDesc("Comma separated list of quality parameters").addText((text) => text.setValue(this.plugin.settings.ratingParams).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Quality Parameters").setDesc("Comma separated list of quality parameters").addText((text) => text.setValue(this.plugin.settings.ratingParams).onChange(async (value) => {
       this.plugin.settings.ratingParams = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Skip Existing").setDesc("Skip files that already have a rating in YAML").addToggle((toggle) => toggle.setValue(this.plugin.settings.ratingSkipIfRated).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Skip Existing").setDesc("Skip files that already have a rating in YAML").addToggle((toggle) => toggle.setValue(this.plugin.settings.ratingSkipIfRated).onChange(async (value) => {
       this.plugin.settings.ratingSkipIfRated = value;
       await this.plugin.saveSettings();
     }));
   }
   renderWizardSettings(containerEl) {
-    containerEl.createEl("h2", { text: "Coherence Wizard Settings" });
+    new import_obsidian32.Setting(containerEl).setName("Coherence Wizard settings").setHeading();
     containerEl.createEl("p", { text: "Configure the folders used by the One Click Coherence Wizard." });
-    new import_obsidian33.Setting(containerEl).setName("Inbox Folder").setDesc("Folder containing new notes to process").addText((text) => text.setValue(this.plugin.settings.wizardInboxDir).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Inbox Folder").setDesc("Folder containing new notes to process").addText((text) => text.setValue(this.plugin.settings.wizardInboxDir).onChange(async (value) => {
       this.plugin.settings.wizardInboxDir = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Chrono Folder").setDesc("Folder for chronological storage (archive)").addText((text) => text.setValue(this.plugin.settings.wizardChronoDir).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Chrono Folder").setDesc("Folder for chronological storage (archive)").addText((text) => text.setValue(this.plugin.settings.wizardChronoDir).onChange(async (value) => {
       this.plugin.settings.wizardChronoDir = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Living Folder").setDesc("Folder for living documents (categorized)").addText((text) => text.setValue(this.plugin.settings.wizardLivingDir).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Living Folder").setDesc("Folder for living documents (categorized)").addText((text) => text.setValue(this.plugin.settings.wizardLivingDir).onChange(async (value) => {
       this.plugin.settings.wizardLivingDir = value;
       await this.plugin.saveSettings();
     }));
   }
   renderDateFixSettings(containerEl) {
-    containerEl.createEl("h2", { text: "Date Fix Settings" });
+    new import_obsidian32.Setting(containerEl).setName("Date fix settings").setHeading();
     containerEl.createEl("p", { text: "This tool standardizes filenames by ensuring they start with a date in the preferred format. It automatically detects and converts existing dates or date-like number strings (e.g. 20220221) found in the filename.", cls: "setting-item-description" });
-    new import_obsidian33.Setting(containerEl).setName("Recursive").setDesc("Process subfolders by default").addToggle((toggle) => toggle.setValue(this.plugin.settings.dateFixRecursive).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Recursive").setDesc("Process subfolders by default").addToggle((toggle) => toggle.setValue(this.plugin.settings.dateFixRecursive).onChange(async (value) => {
       this.plugin.settings.dateFixRecursive = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Fallback to Creation Date").setDesc("If no date is found in the filename, prepend the file's creation date.").addToggle((toggle) => toggle.setValue(this.plugin.settings.dateFixFallbackToCreationDate).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Fallback to Creation Date").setDesc("If no date is found in the filename, prepend the file's creation date.").addToggle((toggle) => toggle.setValue(this.plugin.settings.dateFixFallbackToCreationDate).onChange(async (value) => {
       this.plugin.settings.dateFixFallbackToCreationDate = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Preferred Date Format").setDesc("ISO format to use (e.g. YYYY-MM-DD)").addText((text) => text.setValue(this.plugin.settings.dateFixDateFormat).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Preferred Date Format").setDesc("ISO format to use (e.g. YYYY-MM-DD)").addText((text) => text.setValue(this.plugin.settings.dateFixDateFormat).onChange(async (value) => {
       this.plugin.settings.dateFixDateFormat = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Exceptions").setDesc("Comma separated list of file extensions (e.g. *.py) or words to exclude").addTextArea((text) => text.setValue(this.plugin.settings.dateFixExceptions).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Exceptions").setDesc("Comma separated list of file extensions (e.g. *.py) or words to exclude").addTextArea((text) => text.setValue(this.plugin.settings.dateFixExceptions).onChange(async (value) => {
       this.plugin.settings.dateFixExceptions = value;
       await this.plugin.saveSettings();
     }));
   }
   renderParseAndMoveSettings(containerEl) {
-    containerEl.createEl("h2", { text: "Parse and Move Settings" });
-    new import_obsidian33.Setting(containerEl).setName("Target Directory").setDesc("Directory to move parsed files to").addText((text) => text.setValue(this.plugin.settings.parseAndMoveTargetDir).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Parse and move settings").setHeading();
+    new import_obsidian32.Setting(containerEl).setName("Target Directory").setDesc("Directory to move parsed files to").addText((text) => text.setValue(this.plugin.settings.parseAndMoveTargetDir).onChange(async (value) => {
       this.plugin.settings.parseAndMoveTargetDir = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Recursive").setDesc("Process subfolders by default").addToggle((toggle) => toggle.setValue(this.plugin.settings.parseAndMoveRecursive).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Recursive").setDesc("Process subfolders by default").addToggle((toggle) => toggle.setValue(this.plugin.settings.parseAndMoveRecursive).onChange(async (value) => {
       this.plugin.settings.parseAndMoveRecursive = value;
       await this.plugin.saveSettings();
     }));
   }
   renderDistillSettings(containerEl) {
-    containerEl.createEl("h2", { text: "Distill Settings" });
-    containerEl.createEl("h3", { text: "Censor / Alias" });
+    new import_obsidian32.Setting(containerEl).setName("Distill settings").setHeading();
+    new import_obsidian32.Setting(containerEl).setName("Censor / Alias").setHeading();
     const dictDesc = containerEl.createDiv({ cls: "setting-item-description" });
     dictDesc.style.marginBottom = "10px";
     dictDesc.innerHTML = `
             <p><strong>Dictionary Syntax:</strong></p>
             <p>Each line represents a word/phrase to censor.</p>
         `;
-    new import_obsidian33.Setting(containerEl).setName("Active Dictionary").setDesc("Select dictionary for censorship").addDropdown((drop) => {
+    new import_obsidian32.Setting(containerEl).setName("Active Dictionary").setDesc("Select dictionary for censorship").addDropdown((drop) => {
       this.plugin.settings.censorDictionaries.forEach((d) => drop.addOption(d.name, d.name));
       drop.setValue(this.plugin.settings.censorActiveDictionary).onChange(async (value) => {
         this.plugin.settings.censorActiveDictionary = value;
@@ -4600,7 +4547,7 @@ Work; Job related tasks and projects</pre>
       this.display();
     })).addExtraButton((btn) => btn.setIcon("trash").setTooltip("Delete Dictionary").onClick(async () => {
       if (this.plugin.settings.censorDictionaries.length <= 1) {
-        new import_obsidian33.Notice("Cannot delete the last dictionary.");
+        new import_obsidian32.Notice("Cannot delete the last dictionary.");
         return;
       }
       this.plugin.settings.censorDictionaries = this.plugin.settings.censorDictionaries.filter((d) => d.name !== this.plugin.settings.censorActiveDictionary);
@@ -4610,10 +4557,10 @@ Work; Job related tasks and projects</pre>
     }));
     const activeDict = this.plugin.settings.censorDictionaries.find((d) => d.name === this.plugin.settings.censorActiveDictionary);
     if (activeDict) {
-      new import_obsidian33.Setting(containerEl).setName("Rename Dictionary").addText((text) => text.setValue(activeDict.name).onChange(async (value) => {
+      new import_obsidian32.Setting(containerEl).setName("Rename Dictionary").addText((text) => text.setValue(activeDict.name).onChange(async (value) => {
         if (value && value !== activeDict.name) {
           if (this.plugin.settings.censorDictionaries.some((d) => d.name === value)) {
-            new import_obsidian33.Notice("Dictionary name already exists.");
+            new import_obsidian32.Notice("Dictionary name already exists.");
             return;
           }
           activeDict.name = value;
@@ -4621,25 +4568,25 @@ Work; Job related tasks and projects</pre>
           await this.plugin.saveSettings();
         }
       })).addExtraButton((btn) => btn.setIcon("check").setTooltip("Apply Rename (Refresh)").onClick(() => this.display()));
-      new import_obsidian33.Setting(containerEl).setName("Dictionary Content").setDesc("Edit the censored words (one per line)").addTextArea((text) => {
+      new import_obsidian32.Setting(containerEl).setName("Dictionary Content").setDesc("Edit the censored words (one per line)").addTextArea((text) => {
         text.inputEl.rows = 10;
-        text.inputEl.style.width = "100%";
+        text.inputEl.addClass("coherence-textarea-full");
         text.setValue(activeDict.content).onChange(async (value) => {
           activeDict.content = value;
           await this.plugin.saveSettings();
         });
       });
     }
-    new import_obsidian33.Setting(containerEl).setName("Replacement Character").setDesc("Character to replace censored words with").addText((text) => text.setValue(this.plugin.settings.censorReplacementChar).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Replacement Character").setDesc("Character to replace censored words with").addText((text) => text.setValue(this.plugin.settings.censorReplacementChar).onChange(async (value) => {
       this.plugin.settings.censorReplacementChar = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Recursive").setDesc("Process subfolders").addToggle((toggle) => toggle.setValue(this.plugin.settings.censorRecursive).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Recursive").setDesc("Process subfolders").addToggle((toggle) => toggle.setValue(this.plugin.settings.censorRecursive).onChange(async (value) => {
       this.plugin.settings.censorRecursive = value;
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h3", { text: "Generalize" });
-    new import_obsidian33.Setting(containerEl).setName("Model").setDesc("Ollama model to use").addDropdown((drop) => {
+    new import_obsidian32.Setting(containerEl).setName("Generalize").setHeading();
+    new import_obsidian32.Setting(containerEl).setName("Model").setDesc("Ollama model to use").addDropdown((drop) => {
       this.ollamaModels.forEach((model) => drop.addOption(model, model));
       if (!this.ollamaModels.includes(this.plugin.settings.generalizerModel)) {
         drop.addOption(this.plugin.settings.generalizerModel, this.plugin.settings.generalizerModel);
@@ -4649,16 +4596,16 @@ Work; Job related tasks and projects</pre>
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian33.Setting(containerEl).setName("System Prompt").setDesc("System prompt for the model").addTextArea((text) => text.setValue(this.plugin.settings.generalizerSystemPrompt).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("System Prompt").setDesc("System prompt for the model").addTextArea((text) => text.setValue(this.plugin.settings.generalizerSystemPrompt).onChange(async (value) => {
       this.plugin.settings.generalizerSystemPrompt = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Prompt").setDesc("Prompt template. Use {text} as placeholder.").addTextArea((text) => text.setValue(this.plugin.settings.generalizerPrompt).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Prompt").setDesc("Prompt template. Use {text} as placeholder.").addTextArea((text) => text.setValue(this.plugin.settings.generalizerPrompt).onChange(async (value) => {
       this.plugin.settings.generalizerPrompt = value;
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h3", { text: "Wisdom Extractor" });
-    new import_obsidian33.Setting(containerEl).setName("Default Model").setDesc("Ollama model to use for wisdom extraction").addDropdown((drop) => {
+    new import_obsidian32.Setting(containerEl).setName("Wisdom extractor").setHeading();
+    new import_obsidian32.Setting(containerEl).setName("Default Model").setDesc("Ollama model to use for wisdom extraction").addDropdown((drop) => {
       this.ollamaModels.forEach((model) => drop.addOption(model, model));
       if (!this.ollamaModels.includes(this.plugin.settings.wisdomModel)) {
         drop.addOption(this.plugin.settings.wisdomModel, this.plugin.settings.wisdomModel);
@@ -4668,48 +4615,48 @@ Work; Job related tasks and projects</pre>
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian33.Setting(containerEl).setName("Default Mode").setDesc("Default processing mode").addDropdown((drop) => drop.addOption("generalized", "Generalized (AI)").addOption("safe", "Safe (Copy Only)").setValue(this.plugin.settings.wisdomMode).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Default Mode").setDesc("Default processing mode").addDropdown((drop) => drop.addOption("generalized", "Generalized (AI)").addOption("safe", "Safe (Copy Only)").setValue(this.plugin.settings.wisdomMode).onChange(async (value) => {
       this.plugin.settings.wisdomMode = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Wisdom Prompt").setDesc("The prompt template used for wisdom extraction").addTextArea((text) => text.setValue(this.plugin.settings.wisdomPrompt).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Wisdom Prompt").setDesc("The prompt template used for wisdom extraction").addTextArea((text) => text.setValue(this.plugin.settings.wisdomPrompt).onChange(async (value) => {
       this.plugin.settings.wisdomPrompt = value;
       await this.plugin.saveSettings();
     }));
   }
   renderMergeSettings(containerEl) {
-    containerEl.createEl("h2", { text: "Merge Settings" });
-    containerEl.createEl("h3", { text: "Chrono Merge" });
-    new import_obsidian33.Setting(containerEl).setName("Time Threshold (Minutes)").setDesc("Files created within this time window will be merged").addText((text) => text.setValue(String(this.plugin.settings.chronoMergeTimeThreshold)).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Merge settings").setHeading();
+    new import_obsidian32.Setting(containerEl).setName("Chrono merge").setHeading();
+    new import_obsidian32.Setting(containerEl).setName("Time Threshold (Minutes)").setDesc("Files created within this time window will be merged").addText((text) => text.setValue(String(this.plugin.settings.chronoMergeTimeThreshold)).onChange(async (value) => {
       const num = parseFloat(value);
       if (!isNaN(num)) {
         this.plugin.settings.chronoMergeTimeThreshold = num;
         await this.plugin.saveSettings();
       }
     }));
-    new import_obsidian33.Setting(containerEl).setName("Use File Creation Time").setDesc("If enabled, uses the file's creation date property instead of the date in the filename.").addToggle((toggle) => toggle.setValue(this.plugin.settings.chronoMergeUseCreationTime).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Use File Creation Time").setDesc("If enabled, uses the file's creation date property instead of the date in the filename.").addToggle((toggle) => toggle.setValue(this.plugin.settings.chronoMergeUseCreationTime).onChange(async (value) => {
       this.plugin.settings.chronoMergeUseCreationTime = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Recursive").setDesc("Process subfolders by default").addToggle((toggle) => toggle.setValue(this.plugin.settings.chronoMergeRecursive).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Recursive").setDesc("Process subfolders by default").addToggle((toggle) => toggle.setValue(this.plugin.settings.chronoMergeRecursive).onChange(async (value) => {
       this.plugin.settings.chronoMergeRecursive = value;
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h3", { text: "Concatonizer" });
-    new import_obsidian33.Setting(containerEl).setName("Filename Suffix").setDesc("Suffix to append to the folder name for the combined file (default: _combined)").addText((text) => text.setValue(this.plugin.settings.concatonizerSuffix).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Concatonizer").setHeading();
+    new import_obsidian32.Setting(containerEl).setName("Filename Suffix").setDesc("Suffix to append to the folder name for the combined file (default: _combined)").addText((text) => text.setValue(this.plugin.settings.concatonizerSuffix).onChange(async (value) => {
       this.plugin.settings.concatonizerSuffix = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Recursive").setDesc("Include subfolders by default").addToggle((toggle) => toggle.setValue(this.plugin.settings.concatonizerRecursive).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Recursive").setDesc("Include subfolders by default").addToggle((toggle) => toggle.setValue(this.plugin.settings.concatonizerRecursive).onChange(async (value) => {
       this.plugin.settings.concatonizerRecursive = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian33.Setting(containerEl).setName("Strip YAML").setDesc("Remove YAML frontmatter from combined files").addToggle((toggle) => toggle.setValue(this.plugin.settings.concatonizerStripYaml).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Strip YAML").setDesc("Remove YAML frontmatter from combined files").addToggle((toggle) => toggle.setValue(this.plugin.settings.concatonizerStripYaml).onChange(async (value) => {
       this.plugin.settings.concatonizerStripYaml = value;
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h3", { text: "Deduplication" });
-    new import_obsidian33.Setting(containerEl).setName("Recursive").setDesc("Process subfolders by default").addToggle((toggle) => toggle.setValue(this.plugin.settings.deduplicationRecursive).onChange(async (value) => {
+    new import_obsidian32.Setting(containerEl).setName("Deduplication").setHeading();
+    new import_obsidian32.Setting(containerEl).setName("Recursive").setDesc("Process subfolders by default").addToggle((toggle) => toggle.setValue(this.plugin.settings.deduplicationRecursive).onChange(async (value) => {
       this.plugin.settings.deduplicationRecursive = value;
       await this.plugin.saveSettings();
     }));

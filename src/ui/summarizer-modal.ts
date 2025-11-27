@@ -1,12 +1,13 @@
-import { App, Modal, Setting, TFolder } from 'obsidian';
+import { App, Modal, Setting, TFolder, Notice, TFile } from 'obsidian';
 import { SummarizerService } from '../modules/summarizer';
 import { OllamaService } from '../modules/ollama';
+import { CoherenceSettings } from '../types';
 
 export class SummarizerModal extends Modal {
     service: SummarizerService;
     ollama: OllamaService;
-    target: any = null; // TFile or TFolder
-    targetPath: string = '/';
+    target: TFile | TFolder | null = null;
+    targetPath = '/';
 
     // Settings
     selectedModel: string;
@@ -22,7 +23,7 @@ export class SummarizerModal extends Modal {
 
     models: string[] = [];
 
-    constructor(app: App, settings: any, target?: any) {
+    constructor(app: App, settings: CoherenceSettings, target?: TFile | TFolder) {
         super(app);
         this.ollama = new OllamaService(settings.ollamaUrl);
         this.service = new SummarizerService(app, this.ollama);
@@ -52,7 +53,7 @@ export class SummarizerModal extends Modal {
     async onOpen() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Summarize Files' });
+        new Setting(contentEl).setName('Summarize files').setHeading();
         contentEl.createEl('p', { text: 'Loading models...' });
 
         try {
@@ -67,14 +68,14 @@ export class SummarizerModal extends Modal {
     display() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Summarize Files' });
+        new Setting(contentEl).setName('Summarize files').setHeading();
 
         // Target Path (Read Only)
 
 
         // Model Selection
         new Setting(contentEl)
-            .setName('Ollama Model')
+            .setName('Ollama model')
             .addDropdown(drop => {
                 this.models.forEach(m => drop.addOption(m, m));
                 drop.setValue(this.selectedModel);
@@ -90,14 +91,14 @@ export class SummarizerModal extends Modal {
                 .onChange(value => this.recursive = value));
 
         new Setting(contentEl)
-            .setName('Overwrite Existing')
+            .setName('Overwrite existing')
             .setDesc('Re-summarize files that already have a summary')
             .addToggle(toggle => toggle
                 .setValue(this.overwrite)
                 .onChange(value => this.overwrite = value));
 
         new Setting(contentEl)
-            .setName('Generate Title for Untitled')
+            .setName('Generate title for untitled')
             .setDesc('Automatically rename "Untitled" files using AI generated title')
             .addToggle(toggle => toggle
                 .setValue(this.generateTitle)
@@ -108,7 +109,7 @@ export class SummarizerModal extends Modal {
         // Action
         new Setting(contentEl)
             .addButton(btn => btn
-                .setButtonText('Start Summarization')
+                .setButtonText('Start summarization')
                 .setCta()
                 .onClick(async () => {
                     btn.setButtonText('Processing...').setDisabled(true);
@@ -121,7 +122,7 @@ export class SummarizerModal extends Modal {
                             if ('extension' in abstractFile) {
                                 // File
                                 const result = await this.service.summarizeFile(
-                                    abstractFile as any,
+                                    abstractFile as TFile,
                                     this.selectedModel,
                                     this.overwrite,
                                     prompts,
@@ -158,5 +159,4 @@ export class SummarizerModal extends Modal {
     }
 }
 
-// Helper for Notice since we can't import it inside class definition easily if not exported
-import { Notice } from 'obsidian';
+

@@ -1,13 +1,14 @@
 import { App, Modal, Setting, TFile, TFolder, Notice } from 'obsidian';
 import { ParseAndMoveService } from '../modules/parse-and-move';
+import { CoherenceSettings } from '../types';
 
 export class ParseAndMoveModal extends Modal {
     private service: ParseAndMoveService;
     private targetFolder: TFolder | null = null;
-    private outputDir: string = 'Categorized Content';
-    private targetDir: string = '';
-    private categoriesText: string = '';
-    private shouldMove: boolean = false;
+    private outputDir = 'Categorized Content';
+    private targetDir = '';
+    private categoriesText = '';
+    private shouldMove = false;
 
     private readonly DEFAULT_CATEGORIES = `ADV - Adventure Hikes and Special Areas: #ADV
 AI - Artificial Intelligence: #AI
@@ -66,7 +67,7 @@ THE - Therapy: #THE
 THR - Three Words: #THR
 WRI - Writing Career: #WRI`;
 
-    constructor(app: App, settings: any, private fileOrFolder?: TFile | TFolder) {
+    constructor(app: App, settings: CoherenceSettings, private fileOrFolder?: TFile | TFolder) {
         super(app);
         this.service = new ParseAndMoveService(app);
         this.categoriesText = this.DEFAULT_CATEGORIES;
@@ -76,14 +77,14 @@ WRI - Writing Career: #WRI`;
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Parse and Move' });
+        new Setting(contentEl).setName('Parse and move').setHeading();
 
         if (this.fileOrFolder) {
             contentEl.createEl('p', { text: `Target: ${this.fileOrFolder.path}` });
         } else {
             // Folder selection if not provided
             new Setting(contentEl)
-                .setName('Target Folder')
+                .setName('Target folder')
                 .setDesc('Select the folder to parse (leave empty for root)')
                 .addText(text => text
                     .setPlaceholder('Example: Folder/Subfolder')
@@ -98,14 +99,14 @@ WRI - Writing Career: #WRI`;
         }
 
         new Setting(contentEl)
-            .setName('Output Directory')
+            .setName('Output directory')
             .setDesc('Directory where categorized files will be created')
             .addText(text => text
                 .setValue(this.outputDir)
                 .onChange(value => this.outputDir = value));
 
         new Setting(contentEl)
-            .setName('Move to Target Directory')
+            .setName('Move to target directory')
             .setDesc('If enabled, files will be moved from Output Directory to Target Directory/Category/Resources')
             .addToggle(toggle => toggle
                 .setValue(this.shouldMove)
@@ -116,7 +117,7 @@ WRI - Writing Career: #WRI`;
 
         if (this.shouldMove) {
             new Setting(contentEl)
-                .setName('Target Directory')
+                .setName('Target directory')
                 .setDesc('Final destination for categorized files')
                 .addText(text => text
                     .setValue(this.targetDir)

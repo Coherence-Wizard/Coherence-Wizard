@@ -1,16 +1,16 @@
-import { TFile, Vault, parseYaml, stringifyYaml, normalizePath } from 'obsidian';
+import { TFile, TFolder, Vault, parseYaml, stringifyYaml, normalizePath } from 'obsidian';
 import { OllamaService } from './ollama';
 
 export class WisdomService {
     constructor(private vault: Vault, private ollama: OllamaService) { }
 
     private async getUniquePath(folder: string, name: string): Promise<string> {
-        let base = normalizePath(`${folder}/${name}.md`);
+        const base = normalizePath(`${folder}/${name}.md`);
         if (!(await this.vault.adapter.exists(base))) {
             return base;
         }
         let counter = 2;
-        while (true) {
+        while (counter < 1000) {
             const candidate = normalizePath(`${folder}/${name}-${counter}.md`);
             if (!(await this.vault.adapter.exists(candidate))) {
                 return candidate;
@@ -25,7 +25,7 @@ export class WisdomService {
         // Parse Frontmatter
         const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
         const match = content.match(frontmatterRegex);
-        let frontmatter: any = {};
+        let frontmatter: Record<string, unknown> = {};
         let body = content;
 
         if (match) {
@@ -49,7 +49,7 @@ export class WisdomService {
         }
 
         let newContent = body;
-        let suffix = mode === 'safe' ? '_safe' : '_generalized';
+        const suffix = mode === 'safe' ? '_safe' : '_generalized';
 
         if (mode === 'generalized') {
             // AI Transformation
@@ -92,8 +92,8 @@ export class WisdomService {
 
         const collectFiles = (path: string) => {
             const folder = this.vault.getAbstractFileByPath(path);
-            if (folder && 'children' in folder) {
-                for (const child of (folder as any).children) {
+            if (folder instanceof TFolder) {
+                for (const child of folder.children) {
                     if (child instanceof TFile && child.extension === 'md') {
                         files.push(child);
                     } else if ('children' in child) {

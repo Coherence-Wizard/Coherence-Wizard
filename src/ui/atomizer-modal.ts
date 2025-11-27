@@ -1,13 +1,14 @@
 import { App, Modal, Notice, Setting, TFile, TFolder } from 'obsidian';
 import { AtomizerService } from '../modules/atomizer';
+import { CoherenceSettings } from '../types';
 
 export class AtomizerModal extends Modal {
     service: AtomizerService;
     target: TFile | TFolder | null = null;
     mode: 'heading' | 'date' | 'divider' = 'heading';
-    divider: string = '---';
+    divider = '---';
 
-    constructor(app: App, settings: any, target?: TFile | TFolder) {
+    constructor(app: App, settings: CoherenceSettings, target?: TFile | TFolder) {
         super(app);
         this.service = new AtomizerService(app.vault);
         this.target = target ?? this.app.workspace.getActiveFile();
@@ -19,11 +20,11 @@ export class AtomizerModal extends Modal {
         contentEl.empty();
 
         const isFolder = this.target instanceof TFolder;
-        contentEl.createEl('h2', { text: isFolder ? `Atomize Folder: ${this.target?.name}` : 'Atomize File' });
+        new Setting(contentEl).setName(isFolder ? `Atomize folder: ${this.target?.name}` : 'Atomize file').setHeading();
 
         // Mode Selection
         new Setting(contentEl)
-            .setName('Atomization Mode')
+            .setName('Atomization mode')
             .setDesc('How to split the content')
             .addDropdown(drop => drop
                 .addOption('heading', 'By Heading')
@@ -31,14 +32,14 @@ export class AtomizerModal extends Modal {
                 .addOption('divider', 'By Divider')
                 .setValue(this.mode)
                 .onChange(value => {
-                    this.mode = value as any;
+                    this.mode = value as 'heading' | 'date' | 'divider';
                     this.display(); // Refresh UI
                 }));
 
         // Divider Input (only for divider mode)
         if (this.mode === 'divider') {
             new Setting(contentEl)
-                .setName('Divider String')
+                .setName('Divider string')
                 .setDesc('String to split on (e.g. ---)')
                 .addText(text => text
                     .setValue(this.divider)
@@ -48,7 +49,7 @@ export class AtomizerModal extends Modal {
         // Action Button
         new Setting(contentEl)
             .addButton(btn => btn
-                .setButtonText(isFolder ? 'Atomize All Files' : 'Atomize')
+                .setButtonText(isFolder ? 'Atomize all files' : 'Atomize')
                 .setCta()
                 .setDisabled(!this.target)
                 .onClick(async () => {

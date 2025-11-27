@@ -1,17 +1,17 @@
-import { App, TFile, parseYaml, stringifyYaml } from 'obsidian';
+import { App, TFile, TFolder, parseYaml, stringifyYaml } from 'obsidian';
 import { OllamaService } from './ollama';
 
 export class SummarizerService {
     constructor(private app: App, private ollama: OllamaService) { }
 
-    async summarizeFile(file: TFile, model: string, overwrite: boolean = false, prompts: string[] = [], generateTitle: boolean = false): Promise<boolean> {
+    async summarizeFile(file: TFile, model: string, overwrite = false, prompts: string[] = [], generateTitle = false): Promise<boolean> {
         const content = await this.app.vault.read(file);
 
         // Parse Frontmatter
         const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
         const match = content.match(frontmatterRegex);
 
-        let frontmatter: any = {};
+        let frontmatter: Record<string, unknown> = {};
         let body = content;
 
         if (match) {
@@ -74,7 +74,7 @@ export class SummarizerService {
 
                     // Sanitize title
                     // Strip out illegal characters: . @ # % $ & / \ < > [ ] ( ) : * ? " | and newlines
-                    newTitle = newTitle.replace(/[.@#%$&/\\<>\[\]():*?"|\n\r]/g, ' ').trim();
+                    newTitle = newTitle.replace(/[.@#%$&/\\<>[\]():*?"|\n\r]/g, ' ').trim();
                     newTitle = newTitle.replace(/\s+/g, ' '); // Collapse spaces
 
                     if (newTitle.length > 0) {
@@ -107,13 +107,13 @@ export class SummarizerService {
         }
     }
 
-    async summarizeFolder(folderPath: string, model: string, recursive: boolean = true, overwrite: boolean = false, prompts: string[] = [], generateTitle: boolean = false): Promise<{ processed: number, skipped: number, errors: number }> {
+    async summarizeFolder(folderPath: string, model: string, recursive = true, overwrite = false, prompts: string[] = [], generateTitle = false): Promise<{ processed: number, skipped: number, errors: number }> {
         const files: TFile[] = [];
 
         const collectFiles = (path: string) => {
             const folder = this.app.vault.getAbstractFileByPath(path);
-            if (folder && 'children' in folder) {
-                for (const child of (folder as any).children) {
+            if (folder instanceof TFolder) {
+                for (const child of folder.children) {
                     if (child instanceof TFile && child.extension === 'md') {
                         files.push(child);
                     } else if (recursive && 'children' in child) {

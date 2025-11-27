@@ -1,20 +1,21 @@
 import { App, Modal, Setting, TFile, TFolder, Notice } from 'obsidian';
 import { GeneralizerService } from '../modules/generalizer';
 import { OllamaService } from '../modules/ollama';
+import { CoherenceSettings } from '../types';
 
 export class GeneralizerModal extends Modal {
     private service: GeneralizerService;
     private ollamaService: OllamaService;
     private targetFolder: TFolder | null = null;
-    private recursive: boolean = false;
+    private recursive = false;
     private outputMode: 'folder' | 'same-folder' = 'folder';
-    private suffix: string = '_generalized';
-    private model: string = 'llama3';
+    private suffix = '_generalized';
+    private model = 'llama3';
     private models: string[] = [];
     private mode: 'generalize' | 'wisdom' = 'generalize';
-    private multiStage: boolean = false;
+    private multiStage = false;
 
-    constructor(app: App, private settings: any, private fileOrFolder?: TFile | TFolder) {
+    constructor(app: App, private settings: CoherenceSettings, private fileOrFolder?: TFile | TFolder) {
         super(app);
         this.service = new GeneralizerService(app, settings);
         this.ollamaService = new OllamaService(settings.ollamaUrl);
@@ -33,14 +34,14 @@ export class GeneralizerModal extends Modal {
     display() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Generalizer (Wisdom Extractor)' });
+        new Setting(contentEl).setName('Generalizer (Wisdom extractor)').setHeading();
 
         if (this.fileOrFolder) {
             const type = this.fileOrFolder instanceof TFile ? 'File' : 'Folder';
             contentEl.createEl('p', { text: `Target: ${this.fileOrFolder.path} (${type})` });
         } else {
             new Setting(contentEl)
-                .setName('Target Folder')
+                .setName('Target folder')
                 .setDesc('Select the folder to process')
                 .addText(text => text
                     .setPlaceholder('Example: Folder/Subfolder')
@@ -61,8 +62,8 @@ export class GeneralizerModal extends Modal {
                 .addOption('generalize', 'Standard Generalization')
                 .addOption('wisdom', 'Wisdom Extractor (Self-Help)')
                 .setValue(this.mode)
-                .onChange((value: any) => {
-                    this.mode = value;
+                .onChange((value: string) => {
+                    this.mode = value as 'generalize' | 'wisdom';
                     if (this.mode === 'wisdom') {
                         this.suffix = '_wisdom';
                     } else {
@@ -81,7 +82,7 @@ export class GeneralizerModal extends Modal {
             });
 
         new Setting(contentEl)
-            .setName('Multi-Stage Processing')
+            .setName('Multi-stage processing')
             .setDesc('Summarize text before generalizing (improves compliance for large files)')
             .addToggle(toggle => toggle
                 .setValue(this.multiStage)
@@ -98,16 +99,16 @@ export class GeneralizerModal extends Modal {
         }
 
         new Setting(contentEl)
-            .setName('Output Mode')
+            .setName('Output mode')
             .setDesc('Where to save generalized files')
             .addDropdown(drop => drop
                 .addOption('folder', 'New "Generalized" Folder')
                 .addOption('same-folder', 'Same Folder (Next to original)')
                 .setValue(this.outputMode)
-                .onChange((value: any) => this.outputMode = value));
+                .onChange((value: string) => this.outputMode = value as 'folder' | 'same-folder'));
 
         new Setting(contentEl)
-            .setName('Filename Suffix')
+            .setName('Filename suffix')
             .setDesc('Suffix to append to generalized files')
             .addText(text => text
                 .setValue(this.suffix)

@@ -1,11 +1,12 @@
-import { App, Modal, Setting, Notice, TFile } from 'obsidian';
+import { App, Modal, Setting, Notice, TFile, TFolder } from 'obsidian';
 import { CategorizerService, CategorizerOptions } from '../modules/categorizer';
 import { OllamaService } from '../modules/ollama';
+import { CoherenceSettings } from '../types';
 
 export class CategorizerModal extends Modal {
     service: CategorizerService;
-    target: any;
-    settings: any;
+    target: TFile | TFolder | null;
+    settings: CoherenceSettings;
 
     // State
     model: string;
@@ -14,15 +15,15 @@ export class CategorizerModal extends Modal {
     applyAsTag: boolean;
     applyAsBacklink: boolean;
     moveToFolder: boolean;
-    recursive: boolean = false;
+    recursive = false;
     ollamaModels: string[] = [];
 
-    constructor(app: App, settings: any, target?: any) {
+    constructor(app: App, settings: CoherenceSettings, target?: TFile | TFolder) {
         super(app);
         this.settings = settings;
         const ollama = new OllamaService(settings.ollamaUrl);
         this.service = new CategorizerService(app, ollama);
-        this.target = target;
+        this.target = target || null;
 
         // Initialize state from settings
         this.model = settings.categorizerModel || 'llama3';
@@ -54,7 +55,7 @@ export class CategorizerModal extends Modal {
     display() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Categorizer' });
+        new Setting(contentEl).setName('Categorizer').setHeading();
 
         if (this.target) {
             const type = this.target instanceof TFile ? 'File' : 'Folder';
@@ -82,7 +83,7 @@ export class CategorizerModal extends Modal {
             .setDesc('Select the category dictionary to use')
             .addDropdown(drop => {
                 if (this.settings.categorizerDictionaries) {
-                    this.settings.categorizerDictionaries.forEach((d: any) => drop.addOption(d.name, d.name));
+                    this.settings.categorizerDictionaries.forEach((d: { name: string }) => drop.addOption(d.name, d.name));
                 }
                 drop.setValue(this.selectedDictionary)
                     .onChange(v => this.selectedDictionary = v);
@@ -90,7 +91,7 @@ export class CategorizerModal extends Modal {
 
         // Max Categories
         new Setting(contentEl)
-            .setName('Max Categories')
+            .setName('Max categories')
             .setDesc('Maximum number of categories to apply per file')
             .addText(text => text
                 .setValue(String(this.maxCategories))
@@ -99,18 +100,18 @@ export class CategorizerModal extends Modal {
                     if (!isNaN(num) && num > 0) this.maxCategories = num;
                 }));
 
-        contentEl.createEl('h3', { text: 'Application Options' });
+        new Setting(contentEl).setName('Application options').setHeading();
 
         new Setting(contentEl)
-            .setName('Apply as Tag')
+            .setName('Apply as tag')
             .addToggle(t => t.setValue(this.applyAsTag).onChange(v => this.applyAsTag = v));
 
         new Setting(contentEl)
-            .setName('Apply as Backlink')
+            .setName('Apply as backlink')
             .addToggle(t => t.setValue(this.applyAsBacklink).onChange(v => this.applyAsBacklink = v));
 
         new Setting(contentEl)
-            .setName('Move to Folder')
+            .setName('Move to folder')
             .setDesc('Move/Copy file to category folder(s)')
             .addToggle(t => t.setValue(this.moveToFolder).onChange(v => this.moveToFolder = v));
 
@@ -124,21 +125,21 @@ export class CategorizerModal extends Modal {
 
         new Setting(contentEl)
             .addButton(btn => btn
-                .setButtonText('Start Categorizing')
+                .setButtonText('Start categorizing')
                 .setCta()
                 .onClick(async () => {
                     btn.setButtonText('Processing...').setDisabled(true);
 
                     // Get categories from selected dictionary
                     // Get categories from selected dictionary
-                    const dict = this.settings.categorizerDictionaries.find((d: any) => d.name === this.selectedDictionary);
+                    const dict = this.settings.categorizerDictionaries.find((d: { name: string }) => d.name === this.selectedDictionary);
                     const categories = dict ? dict.content.split('\n')
                         .map((c: string) => c.split(';')[0].trim()) // Split by ; and take first part
                         .filter((c: string) => c.length > 0) : [];
 
                     if (categories.length === 0) {
                         new Notice('Selected dictionary is empty!');
-                        btn.setButtonText('Start Categorizing').setDisabled(false);
+                        btn.setButtonText('Start categorizing').setDisabled(false);
                         return;
                     }
 
@@ -167,7 +168,7 @@ export class CategorizerModal extends Modal {
                     } catch (e) {
                         new Notice('Error during categorization');
                         console.error(e);
-                        btn.setButtonText('Start Categorizing').setDisabled(false);
+                        btn.setButtonText('Start categorizing').setDisabled(false);
                     }
                 }));
     }

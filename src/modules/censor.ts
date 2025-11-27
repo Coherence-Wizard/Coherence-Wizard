@@ -1,4 +1,4 @@
-import { App, TFile, normalizePath } from 'obsidian';
+import { App, TFile, TFolder, normalizePath } from 'obsidian';
 
 export class CensorService {
     constructor(private app: App) { }
@@ -11,7 +11,7 @@ export class CensorService {
         sentenceLevel: boolean,
         outputMode: 'folder' | 'same-folder',
         suffix: string,
-        replacementChar: string = '█'
+        replacementChar = '█'
     ): Promise<void> {
         const content = await this.app.vault.read(file);
         const { text: newContent, count } = this.applyPatterns(content, dictionary, direction, useMasking, sentenceLevel, replacementChar);
@@ -91,8 +91,8 @@ export class CensorService {
 
     private collectFiles(path: string, files: TFile[], recursive: boolean) {
         const folder = this.app.vault.getAbstractFileByPath(path);
-        if (folder && 'children' in folder) {
-            for (const child of (folder as any).children) {
+        if (folder instanceof TFolder) {
+            for (const child of folder.children) {
                 if (child instanceof TFile && child.extension === 'md') {
                     files.push(child);
                 } else if (recursive && 'children' in child) {
@@ -120,7 +120,7 @@ export class CensorService {
         direction: 'forward' | 'reverse',
         useMasking: boolean,
         sentenceLevel: boolean,
-        replacementChar: string = '█'
+        replacementChar = '█'
     ): { text: string, count: number } {
         let totalCount = 0;
 
@@ -227,9 +227,9 @@ export class CensorService {
         let sentEnd = text.length;
         if (endMatch) {
             if (endMatch[0] === '\n') {
-                sentEnd = matchIndex + endMatch.index!;
+                sentEnd = matchIndex + (endMatch.index ?? 0);
             } else {
-                sentEnd = matchIndex + endMatch.index! + 1; // Include punctuation
+                sentEnd = matchIndex + (endMatch.index ?? 0) + 1; // Include punctuation
             }
         }
 
