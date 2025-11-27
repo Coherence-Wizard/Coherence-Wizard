@@ -9,7 +9,7 @@
         "lint": "eslint src/**/*.ts main.ts"
     },
     "keywords": [],
-    "author": "Antigravity",
+    "author": "Coherence Wizard",
     "license": "MIT",
     "repository": {
         "type": "git",
