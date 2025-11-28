@@ -15,6 +15,7 @@ export class CategorizerModal extends Modal {
     applyAsTag: boolean;
     applyAsBacklink: boolean;
     moveToFolder: boolean;
+    tagHandlingMode: 'overwrite' | 'append' | 'skip' = 'append';
     recursive = false;
     ollamaModels: string[] = [];
 
@@ -104,7 +105,23 @@ export class CategorizerModal extends Modal {
 
         new Setting(contentEl)
             .setName('Apply as Tag')
-            .addToggle(t => t.setValue(this.applyAsTag).onChange(v => this.applyAsTag = v));
+            .addToggle(t => t.setValue(this.applyAsTag).onChange(v => {
+                this.applyAsTag = v;
+                this.display(); // Re-render to show/hide tag options if needed, though currently not needed as options are always visible
+            }));
+
+        if (this.applyAsTag) {
+            new Setting(contentEl)
+                .setName('Tag Handling')
+                .setDesc('How to handle existing tags')
+                .addDropdown(drop => drop
+                    .addOption('append', 'Add to existing tags')
+                    .addOption('overwrite', 'Overwrite existing tags')
+                    .addOption('skip', 'Skip notes with existing tags')
+                    .setValue(this.tagHandlingMode)
+                    .onChange((v: string) => this.tagHandlingMode = v as any)
+                );
+        }
 
         new Setting(contentEl)
             .setName('Apply as Backlink')
@@ -176,7 +193,8 @@ export class CategorizerModal extends Modal {
                         maxCategories: this.maxCategories,
                         applyAsTag: this.applyAsTag,
                         applyAsBacklink: this.applyAsBacklink,
-                        moveToFolder: this.moveToFolder
+                        moveToFolder: this.moveToFolder,
+                        tagHandlingMode: this.tagHandlingMode
                     };
 
                     try {

@@ -1196,12 +1196,14 @@ var RatingService = class {
     this.app = app;
     this.ollama = ollama;
   }
-  async rateFile(file, model, qualityParams) {
+  async rateFile(file, model, qualityParams, skipExisting = true) {
     try {
       const content = await this.app.vault.read(file);
-      const cache = this.app.metadataCache.getFileCache(file);
-      if ((cache == null ? void 0 : cache.frontmatter) && "auto rating" in cache.frontmatter) {
-        return cache.frontmatter["auto rating"];
+      if (skipExisting) {
+        const cache = this.app.metadataCache.getFileCache(file);
+        if ((cache == null ? void 0 : cache.frontmatter) && "auto rating" in cache.frontmatter) {
+          return cache.frontmatter["auto rating"];
+        }
       }
       const rating = await this.getRatingFromAI(content, model, qualityParams);
       if (rating) {
@@ -1237,7 +1239,7 @@ var RatingService = class {
             continue;
           }
         }
-        const rating = await this.rateFile(file, model, qualityParams);
+        const rating = await this.rateFile(file, model, qualityParams, skipExisting);
         if (rating)
           rated++;
       } catch (e) {
@@ -1383,7 +1385,7 @@ var RatingModal = class extends import_obsidian14.Modal {
       };
       try {
         if (this.target.extension) {
-          const rating = await this.service.rateFile(this.target, this.model, params);
+          const rating = await this.service.rateFile(this.target, this.model, params, this.skipExisting);
           new import_obsidian14.Notice(rating ? `Rated: ${rating}` : "Failed to rate");
         } else {
           const res = await this.service.rateFolder(this.target.path, this.model, params, this.recursive, this.skipExisting, onProgress);
@@ -2558,7 +2560,15 @@ var CategorizerService = class {
     this.ollama = ollama;
   }
   async categorizeFile(file, options) {
+    var _a;
     try {
+      if (options.tagHandlingMode === "skip") {
+        const cache = this.app.metadataCache.getFileCache(file);
+        const tags = (_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["tags"];
+        if (tags && (Array.isArray(tags) ? tags.length > 0 : String(tags).trim().length > 0)) {
+          return [];
+        }
+      }
       const content = await this.app.vault.read(file);
       const assignedCategories = await this.getCategoriesFromAI(content, options.model, options.categories, options.maxCategories);
       if (assignedCategories.length > 0) {
@@ -2575,13 +2585,17 @@ var CategorizerService = class {
     if (options.applyAsTag) {
       await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
         let currentTags = frontmatter["tags"];
-        if (!currentTags) {
+        if (options.tagHandlingMode === "overwrite") {
           currentTags = [];
-        } else if (!Array.isArray(currentTags)) {
-          if (typeof currentTags === "string") {
-            currentTags = currentTags.split(",").map((t) => t.trim()).filter((t) => t.length > 0);
-          } else {
-            currentTags = [String(currentTags)];
+        } else {
+          if (!currentTags) {
+            currentTags = [];
+          } else if (!Array.isArray(currentTags)) {
+            if (typeof currentTags === "string") {
+              currentTags = currentTags.split(",").map((t) => t.trim()).filter((t) => t.length > 0);
+            } else {
+              currentTags = [String(currentTags)];
+            }
           }
         }
         assignedCategories.forEach((c) => {
@@ -2724,6 +2738,7 @@ If multiple categories are plausible, pick the most relevant ones, up to the lim
 var CategorizerModal = class extends import_obsidian25.Modal {
   constructor(app, settings, target) {
     super(app);
+    this.tagHandlingMode = "append";
     this.recursive = false;
     this.ollamaModels = [];
     this.settings = settings;
@@ -2783,7 +2798,15 @@ var CategorizerModal = class extends import_obsidian25.Modal {
         this.maxCategories = num;
     }));
     contentEl.createEl("h3", { text: "Application Options" });
-    new import_obsidian25.Setting(contentEl).setName("Apply as Tag").addToggle((t) => t.setValue(this.applyAsTag).onChange((v) => this.applyAsTag = v));
+    new import_obsidian25.Setting(contentEl).setName("Apply as Tag").addToggle((t) => t.setValue(this.applyAsTag).onChange((v) => {
+      this.applyAsTag = v;
+      this.display();
+    }));
+    if (this.applyAsTag) {
+      new import_obsidian25.Setting(contentEl).setName("Tag Handling").setDesc("How to handle existing tags").addDropdown(
+        (drop) => drop.addOption("append", "Add to existing tags").addOption("overwrite", "Overwrite existing tags").addOption("skip", "Skip notes with existing tags").setValue(this.tagHandlingMode).onChange((v) => this.tagHandlingMode = v)
+      );
+    }
     new import_obsidian25.Setting(contentEl).setName("Apply as Backlink").addToggle((t) => t.setValue(this.applyAsBacklink).onChange((v) => this.applyAsBacklink = v));
     new import_obsidian25.Setting(contentEl).setName("Move to Folder").setDesc("Move/Copy file to category folder(s)").addToggle((t) => t.setValue(this.moveToFolder).onChange((v) => this.moveToFolder = v));
     if (!(this.target instanceof import_obsidian25.TFile)) {
@@ -2827,7 +2850,8 @@ var CategorizerModal = class extends import_obsidian25.Modal {
         maxCategories: this.maxCategories,
         applyAsTag: this.applyAsTag,
         applyAsBacklink: this.applyAsBacklink,
-        moveToFolder: this.moveToFolder
+        moveToFolder: this.moveToFolder,
+        tagHandlingMode: this.tagHandlingMode
       };
       try {
         if (this.target instanceof import_obsidian25.TFile) {
@@ -3833,7 +3857,7 @@ var CoherencePlugin = class extends import_obsidian33.Plugin {
     workspace.revealLeaf(leaf);
   }
   async onload() {
-    console.log("Coherence Plugin: Loaded version 0.0.22");
+    console.log("Coherence Plugin: Loaded version 0.0.24");
     await this.loadSettings();
     this.registerView(
       VIEW_TYPE_WIZARD,
@@ -4266,7 +4290,7 @@ var CoherenceSettingTab = class extends import_obsidian33.PluginSettingTab {
   }
   renderAboutSettings(containerEl) {
     containerEl.createEl("h2", { text: "About Coherence Wizard" });
-    containerEl.createEl("p", { text: "Version: 0.0.22", cls: "version-text" });
+    containerEl.createEl("p", { text: "Version: 0.0.24", cls: "version-text" });
     containerEl.createEl("p", { text: "The intention is to streamline coherence by using tools to convert chaos into order." });
     containerEl.createEl("p", { text: "The included tools have significantly enhanced my PKM workflows and I want to help others passionate about self-development using Obsidian." });
     containerEl.createEl("p", { text: "Many of these tools rely on private local AI via Ollama. (Future iterations of this plugin will allow for the use of large cloud AI via API). This is a privacy first plugin." });

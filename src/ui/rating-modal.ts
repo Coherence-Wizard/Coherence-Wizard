@@ -123,7 +123,7 @@ export class RatingModal extends Modal {
 
                     try {
                         if (this.target.extension) {
-                            const rating = await this.service.rateFile(this.target, this.model, params);
+                            const rating = await this.service.rateFile(this.target, this.model, params, this.skipExisting);
                             new Notice(rating ? `Rated: ${rating}` : 'Failed to rate');
                         } else {
                             const res = await this.service.rateFolder(this.target.path, this.model, params, this.recursive, this.skipExisting, onProgress);

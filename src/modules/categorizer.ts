@@ -8,6 +8,7 @@ export interface CategorizerOptions {
     applyAsTag: boolean;
     applyAsBacklink: boolean;
     moveToFolder: boolean;
+    tagHandlingMode: 'overwrite' | 'append' | 'skip';
 }
 
 export class CategorizerService {
@@ -15,6 +16,15 @@ export class CategorizerService {
 
     async categorizeFile(file: TFile, options: CategorizerOptions): Promise<string[]> {
         try {
+            // Check for skip mode first
+            if (options.tagHandlingMode === 'skip') {
+                const cache = this.app.metadataCache.getFileCache(file);
+                const tags = cache?.frontmatter?.['tags'];
+                if (tags && (Array.isArray(tags) ? tags.length > 0 : String(tags).trim().length > 0)) {
+                    return []; // Skip
+                }
+            }
+
             const content = await this.app.vault.read(file);
             const assignedCategories = await this.getCategoriesFromAI(content, options.model, options.categories, options.maxCategories);
 
@@ -39,15 +49,19 @@ export class CategorizerService {
             await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
                 let currentTags = frontmatter['tags'];
 
-                // Normalize current tags to array
-                if (!currentTags) {
+                if (options.tagHandlingMode === 'overwrite') {
                     currentTags = [];
-                } else if (!Array.isArray(currentTags)) {
-                    // Handle comma-separated string or single string
-                    if (typeof currentTags === 'string') {
-                        currentTags = currentTags.split(',').map(t => t.trim()).filter(t => t.length > 0);
-                    } else {
-                        currentTags = [String(currentTags)];
+                } else {
+                    // Normalize current tags to array
+                    if (!currentTags) {
+                        currentTags = [];
+                    } else if (!Array.isArray(currentTags)) {
+                        // Handle comma-separated string or single string
+                        if (typeof currentTags === 'string') {
+                            currentTags = currentTags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                        } else {
+                            currentTags = [String(currentTags)];
+                        }
                     }
                 }
 

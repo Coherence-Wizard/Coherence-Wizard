@@ -4,14 +4,16 @@ import { OllamaService } from './ollama';
 export class RatingService {
     constructor(private app: App, private ollama: OllamaService) { }
 
-    async rateFile(file: TFile, model: string, qualityParams: string[]): Promise<number | null> {
+    async rateFile(file: TFile, model: string, qualityParams: string[], skipExisting: boolean = true): Promise<number | null> {
         try {
             const content = await this.app.vault.read(file);
 
             // Check if already rated
-            const cache = this.app.metadataCache.getFileCache(file);
-            if (cache?.frontmatter && 'auto rating' in cache.frontmatter) {
-                return cache.frontmatter['auto rating'];
+            if (skipExisting) {
+                const cache = this.app.metadataCache.getFileCache(file);
+                if (cache?.frontmatter && 'auto rating' in cache.frontmatter) {
+                    return cache.frontmatter['auto rating'];
+                }
             }
 
             const rating = await this.getRatingFromAI(content, model, qualityParams);
@@ -65,7 +67,7 @@ export class RatingService {
                     }
                 }
 
-                const rating = await this.rateFile(file, model, qualityParams);
+                const rating = await this.rateFile(file, model, qualityParams, skipExisting);
                 if (rating) rated++;
             } catch (e) {
                 errors++;

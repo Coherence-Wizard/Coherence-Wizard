@@ -309,7 +309,7 @@ export default class CoherencePlugin extends Plugin {
     }
 
     async onload() {
-        console.log('Coherence Plugin: Loaded version 0.0.22');
+        console.log('Coherence Plugin: Loaded version 0.0.24');
         await this.loadSettings();
 
         this.registerView(
@@ -897,7 +897,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
     renderAboutSettings(containerEl: HTMLElement) {
         containerEl.createEl('h2', { text: 'About Coherence Wizard' });
-        containerEl.createEl('p', { text: 'Version: 0.0.22', cls: 'version-text' });
+        containerEl.createEl('p', { text: 'Version: 0.0.24', cls: 'version-text' });
 
         containerEl.createEl('p', { text: 'The intention is to streamline coherence by using tools to convert chaos into order.' });
         containerEl.createEl('p', { text: 'The included tools have significantly enhanced my PKM workflows and I want to help others passionate about self-development using Obsidian.' });
