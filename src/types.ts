@@ -71,7 +71,7 @@ export interface CoherenceSettings {
 
     // Wisdom
     wisdomModel: string;
-    wisdomMode: 'safe' | 'generalized';
+    wisdomMode: 'advice' | 'insight';
     wisdomPrompt: string;
 
     // Censor
@@ -96,6 +96,7 @@ export interface CoherenceSettings {
     contextMenuCategorize: boolean;
     contextMenuParseAndMove: boolean;
     contextMenuDistill: boolean;
+    contextMenuRating: boolean;
 
     // Wizard
     wizardInboxDir: string;

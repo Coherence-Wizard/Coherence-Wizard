@@ -1,12 +1,12 @@
-import { App, Modal, Setting, TFolder, Notice, TFile } from 'obsidian';
+import { App, Modal, Setting, DropdownComponent } from 'obsidian';
 import { SummarizerService } from '../modules/summarizer';
 import { OllamaService } from '../modules/ollama';
-import { CoherenceSettings } from '../types';
+import { CoherenceSettings } from '../../main';
 
 export class SummarizerModal extends Modal {
     service: SummarizerService;
     ollama: OllamaService;
-    target: TFile | TFolder | null = null;
+    target: any = null; // TFile or TFolder
     targetPath = '/';
 
     // Settings
@@ -23,10 +23,14 @@ export class SummarizerModal extends Modal {
 
     models: string[] = [];
 
-    constructor(app: App, settings: CoherenceSettings, target?: TFile | TFolder) {
+    saveSettings: (key: string, value: any) => Promise<void>;
+
+    constructor(app: App, settings: CoherenceSettings, saveSettings: (key: string, value: any) => Promise<void>, target?: any) {
         super(app);
         this.ollama = new OllamaService(settings.ollamaUrl);
         this.service = new SummarizerService(app, this.ollama);
+        this.service = new SummarizerService(app, this.ollama);
+        this.saveSettings = saveSettings;
         this.target = target;
 
         // Load defaults from settings
@@ -53,7 +57,7 @@ export class SummarizerModal extends Modal {
     async onOpen() {
         const { contentEl } = this;
         contentEl.empty();
-        new Setting(contentEl).setName('Summarize files').setHeading();
+        contentEl.createEl('h2', { text: 'Summarize Files' });
         contentEl.createEl('p', { text: 'Loading models...' });
 
         try {
@@ -68,18 +72,19 @@ export class SummarizerModal extends Modal {
     display() {
         const { contentEl } = this;
         contentEl.empty();
-        new Setting(contentEl).setName('Summarize files').setHeading();
-
-        // Target Path (Read Only)
-
+        contentEl.createEl('h2', { text: 'Summarize Files' });
 
         // Model Selection
         new Setting(contentEl)
-            .setName('Ollama model')
-            .addDropdown(drop => {
+            .setName('Ollama Model')
+            .addDropdown((drop: DropdownComponent) => {
+                drop.addOption('', 'Select a model');
                 this.models.forEach(m => drop.addOption(m, m));
                 drop.setValue(this.selectedModel);
-                drop.onChange(value => this.selectedModel = value);
+                drop.onChange(async (value: string) => {
+                    this.selectedModel = value;
+                    await this.saveSettings('summarizerModel', value);
+                });
             });
 
         // Options
@@ -91,14 +96,14 @@ export class SummarizerModal extends Modal {
                 .onChange(value => this.recursive = value));
 
         new Setting(contentEl)
-            .setName('Overwrite existing')
+            .setName('Overwrite Existing')
             .setDesc('Re-summarize files that already have a summary')
             .addToggle(toggle => toggle
                 .setValue(this.overwrite)
                 .onChange(value => this.overwrite = value));
 
         new Setting(contentEl)
-            .setName('Generate title for untitled')
+            .setName('Generate Title for Untitled')
             .setDesc('Automatically rename "Untitled" files using AI generated title')
             .addToggle(toggle => toggle
                 .setValue(this.generateTitle)
@@ -109,10 +114,40 @@ export class SummarizerModal extends Modal {
         // Action
         new Setting(contentEl)
             .addButton(btn => btn
-                .setButtonText('Start summarization')
+                .setButtonText('Start Summarization')
                 .setCta()
                 .onClick(async () => {
                     btn.setButtonText('Processing...').setDisabled(true);
+
+                    // Create Progress Bar
+                    const progressContainer = contentEl.createDiv();
+                    progressContainer.style.marginTop = '20px';
+                    const progressBarBg = progressContainer.createDiv();
+                    progressBarBg.style.width = '100%';
+                    progressBarBg.style.height = '10px';
+                    progressBarBg.style.backgroundColor = 'var(--background-modifier-border)';
+                    progressBarBg.style.borderRadius = '5px';
+
+                    const progressBar = progressBarBg.createDiv();
+                    progressBar.style.width = '0%';
+                    progressBar.style.height = '100%';
+                    progressBar.style.backgroundColor = 'var(--interactive-accent)';
+                    progressBar.style.borderRadius = '5px';
+                    progressBar.style.transition = 'width 0.1s';
+
+                    const progressText = progressContainer.createDiv();
+                    progressText.style.marginTop = '5px';
+                    progressText.style.fontSize = '0.8em';
+                    progressText.style.color = 'var(--text-muted)';
+                    progressText.setText(`Starting with model: ${this.selectedModel}...`);
+                    console.log('Summarizer using model:', this.selectedModel);
+
+                    const onProgress = (processed: number, total: number, currentFile: string) => {
+                        const percent = Math.floor((processed / total) * 100);
+                        progressBar.style.width = `${percent}%`;
+                        progressText.setText(`Processing ${processed}/${total}: ${currentFile}`);
+                    };
+
                     try {
                         const prompts = [this.prompt, this.prompt2, this.prompt3, this.prompt4];
 
@@ -122,7 +157,7 @@ export class SummarizerModal extends Modal {
                             if ('extension' in abstractFile) {
                                 // File
                                 const result = await this.service.summarizeFile(
-                                    abstractFile as TFile,
+                                    abstractFile as any,
                                     this.selectedModel,
                                     this.overwrite,
                                     prompts,
@@ -137,7 +172,8 @@ export class SummarizerModal extends Modal {
                                     this.recursive,
                                     this.overwrite,
                                     prompts,
-                                    this.generateTitle
+                                    this.generateTitle,
+                                    onProgress
                                 );
                                 new Notice(`Complete: ${result.processed} processed, ${result.skipped} skipped, ${result.errors} errors.`);
                             }
@@ -149,6 +185,7 @@ export class SummarizerModal extends Modal {
                         new Notice('Error during summarization. Check console.');
                         console.error(e);
                         btn.setButtonText('Start Summarization').setDisabled(false);
+                        progressText.setText('Error occurred.');
                     }
                 }));
     }
@@ -159,4 +196,5 @@ export class SummarizerModal extends Modal {
     }
 }
 
-
+// Helper for Notice since we can't import it inside class definition easily if not exported
+import { Notice } from 'obsidian';

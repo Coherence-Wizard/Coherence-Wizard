@@ -1,4 +1,4 @@
-import { App, TFile, TFolder, parseYaml, stringifyYaml } from 'obsidian';
+import { App, TFile, parseYaml, stringifyYaml } from 'obsidian';
 import { OllamaService } from './ollama';
 
 export class SummarizerService {
@@ -11,7 +11,7 @@ export class SummarizerService {
         const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
         const match = content.match(frontmatterRegex);
 
-        let frontmatter: Record<string, unknown> = {};
+        let frontmatter: any = {};
         let body = content;
 
         if (match) {
@@ -74,7 +74,7 @@ export class SummarizerService {
 
                     // Sanitize title
                     // Strip out illegal characters: . @ # % $ & / \ < > [ ] ( ) : * ? " | and newlines
-                    newTitle = newTitle.replace(/[.@#%$&/\\<>[\]():*?"|\n\r]/g, ' ').trim();
+                    newTitle = newTitle.replace(/[.@#%$&/\\<>\[\]():*?"|\n\r]/g, ' ').trim();
                     newTitle = newTitle.replace(/\s+/g, ' '); // Collapse spaces
 
                     if (newTitle.length > 0) {
@@ -107,13 +107,21 @@ export class SummarizerService {
         }
     }
 
-    async summarizeFolder(folderPath: string, model: string, recursive = true, overwrite = false, prompts: string[] = [], generateTitle = false): Promise<{ processed: number, skipped: number, errors: number }> {
+    async summarizeFolder(
+        folderPath: string,
+        model: string,
+        recursive = true,
+        overwrite = false,
+        prompts: string[] = [],
+        generateTitle = false,
+        onProgress?: (processed: number, total: number, currentFile: string) => void
+    ): Promise<{ processed: number, skipped: number, errors: number }> {
         const files: TFile[] = [];
 
         const collectFiles = (path: string) => {
             const folder = this.app.vault.getAbstractFileByPath(path);
-            if (folder instanceof TFolder) {
-                for (const child of folder.children) {
+            if (folder && 'children' in folder) {
+                for (const child of (folder as any).children) {
                     if (child instanceof TFile && child.extension === 'md') {
                         files.push(child);
                     } else if (recursive && 'children' in child) {
@@ -128,8 +136,18 @@ export class SummarizerService {
         let processed = 0;
         let skipped = 0;
         let errors = 0;
+        const total = files.length;
 
-        for (const file of files) {
+        for (let i = 0; i < total; i++) {
+            const file = files[i];
+
+            if (onProgress) {
+                onProgress(i + 1, total, file.name);
+            }
+
+            // Yield to event loop to prevent UI freeze
+            await new Promise(resolve => setTimeout(resolve, 10));
+
             try {
                 const result = await this.summarizeFile(file, model, overwrite, prompts, generateTitle);
                 if (result) processed++;

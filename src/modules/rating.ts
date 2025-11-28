@@ -1,4 +1,4 @@
-import { App, TFile, TFolder } from 'obsidian';
+import { App, TFile, Notice } from 'obsidian';
 import { OllamaService } from './ollama';
 
 export class RatingService {
@@ -29,15 +29,32 @@ export class RatingService {
         }
     }
 
-    async rateFolder(folderPath: string, model: string, qualityParams: string[], recursive: boolean, skipExisting: boolean): Promise<{ processed: number, rated: number, errors: number }> {
+    async rateFolder(
+        folderPath: string,
+        model: string,
+        qualityParams: string[],
+        recursive: boolean,
+        skipExisting: boolean,
+        onProgress?: (processed: number, total: number, currentFile: string) => void
+    ): Promise<{ processed: number, rated: number, errors: number }> {
         const files: TFile[] = [];
         this.collectFiles(folderPath, files, recursive);
 
         let processed = 0;
         let rated = 0;
         let errors = 0;
+        const total = files.length;
 
-        for (const file of files) {
+        for (let i = 0; i < total; i++) {
+            const file = files[i];
+
+            if (onProgress) {
+                onProgress(i + 1, total, file.name);
+            }
+
+            // Yield to event loop
+            await new Promise(resolve => setTimeout(resolve, 10));
+
             processed++;
             try {
                 // Check skip existing
@@ -60,8 +77,8 @@ export class RatingService {
 
     private collectFiles(path: string, files: TFile[], recursive: boolean) {
         const folder = this.app.vault.getAbstractFileByPath(path);
-        if (folder instanceof TFolder) {
-            for (const child of folder.children) {
+        if (folder && 'children' in folder) {
+            for (const child of (folder as any).children) {
                 if (child instanceof TFile && child.extension === 'md') {
                     files.push(child);
                 } else if (recursive && 'children' in child) {

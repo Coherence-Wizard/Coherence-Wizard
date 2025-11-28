@@ -1,4 +1,4 @@
-import { App, TFile, TFolder, normalizePath, Notice } from 'obsidian';
+import { App, TFile, normalizePath, Notice } from 'obsidian';
 import { OllamaService } from './ollama';
 
 export interface CategorizerOptions {
@@ -140,7 +140,8 @@ export class CategorizerService {
     async processFolder(
         folderPath: string,
         options: CategorizerOptions,
-        recursive: boolean
+        recursive: boolean,
+        onProgress?: (processed: number, total: number, currentFile: string) => void
     ): Promise<{ processed: number, categorized: number, errors: number }> {
         const files: TFile[] = [];
         this.collectFiles(folderPath, files, recursive);
@@ -148,8 +149,18 @@ export class CategorizerService {
         let processed = 0;
         let categorized = 0;
         let errors = 0;
+        const total = files.length;
 
-        for (const file of files) {
+        for (let i = 0; i < total; i++) {
+            const file = files[i];
+
+            if (onProgress) {
+                onProgress(i + 1, total, file.name);
+            }
+
+            // Yield to event loop
+            await new Promise(resolve => setTimeout(resolve, 10));
+
             processed++;
             try {
                 const cats = await this.categorizeFile(file, options);
@@ -167,8 +178,8 @@ export class CategorizerService {
 
     private collectFiles(path: string, files: TFile[], recursive: boolean) {
         const folder = this.app.vault.getAbstractFileByPath(path);
-        if (folder instanceof TFolder) {
-            for (const child of folder.children) {
+        if (folder && 'children' in folder) {
+            for (const child of (folder as any).children) {
                 if (child instanceof TFile && child.extension === 'md') {
                     files.push(child);
                 } else if (recursive && 'children' in child) {

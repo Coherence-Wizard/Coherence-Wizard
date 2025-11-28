@@ -6,7 +6,7 @@ import { CoherenceSettings } from '../types';
 export class CategorizeHubModal extends Modal {
     private mode: 'categorize' | 'rate' = 'categorize';
 
-    constructor(app: App, private settings: CoherenceSettings, private fileOrFolder?: TFile | TFolder) {
+    constructor(app: App, private settings: CoherenceSettings, private saveSettings: (key: string, value: any) => Promise<void>, private fileOrFolder?: TFile | TFolder) {
         super(app);
     }
 
@@ -44,7 +44,7 @@ export class CategorizeHubModal extends Modal {
                     if (this.mode === 'categorize') {
                         new CategorizerModal(this.app, this.settings, this.fileOrFolder).open();
                     } else if (this.mode === 'rate') {
-                        new RatingModal(this.app, this.settings, this.fileOrFolder).open();
+                        new RatingModal(this.app, this.settings, this.saveSettings, this.fileOrFolder).open();
                     }
                 }));
     }
