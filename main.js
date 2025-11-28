@@ -3833,7 +3833,7 @@ var CoherencePlugin = class extends import_obsidian33.Plugin {
     workspace.revealLeaf(leaf);
   }
   async onload() {
-    console.log("Coherence Plugin: Loaded version 0.0.21");
+    console.log("Coherence Plugin: Loaded version 0.0.22");
     await this.loadSettings();
     this.registerView(
       VIEW_TYPE_WIZARD,
@@ -4055,16 +4055,6 @@ var CoherencePlugin = class extends import_obsidian33.Plugin {
             });
           });
         }
-        if (this.settings.contextMenuRating) {
-          menu.addItem((item) => {
-            item.setTitle("Coherence: Rate").setIcon("star").onClick(async () => {
-              new RatingModal(this.app, this.settings, async (key, value) => {
-                this.settings[key] = value;
-                await this.saveSettings();
-              }, view.file).open();
-            });
-          });
-        }
       })
     );
     this.registerEvent(
@@ -4137,16 +4127,6 @@ var CoherencePlugin = class extends import_obsidian33.Plugin {
             menu.addItem((item) => {
               item.setTitle("Coherence: Distill").setIcon("flask-conical").onClick(async () => {
                 new DistillModal(this.app, this.settings, file).open();
-              });
-            });
-          }
-          if (this.settings.contextMenuRating) {
-            menu.addItem((item) => {
-              item.setTitle("Coherence: Rate").setIcon("star").onClick(async () => {
-                new RatingModal(this.app, this.settings, async (key, value) => {
-                  this.settings[key] = value;
-                  await this.saveSettings();
-                }, file).open();
               });
             });
           }
@@ -4286,7 +4266,7 @@ var CoherenceSettingTab = class extends import_obsidian33.PluginSettingTab {
   }
   renderAboutSettings(containerEl) {
     containerEl.createEl("h2", { text: "About Coherence Wizard" });
-    containerEl.createEl("p", { text: "Version: 0.0.21", cls: "version-text" });
+    containerEl.createEl("p", { text: "Version: 0.0.22", cls: "version-text" });
     containerEl.createEl("p", { text: "The intention is to streamline coherence by using tools to convert chaos into order." });
     containerEl.createEl("p", { text: "The included tools have significantly enhanced my PKM workflows and I want to help others passionate about self-development using Obsidian." });
     containerEl.createEl("p", { text: "Many of these tools rely on private local AI via Ollama. (Future iterations of this plugin will allow for the use of large cloud AI via API). This is a privacy first plugin." });

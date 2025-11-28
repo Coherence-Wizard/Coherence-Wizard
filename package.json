@@ -1,6 +1,6 @@
 {
     "name": "obsidian-coherence-plugin",
-    "version": "0.0.21",
+    "version": "0.0.22",
     "description": "Coherence Plugin for Obsidian",
     "main": "main.js",
     "scripts": {

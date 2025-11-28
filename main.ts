@@ -309,7 +309,7 @@ export default class CoherencePlugin extends Plugin {
     }
 
     async onload() {
-        console.log('Coherence Plugin: Loaded version 0.0.21');
+        console.log('Coherence Plugin: Loaded version 0.0.22');
         await this.loadSettings();
 
         this.registerView(
@@ -587,18 +587,7 @@ export default class CoherencePlugin extends Plugin {
                     });
                 }
                 // 9. Rating
-                if (this.settings.contextMenuRating) {
-                    menu.addItem((item) => {
-                        item.setTitle('Coherence: Rate')
-                            .setIcon('star')
-                            .onClick(async () => {
-                                new RatingModal(this.app, this.settings, async (key, value) => {
-                                    (this.settings as any)[key] = value;
-                                    await this.saveSettings();
-                                }, view.file).open();
-                            });
-                    });
-                }
+
             })
         );
 
@@ -703,18 +692,7 @@ export default class CoherencePlugin extends Plugin {
                         });
                     }
                     // 9. Rating
-                    if (this.settings.contextMenuRating) {
-                        menu.addItem((item) => {
-                            item.setTitle('Coherence: Rate')
-                                .setIcon('star')
-                                .onClick(async () => {
-                                    new RatingModal(this.app, this.settings, async (key, value) => {
-                                        (this.settings as any)[key] = value;
-                                        await this.saveSettings();
-                                    }, file).open();
-                                });
-                        });
-                    }
+
                 }
             })
         );
@@ -919,7 +897,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
     renderAboutSettings(containerEl: HTMLElement) {
         containerEl.createEl('h2', { text: 'About Coherence Wizard' });
-        containerEl.createEl('p', { text: 'Version: 0.0.21', cls: 'version-text' });
+        containerEl.createEl('p', { text: 'Version: 0.0.22', cls: 'version-text' });
 
         containerEl.createEl('p', { text: 'The intention is to streamline coherence by using tools to convert chaos into order.' });
         containerEl.createEl('p', { text: 'The included tools have significantly enhanced my PKM workflows and I want to help others passionate about self-development using Obsidian.' });

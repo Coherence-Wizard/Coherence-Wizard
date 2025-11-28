@@ -1,7 +1,7 @@
 {
 	"id": "obsidian-coherence-plugin",
 	"name": "Coherence Wizard",
-	"version": "0.0.21",
+	"version": "0.0.22",
 	"minAppVersion": "0.15.0",
 	"description": "Unified toolkit for Atomization, Summarization, and Wisdom Extraction (formerly Antigravity).",
 	"author": "Antigravity",
