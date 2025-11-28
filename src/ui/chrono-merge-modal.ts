@@ -128,7 +128,7 @@ export class ChronoMergeModal extends Modal {
                 const btn = btnContainer.createEl('button', { text: 'Merge Group' });
                 btn.addClass('mod-cta');
                 btn.onclick = () => {
-                    (async () => {
+                    void (async () => {
                         await this.service.mergeGroup(group, outputName, this.useCreationTime, mergedContent);
                         new Notice(`Merged group into ${outputName}.md`);
                         groupEl.remove();
@@ -152,7 +152,7 @@ export class ChronoMergeModal extends Modal {
         }
     }
 
-    async scan() {
+    scan() {
         const folder = this.targetFolder || (this.folder ? this.folder : this.app.vault.getRoot());
         if (!folder) {
             new Notice('Invalid folder');
@@ -160,7 +160,7 @@ export class ChronoMergeModal extends Modal {
         }
 
         new Notice('Scanning...');
-        this.groups = await this.service.scanFolder(folder, this.threshold, this.recursive, this.useCreationTime);
+        this.groups = this.service.scanFolder(folder, this.threshold, this.recursive, this.useCreationTime);
 
         if (this.groups.length === 0) {
             new Notice('No groups found matching the criteria.');

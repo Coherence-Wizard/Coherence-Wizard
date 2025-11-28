@@ -19,7 +19,7 @@ export class SummarizerModal extends Modal {
     prompt2: string;
     prompt3: string;
     prompt4: string;
-    prompt4: string;
+
     prompt1Enabled: boolean;
     prompt2Enabled: boolean;
     prompt3Enabled: boolean;
@@ -28,9 +28,9 @@ export class SummarizerModal extends Modal {
 
     models: string[] = [];
 
-    saveSettings: (key: string, value: any) => Promise<void>;
+    saveSettings: (key: string, value: unknown) => Promise<void>;
 
-    constructor(app: App, settings: CoherenceSettings, saveSettings: (key: string, value: any) => Promise<void>, target?: TFile | TFolder) {
+    constructor(app: App, settings: CoherenceSettings, saveSettings: (key: string, value: unknown) => Promise<void>, target?: TFile | TFolder) {
         super(app);
         this.ollama = new OllamaService(settings.ollamaUrl);
         this.service = new SummarizerService(app, this.ollama);

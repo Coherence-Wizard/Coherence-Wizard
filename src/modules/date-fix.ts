@@ -20,7 +20,7 @@ export class DateFixService {
                     continue;
                 }
 
-                const newName = await this.getNewFilename(file, fallbackToCreationDate, dateFormat);
+                const newName = this.getNewFilename(file, fallbackToCreationDate, dateFormat);
                 if (newName && newName !== file.name) {
                     const newPath = normalizePath(`${file.parent ? file.parent.path : ''}/${newName}`);
                     await this.app.fileManager.renameFile(file, newPath);
@@ -42,7 +42,7 @@ export class DateFixService {
                 return 'Skipped (Exception)';
             }
 
-            const newName = await this.getNewFilename(file, fallbackToCreationDate, dateFormat);
+            const newName = this.getNewFilename(file, fallbackToCreationDate, dateFormat);
             if (newName && newName !== file.name) {
                 const newPath = normalizePath(`${file.parent ? file.parent.path : ''}/${newName}`);
                 await this.app.fileManager.renameFile(file, newPath);
@@ -82,7 +82,7 @@ export class DateFixService {
         return false;
     }
 
-    private async getNewFilename(file: TFile, fallbackToCreationDate: boolean, dateFormat: string): Promise<string> {
+    private getNewFilename(file: TFile, fallbackToCreationDate: boolean, dateFormat: string): string {
         let name = file.name;
 
         // 1. Check if it already starts with a date (roughly)

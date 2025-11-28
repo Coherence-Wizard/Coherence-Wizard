@@ -13,9 +13,9 @@ export class RatingModal extends Modal {
 
     ollama: OllamaService;
     models: string[] = [];
-    saveSettings: (key: string, value: any) => Promise<void>;
+    saveSettings: (key: string, value: unknown) => Promise<void>;
 
-    constructor(app: App, settings: CoherenceSettings, saveSettings: (key: string, value: any) => Promise<void>, target?: TFile | TFolder) {
+    constructor(app: App, settings: CoherenceSettings, saveSettings: (key: string, value: unknown) => Promise<void>, target?: TFile | TFolder) {
         super(app);
         this.ollama = new OllamaService(settings.ollamaUrl);
         this.service = new RatingService(app, this.ollama);

@@ -18,6 +18,10 @@ export interface CoherenceSettings {
     summarizerPrompt3: string;
     summarizerPrompt4: string;
     summarizerGenerateTitle: boolean;
+    summarizerPrompt1Enabled: boolean;
+    summarizerPrompt2Enabled: boolean;
+    summarizerPrompt3Enabled: boolean;
+    summarizerPrompt4Enabled: boolean;
 
     // Automatic Rating
     ratingModel: string;
@@ -71,7 +75,7 @@ export interface CoherenceSettings {
 
     // Wisdom
     wisdomModel: string;
-    wisdomMode: 'advice' | 'insight';
+    wisdomMode: 'generalized' | 'safe';
     wisdomPrompt: string;
 
     // Censor

@@ -1,4 +1,4 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, TFolder, WorkspaceLeaf } from 'obsidian';
+import { App, Notice, Plugin, PluginSettingTab, Setting, TFile, TFolder, WorkspaceLeaf } from 'obsidian';
 import { AtomizerModal } from './src/ui/atomizer-modal';
 import { SummarizerModal } from './src/ui/summarizer-modal';
 import { WisdomModal } from './src/ui/wisdom-modal';
@@ -6,11 +6,9 @@ import { DateFixModal } from './src/ui/date-fix-modal';
 import { ConcatonizerModal } from './src/ui/concatonizer-modal';
 import { RatingModal } from './src/ui/rating-modal';
 
-import { CategorizerModal } from './src/ui/categorizer-modal';
 import { DeduplicationModal } from './src/ui/deduplication-modal';
 import { ParseAndMoveModal } from './src/ui/parse-and-move-modal';
 import { CensorModal } from './src/ui/censor-modal';
-import { GeneralizerModal } from './src/ui/generalizer-modal';
 
 import { MergeModal } from './src/ui/merge-modal';
 import { CategorizeHubModal } from './src/ui/categorize-hub-modal';
@@ -19,18 +17,7 @@ import { ChronoMergeModal } from './src/ui/chrono-merge-modal';
 import { WizardView, VIEW_TYPE_WIZARD } from './src/ui/wizard-view';
 import { YamlTemplateModal } from './src/ui/yaml-template-modal';
 import { OllamaService } from './src/modules/ollama';
-import { DateFixService } from './src/modules/date-fix';
-import { AtomizerService } from './src/modules/atomizer';
-import { SummarizerService } from './src/modules/summarizer';
-import { WisdomService } from './src/modules/wisdom';
-import { RatingService } from './src/modules/rating';
-import { YamlTemplateService } from './src/modules/yaml-template';
-import { CategorizerService } from './src/modules/categorizer';
-import { DeduplicationService } from './src/modules/deduplication';
-import { ParseAndMoveService } from './src/modules/parse-and-move';
-import { CensorService } from './src/modules/censor';
-import { ChronoMergeService } from './src/modules/chrono-merge';
-import { ConcatonizerService } from './src/modules/concatonizer';
+
 
 export interface CoherenceSettings {
     // General
@@ -110,7 +97,7 @@ export interface CoherenceSettings {
 
     // Wisdom
     wisdomModel: string;
-    wisdomMode: 'advice' | 'insight';
+    wisdomMode: 'generalized' | 'safe';
     wisdomPrompt: string;
 
     // Censor
@@ -262,7 +249,7 @@ Here is the text:
 
     // Wisdom
     wisdomModel: 'llama3',
-    wisdomMode: 'advice',
+    wisdomMode: 'generalized',
     wisdomPrompt: 'Extract wisdom from this text.',
 
     censorDictionaries: [
@@ -325,11 +312,13 @@ export default class CoherencePlugin extends Plugin {
         );
 
         // Add Ribbon Icon
-        this.addRibbonIcon('wand-2', 'Coherence Wizard', (evt: MouseEvent) => {
-            (async () => {
+        this.addRibbonIcon('wand-2', 'Coherence Wizard', () => {
+            void (async () => {
                 await this.activateWizardView();
             })();
         });
+
+        this.addSettingTab(new CoherenceSettingTab(this.app, this));
 
         // Add Status Bar Item
         const statusBarItemEl = this.addStatusBarItem();
@@ -338,7 +327,7 @@ export default class CoherencePlugin extends Plugin {
         // Atomizer Command
         this.addCommand({
             id: 'open-atomizer-modal',
-            name: 'Open Atomizer',
+            name: 'Open atomizer',
             callback: () => {
                 const file = this.app.workspace.getActiveFile();
                 if (file) {
@@ -352,12 +341,12 @@ export default class CoherencePlugin extends Plugin {
         // Summarizer Command
         this.addCommand({
             id: 'open-summarizer-modal',
-            name: 'Open Summarizer',
+            name: 'Open summarizer',
             callback: () => {
                 const file = this.app.workspace.getActiveFile();
                 if (file) {
                     new SummarizerModal(this.app, this.settings, async (key, value) => {
-                        (this.settings as any)[key] = value;
+                        (this.settings as unknown as Record<string, unknown>)[key] = value;
                         await this.saveSettings();
                     }, file).open();
                 } else {
@@ -369,7 +358,7 @@ export default class CoherencePlugin extends Plugin {
         // Wisdom Command
         this.addCommand({
             id: 'open-wisdom-modal',
-            name: 'Open Wisdom Extractor',
+            name: 'Open wisdom extractor',
             callback: () => {
                 const file = this.app.workspace.getActiveFile();
                 if (file) {
@@ -383,7 +372,7 @@ export default class CoherencePlugin extends Plugin {
         // Date Fix Command
         this.addCommand({
             id: 'open-date-fix-modal',
-            name: 'Open Date Fix',
+            name: 'Open date fix',
             callback: () => {
                 const file = this.app.workspace.getActiveFile();
                 if (file) {
@@ -397,7 +386,7 @@ export default class CoherencePlugin extends Plugin {
         // Concatonizer Command
         this.addCommand({
             id: 'open-concatonizer-modal',
-            name: 'Open Concatonizer',
+            name: 'Open concatonizer',
             callback: () => {
                 const file = this.app.workspace.getActiveFile();
                 if (file) {
@@ -413,12 +402,12 @@ export default class CoherencePlugin extends Plugin {
         // Rating Command
         this.addCommand({
             id: 'open-rating-modal',
-            name: 'Open Rating',
+            name: 'Open rating',
             callback: () => {
                 const file = this.app.workspace.getActiveFile();
                 if (file) {
                     new RatingModal(this.app, this.settings, async (key, value) => {
-                        (this.settings as any)[key] = value;
+                        (this.settings as unknown as Record<string, unknown>)[key] = value;
                         await this.saveSettings();
                     }, file).open();
                 } else {
@@ -430,11 +419,14 @@ export default class CoherencePlugin extends Plugin {
         // Categorizer Command
         this.addCommand({
             id: 'open-categorizer-modal',
-            name: 'Open Categorizer',
+            name: 'Open categorizer',
             callback: () => {
                 const file = this.app.workspace.getActiveFile();
                 if (file) {
-                    new CategorizeHubModal(this.app, this.settings, file).open();
+                    new CategorizeHubModal(this.app, this.settings, async (key, value) => {
+                        (this.settings as unknown as Record<string, unknown>)[key] = value;
+                        await this.saveSettings();
+                    }, file).open();
                 } else {
                     new Notice('No active file.');
                 }
@@ -444,7 +436,7 @@ export default class CoherencePlugin extends Plugin {
         // Deduplication Command
         this.addCommand({
             id: 'open-deduplication-modal',
-            name: 'Open Deduplication',
+            name: 'Open deduplication',
             callback: () => {
                 const file = this.app.workspace.getActiveFile();
                 if (file && file.parent) {
@@ -458,7 +450,7 @@ export default class CoherencePlugin extends Plugin {
         // Parse and Move Command
         this.addCommand({
             id: 'open-parse-and-move-modal',
-            name: 'Open Parse and Move',
+            name: 'Open parse and move',
             callback: () => {
                 const file = this.app.workspace.getActiveFile();
                 if (file) {
@@ -472,7 +464,7 @@ export default class CoherencePlugin extends Plugin {
         // Censor Command
         this.addCommand({
             id: 'open-censor-modal',
-            name: 'Open Censor and Alias',
+            name: 'Open censor and alias',
             callback: () => {
                 const file = this.app.workspace.getActiveFile();
                 if (file) {
@@ -486,7 +478,7 @@ export default class CoherencePlugin extends Plugin {
         // Chrono Merge Command
         this.addCommand({
             id: 'open-chrono-merge-modal',
-            name: 'Open Chrono Merge',
+            name: 'Open chrono merge',
             callback: () => {
                 const file = this.app.workspace.getActiveFile();
                 if (file && file.parent) {
@@ -500,9 +492,9 @@ export default class CoherencePlugin extends Plugin {
         // Coherence Wizard Command
         this.addCommand({
             id: 'open-coherence-wizard',
-            name: 'Open Dashboard',
+            name: 'Open dashboard',
             callback: () => {
-                (async () => {
+                void (async () => {
                     await this.activateWizardView();
                 })();
             }
@@ -514,7 +506,7 @@ export default class CoherencePlugin extends Plugin {
                 // 1. Date Fix
                 if (this.settings.contextMenuDateFix) {
                     menu.addItem((item) => {
-                        item.setTitle('Coherence: Date Fix')
+                        item.setTitle('Coherence: Date fix')
                             .setIcon('calendar')
                             .onClick(() => {
                                 new DateFixModal(this.app, this.settings, view.file).open();
@@ -544,7 +536,7 @@ export default class CoherencePlugin extends Plugin {
                 // 4. YAML Template
                 if (this.settings.contextMenuYamlTemplate) {
                     menu.addItem((item) => {
-                        item.setTitle('Coherence: Apply YAML Template')
+                        item.setTitle('Coherence: Apply YAML template')
                             .setIcon('layout-template')
                             .onClick(() => {
                                 new YamlTemplateModal(this.app, this.settings, view.file).open();
@@ -558,7 +550,7 @@ export default class CoherencePlugin extends Plugin {
                             .setIcon('lines-of-text')
                             .onClick(() => {
                                 new SummarizerModal(this.app, this.settings, async (key, value) => {
-                                    (this.settings as any)[key] = value;
+                                    (this.settings as unknown as Record<string, unknown>)[key] = value;
                                     await this.saveSettings();
                                 }, view.file).open();
                             });
@@ -571,7 +563,7 @@ export default class CoherencePlugin extends Plugin {
                             .setIcon('folder')
                             .onClick(() => {
                                 new CategorizeHubModal(this.app, this.settings, async (key, value) => {
-                                    (this.settings as any)[key] = value;
+                                    (this.settings as unknown as Record<string, unknown>)[key] = value;
                                     await this.saveSettings();
                                 }, view.file).open();
                             });
@@ -580,7 +572,7 @@ export default class CoherencePlugin extends Plugin {
                 // 7. Parse and Move
                 if (this.settings.contextMenuParseAndMove) {
                     menu.addItem((item) => {
-                        item.setTitle('Coherence: Parse and Move')
+                        item.setTitle('Coherence: Parse and move')
                             .setIcon('folder-input')
                             .onClick(() => {
                                 new ParseAndMoveModal(this.app, this.settings, view.file).open();
@@ -608,7 +600,7 @@ export default class CoherencePlugin extends Plugin {
                 // 1. Date Fix
                 if (this.settings.contextMenuDateFix) {
                     menu.addItem((item) => {
-                        item.setTitle('Coherence: Date Fix')
+                        item.setTitle('Coherence: Date fix')
                             .setIcon('calendar')
                             .onClick(() => {
                                 if (file instanceof TFile || file instanceof TFolder) {
@@ -645,7 +637,7 @@ export default class CoherencePlugin extends Plugin {
                 // 4. YAML Template
                 if (this.settings.contextMenuYamlTemplate) {
                     menu.addItem((item) => {
-                        item.setTitle('Coherence: Apply YAML Template')
+                        item.setTitle('Coherence: Apply YAML template')
                             .setIcon('layout-template')
                             .onClick(() => {
                                 if (file instanceof TFile || file instanceof TFolder) {
@@ -663,7 +655,7 @@ export default class CoherencePlugin extends Plugin {
                                 .setIcon('lines-of-text')
                                 .onClick(() => {
                                     new SummarizerModal(this.app, this.settings, async (key, value) => {
-                                        (this.settings as any)[key] = value;
+                                        (this.settings as unknown as Record<string, unknown>)[key] = value;
                                         await this.saveSettings();
                                     }, file).open();
                                 });
@@ -676,7 +668,7 @@ export default class CoherencePlugin extends Plugin {
                                 .setIcon('folder')
                                 .onClick(() => {
                                     new CategorizeHubModal(this.app, this.settings, async (key, value) => {
-                                        (this.settings as any)[key] = value;
+                                        (this.settings as unknown as Record<string, unknown>)[key] = value;
                                         await this.saveSettings();
                                     }, file).open();
                                 });
@@ -685,7 +677,7 @@ export default class CoherencePlugin extends Plugin {
                     // 7. Parse and Move
                     if (this.settings.contextMenuParseAndMove) {
                         menu.addItem((item) => {
-                            item.setTitle('Coherence: Parse and Move')
+                            item.setTitle('Coherence: Parse and move')
                                 .setIcon('folder-input')
                                 .onClick(() => {
                                     new ParseAndMoveModal(this.app, this.settings, file).open();
@@ -707,12 +699,6 @@ export default class CoherencePlugin extends Plugin {
                 }
             })
         );
-
-        this.addSettingTab(new CoherenceSettingTab(this.app, this));
-    }
-
-    onunload() {
-
     }
 
     async loadSettings() {
@@ -721,6 +707,10 @@ export default class CoherencePlugin extends Plugin {
 
     async saveSettings() {
         await this.saveData(this.settings);
+    }
+
+    onunload() {
+        console.log('Coherence Wizard unloaded');
     }
 }
 
@@ -901,7 +891,7 @@ class CoherenceSettingTab extends PluginSettingTab {
     }
 
     renderAboutSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('About Coherence Wizard').setHeading();
+        new Setting(containerEl).setName('About Coherence wizard').setHeading();
         containerEl.createEl('p', { text: 'Version: 0.0.27', cls: 'version-text' });
 
         containerEl.createEl('p', { text: 'The intention is to streamline coherence by using tools to convert chaos into order.' });
@@ -917,7 +907,7 @@ class CoherenceSettingTab extends PluginSettingTab {
         const bmcContainer = containerEl.createDiv({ cls: 'coherence-bmc-container' });
 
         const bmcLink = bmcContainer.createEl('a', { href: 'https://www.buymeacoffee.com/rastovich' });
-        const bmcImg = bmcLink.createEl('img', {
+        bmcLink.createEl('img', {
             attr: {
                 src: 'https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=rastovich&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff',
                 alt: 'Buy me a coffee'
@@ -962,11 +952,11 @@ class CoherenceSettingTab extends PluginSettingTab {
     }
 
     renderContextMenuSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('Context Menu Settings').setHeading();
+        new Setting(containerEl).setName('Context menu').setHeading();
         containerEl.createEl('p', { text: 'Select which features should appear in the right-click context menu.' });
 
         new Setting(containerEl)
-            .setName('Date Fix')
+            .setName('Date fix')
             .setDesc('Available in: File, Folder')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.contextMenuDateFix)
@@ -1050,21 +1040,23 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Available in: File, Folder')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.contextMenuRating)
-                .onChange(async (value) => {
-                    this.plugin.settings.contextMenuRating = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.contextMenuRating = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
     }
 
     renderAtomizerSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('Atomizer Settings').setHeading();
+        new Setting(containerEl).setName('Atomizer').setHeading();
 
         const desc = containerEl.createDiv({ cls: 'setting-item-description coherence-mb-20' });
         desc.createEl('p').createEl('strong', { text: 'Atomization Modes:' });
         const ul = desc.createEl('ul');
-        ul.createEl('li').innerHTML = '<strong>By Heading:</strong> Splits the file based on markdown headings (H1, H2, etc.). Each section becomes a new file.';
-        ul.createEl('li').innerHTML = '<strong>By ISO Date:</strong> Splits the file based on ISO 8601 date patterns found in the text (e.g. YYYY-MM-DD). Useful for splitting daily logs.';
-        ul.createEl('li').innerHTML = '<strong>By Divider:</strong> Splits the file using a custom divider string (e.g. \'---\').';
+        ul.createEl('li').setText('By Heading: Splits the file based on markdown headings (H1, H2, etc.). Each section becomes a new file.');
+        ul.createEl('li').setText('By ISO Date: Splits the file based on ISO 8601 date patterns found in the text (e.g. YYYY-MM-DD). Useful for splitting daily logs.');
+        ul.createEl('li').setText('By Divider: Splits the file using a custom divider string (e.g. \'---\').');
 
         new Setting(containerEl)
             .setName('Default Divider')
@@ -1072,14 +1064,16 @@ class CoherenceSettingTab extends PluginSettingTab {
             .addText(text => text
                 .setPlaceholder('---')
                 .setValue(this.plugin.settings.atomizerDivider)
-                .onChange(async (value) => {
-                    this.plugin.settings.atomizerDivider = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.atomizerDivider = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
     }
 
     renderSummarizerSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('Summarizer Settings').setHeading();
+        new Setting(containerEl).setName('Summarizer').setHeading();
         new Setting(containerEl)
             .setName('Default Model')
             .setDesc('Ollama model to use for summarization')
@@ -1089,9 +1083,11 @@ class CoherenceSettingTab extends PluginSettingTab {
                     drop.addOption(this.plugin.settings.summarizerModel, this.plugin.settings.summarizerModel);
                 }
                 drop.setValue(this.plugin.settings.summarizerModel)
-                    .onChange(async (value) => {
-                        this.plugin.settings.summarizerModel = value;
-                        await this.plugin.saveSettings();
+                    .onChange((value) => {
+                        void (async () => {
+                            this.plugin.settings.summarizerModel = value;
+                            await this.plugin.saveSettings();
+                        })();
                     });
             });
 
@@ -1100,9 +1096,11 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Process subfolders by default')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.summarizerRecursive)
-                .onChange(async (value) => {
-                    this.plugin.settings.summarizerRecursive = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.summarizerRecursive = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
@@ -1110,9 +1108,11 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Overwrite existing summaries by default')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.summarizerOverwrite)
-                .onChange(async (value) => {
-                    this.plugin.settings.summarizerOverwrite = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.summarizerOverwrite = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
@@ -1120,9 +1120,11 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Include YAML frontmatter in the input sent to the model')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.summarizerIncludeYaml)
-                .onChange(async (value) => {
-                    this.plugin.settings.summarizerIncludeYaml = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.summarizerIncludeYaml = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
@@ -1130,12 +1132,14 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Maximum characters to process per file')
             .addText(text => text
                 .setValue(String(this.plugin.settings.summarizerMaxChars))
-                .onChange(async (value) => {
-                    const num = parseInt(value);
-                    if (!isNaN(num)) {
-                        this.plugin.settings.summarizerMaxChars = num;
-                        await this.plugin.saveSettings();
-                    }
+                .onChange((value) => {
+                    void (async () => {
+                        const num = parseInt(value);
+                        if (!isNaN(num)) {
+                            this.plugin.settings.summarizerMaxChars = num;
+                            await this.plugin.saveSettings();
+                        }
+                    })();
                 }));
 
         new Setting(containerEl)
@@ -1143,9 +1147,11 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Append AI-generated title to filename (useful for Untitled or Daily Notes)')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.summarizerGenerateTitle)
-                .onChange(async (value) => {
-                    this.plugin.settings.summarizerGenerateTitle = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.summarizerGenerateTitle = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl).setName('Progressive Sequential Summarization Prompts').setHeading();
@@ -1157,16 +1163,20 @@ class CoherenceSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.summarizerPrompt)
                 .setPlaceholder('Enter prompt...')
                 .then(t => t.inputEl.rows = 6)
-                .onChange(async (value) => {
-                    this.plugin.settings.summarizerPrompt = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.summarizerPrompt = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }))
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.summarizerPrompt1Enabled)
                 .setTooltip('Enable Prompt 1')
-                .onChange(async (value) => {
-                    this.plugin.settings.summarizerPrompt1Enabled = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.summarizerPrompt1Enabled = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
@@ -1176,16 +1186,20 @@ class CoherenceSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.summarizerPrompt2)
                 .setPlaceholder('Enter prompt...')
                 .then(t => t.inputEl.rows = 6)
-                .onChange(async (value) => {
-                    this.plugin.settings.summarizerPrompt2 = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.summarizerPrompt2 = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }))
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.summarizerPrompt2Enabled)
                 .setTooltip('Enable Prompt 2')
-                .onChange(async (value) => {
-                    this.plugin.settings.summarizerPrompt2Enabled = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.summarizerPrompt2Enabled = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
@@ -1195,16 +1209,20 @@ class CoherenceSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.summarizerPrompt3)
                 .setPlaceholder('Enter prompt...')
                 .then(t => t.inputEl.rows = 6)
-                .onChange(async (value) => {
-                    this.plugin.settings.summarizerPrompt3 = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.summarizerPrompt3 = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }))
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.summarizerPrompt3Enabled)
                 .setTooltip('Enable Prompt 3')
-                .onChange(async (value) => {
-                    this.plugin.settings.summarizerPrompt3Enabled = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.summarizerPrompt3Enabled = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
@@ -1214,21 +1232,25 @@ class CoherenceSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.summarizerPrompt4)
                 .setPlaceholder('Enter prompt...')
                 .then(t => t.inputEl.rows = 6)
-                .onChange(async (value) => {
-                    this.plugin.settings.summarizerPrompt4 = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.summarizerPrompt4 = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }))
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.summarizerPrompt4Enabled)
                 .setTooltip('Enable Prompt 4')
-                .onChange(async (value) => {
-                    this.plugin.settings.summarizerPrompt4Enabled = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.summarizerPrompt4Enabled = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
     }
 
     renderYamlSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('YAML Template Settings').setHeading();
+        new Setting(containerEl).setName('YAML template').setHeading();
 
         const desc = containerEl.createDiv({ cls: 'setting-item-description coherence-mb-20' });
         desc.createEl('p').createEl('strong', { text: 'Note:' });
@@ -1237,26 +1259,30 @@ class CoherenceSettingTab extends PluginSettingTab {
         ul.createEl('li', { text: 'Existing values for keys in the template will be preserved but reordered.' });
 
         new Setting(containerEl)
-            .setName('Default Template')
+            .setName('Default template')
             .setDesc('Default fields for YAML template (one per line)')
             .addTextArea(text => {
                 text.inputEl.rows = 10;
                 text.inputEl.addClass('coherence-w-100');
                 text.setValue(this.plugin.settings.yamlTemplate)
-                    .onChange(async (value) => {
-                        this.plugin.settings.yamlTemplate = value;
-                        await this.plugin.saveSettings();
+                    .onChange((value) => {
+                        void (async () => {
+                            this.plugin.settings.yamlTemplate = value;
+                            await this.plugin.saveSettings();
+                        })();
                     });
             });
 
         new Setting(containerEl)
-            .setName('Add Date From Filename')
+            .setName('Add date from filename')
             .setDesc('If filename starts with YYYY-MM-DD, add it to "date" field')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.yamlAddDate)
-                .onChange(async (value) => {
-                    this.plugin.settings.yamlAddDate = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.yamlAddDate = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
@@ -1264,16 +1290,18 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Process subfolders when running on a folder')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.yamlRecursive)
-                .onChange(async (value) => {
-                    this.plugin.settings.yamlRecursive = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.yamlRecursive = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
     }
 
     renderCategorizerSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('Categorizer Settings').setHeading();
+        new Setting(containerEl).setName('Categorizer').setHeading();
         new Setting(containerEl)
-            .setName('Categorizer Model')
+            .setName('Categorizer model')
             .setDesc('The Ollama model to use for categorization')
             .addDropdown(drop => {
                 this.ollamaModels.forEach(model => drop.addOption(model, model));
@@ -1281,9 +1309,11 @@ class CoherenceSettingTab extends PluginSettingTab {
                     drop.addOption(this.plugin.settings.categorizerModel, this.plugin.settings.categorizerModel);
                 }
                 drop.setValue(this.plugin.settings.categorizerModel)
-                    .onChange(async (value) => {
-                        this.plugin.settings.categorizerModel = value;
-                        await this.plugin.saveSettings();
+                    .onChange((value) => {
+                        void (async () => {
+                            this.plugin.settings.categorizerModel = value;
+                            await this.plugin.saveSettings();
+                        })();
                     });
             });
 
@@ -1297,131 +1327,149 @@ class CoherenceSettingTab extends PluginSettingTab {
         dictDesc.createEl('pre', { text: 'Personal; Notes related to personal life\nWork; Job related tasks and projects' });
 
         // Dictionary Selector & Management
-        const dictSetting = new Setting(containerEl)
-            .setName('Active Dictionary')
+        new Setting(containerEl)
+            .setName('Active dictionary')
             .setDesc('Select, rename, or delete dictionaries')
             .addDropdown(drop => {
                 this.plugin.settings.categorizerDictionaries.forEach(d => drop.addOption(d.name, d.name));
                 drop.setValue(this.plugin.settings.categorizerActiveDictionary)
-                    .onChange(async (value) => {
-                        this.plugin.settings.categorizerActiveDictionary = value;
-                        await this.plugin.saveSettings();
-                        this.display(); // Refresh to show content of selected dictionary
+                    .onChange((value) => {
+                        void (async () => {
+                            this.plugin.settings.categorizerActiveDictionary = value;
+                            await this.plugin.saveSettings();
+                            this.display(); // Refresh to show content of selected dictionary
+                        })();
                     });
             })
             .addExtraButton(btn => btn
                 .setIcon('plus')
-                .setTooltip('Add New Dictionary')
-                .onClick(async () => {
-                    let name = 'New Dictionary';
-                    let i = 1;
-                    while (this.plugin.settings.categorizerDictionaries.some(d => d.name === name)) {
-                        name = `New Dictionary ${i++}`;
-                    }
-                    this.plugin.settings.categorizerDictionaries.push({ name, content: '' });
-                    this.plugin.settings.categorizerActiveDictionary = name;
-                    await this.plugin.saveSettings();
-                    this.display();
+                .setTooltip('Add new dictionary')
+                .onClick(() => {
+                    void (async () => {
+                        let name = 'New Dictionary';
+                        let i = 1;
+                        while (this.plugin.settings.categorizerDictionaries.some(d => d.name === name)) {
+                            name = `New Dictionary ${i++}`;
+                        }
+                        this.plugin.settings.categorizerDictionaries.push({ name, content: '' });
+                        this.plugin.settings.categorizerActiveDictionary = name;
+                        await this.plugin.saveSettings();
+                        this.display();
+                    })();
                 }))
             .addExtraButton(btn => btn
                 .setIcon('trash')
-                .setTooltip('Delete Dictionary')
-                .onClick(async () => {
-                    if (this.plugin.settings.categorizerDictionaries.length <= 1) {
-                        new Notice('Cannot delete the last dictionary.');
-                        return;
-                    }
-                    this.plugin.settings.categorizerDictionaries = this.plugin.settings.categorizerDictionaries.filter(d => d.name !== this.plugin.settings.categorizerActiveDictionary);
-                    this.plugin.settings.categorizerActiveDictionary = this.plugin.settings.categorizerDictionaries[0].name;
-                    await this.plugin.saveSettings();
-                    this.display();
+                .setTooltip('Delete dictionary')
+                .onClick(() => {
+                    void (async () => {
+                        if (this.plugin.settings.categorizerDictionaries.length <= 1) {
+                            new Notice('Cannot delete the last dictionary.');
+                            return;
+                        }
+                        this.plugin.settings.categorizerDictionaries = this.plugin.settings.categorizerDictionaries.filter(d => d.name !== this.plugin.settings.categorizerActiveDictionary);
+                        this.plugin.settings.categorizerActiveDictionary = this.plugin.settings.categorizerDictionaries[0].name;
+                        await this.plugin.saveSettings();
+                        this.display();
+                    })();
                 }));
 
         // Rename Dictionary
         const activeDict = this.plugin.settings.categorizerDictionaries.find(d => d.name === this.plugin.settings.categorizerActiveDictionary);
         if (activeDict) {
             new Setting(containerEl)
-                .setName('Rename Dictionary')
+                .setName('Rename dictionary')
                 .addText(text => text
                     .setValue(activeDict.name)
-                    .onChange(async (value) => {
-                        if (value && value !== activeDict.name) {
-                            // Check for duplicates
-                            if (this.plugin.settings.categorizerDictionaries.some(d => d.name === value)) {
-                                new Notice('Dictionary name already exists.');
-                                return;
+                    .onChange((value) => {
+                        void (async () => {
+                            if (value && value !== activeDict.name) {
+                                // Check for duplicates
+                                if (this.plugin.settings.categorizerDictionaries.some(d => d.name === value)) {
+                                    new Notice('Dictionary name already exists.');
+                                    return;
+                                }
+                                activeDict.name = value;
+                                this.plugin.settings.categorizerActiveDictionary = value;
+                                await this.plugin.saveSettings();
                             }
-                            activeDict.name = value;
-                            this.plugin.settings.categorizerActiveDictionary = value;
-                            await this.plugin.saveSettings();
-                        }
+                        })();
                     }))
                 .addExtraButton(btn => btn
                     .setIcon('check')
-                    .setTooltip('Apply Rename (Refresh)')
+                    .setTooltip('Apply rename (refresh)')
                     .onClick(() => this.display()));
 
             new Setting(containerEl)
-                .setName('Dictionary Content')
+                .setName('Dictionary content')
                 .setDesc('Edit the categories for the selected dictionary')
                 .addTextArea(text => {
                     text.inputEl.rows = 15;
                     text.inputEl.addClass('coherence-w-100');
                     text.setValue(activeDict.content)
-                        .onChange(async (value) => {
-                            activeDict.content = value;
-                            await this.plugin.saveSettings();
+                        .onChange((value) => {
+                            void (async () => {
+                                activeDict.content = value;
+                                await this.plugin.saveSettings();
+                            })();
                         });
                 });
         }
 
         // Default Options
-        new Setting(containerEl).setName('Default Options').setHeading();
+        new Setting(containerEl).setName('Default options').setHeading();
 
         new Setting(containerEl)
-            .setName('Apply as Tag')
+            .setName('Apply as tag')
             .setDesc('Add category as #tag in YAML')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.categorizerApplyAsTag)
-                .onChange(async (value) => {
-                    this.plugin.settings.categorizerApplyAsTag = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.categorizerApplyAsTag = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
-            .setName('Apply as Backlink')
+            .setName('Apply as backlink')
             .setDesc('Append category as [[backlink]] at end of file')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.categorizerApplyAsBacklink)
-                .onChange(async (value) => {
-                    this.plugin.settings.categorizerApplyAsBacklink = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.categorizerApplyAsBacklink = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
-            .setName('Move to Folder')
+            .setName('Move to folder')
             .setDesc('Move file to a subfolder named after the category')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.categorizerMoveToFolder)
-                .onChange(async (value) => {
-                    this.plugin.settings.categorizerMoveToFolder = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.categorizerMoveToFolder = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
-            .setName('Max Categories')
+            .setName('Max categories')
             .setDesc('Maximum number of categories to apply (default 1)')
             .addText(text => text
                 .setValue(String(this.plugin.settings.categorizerMaxCategories))
-                .onChange(async (value) => {
-                    const num = parseInt(value);
-                    if (!isNaN(num) && num > 0) {
-                        this.plugin.settings.categorizerMaxCategories = num;
-                        await this.plugin.saveSettings();
-                    }
+                .onChange((value) => {
+                    void (async () => {
+                        const num = parseInt(value);
+                        if (!isNaN(num) && num > 0) {
+                            this.plugin.settings.categorizerMaxCategories = num;
+                            await this.plugin.saveSettings();
+                        }
+                    })();
                 }));
 
-        containerEl.createEl('h2', { text: 'Automatic Rating Settings' });
+        containerEl.createEl('h2', { text: 'Automatic rating' });
         new Setting(containerEl)
             .setName('Default Model')
             .setDesc('Ollama model to use for rating')
@@ -1431,9 +1479,11 @@ class CoherenceSettingTab extends PluginSettingTab {
                     drop.addOption(this.plugin.settings.ratingModel, this.plugin.settings.ratingModel);
                 }
                 drop.setValue(this.plugin.settings.ratingModel)
-                    .onChange(async (value) => {
-                        this.plugin.settings.ratingModel = value;
-                        await this.plugin.saveSettings();
+                    .onChange((value) => {
+                        void (async () => {
+                            this.plugin.settings.ratingModel = value;
+                            await this.plugin.saveSettings();
+                        })();
                     });
             });
 
@@ -1442,9 +1492,11 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Comma separated list of quality parameters')
             .addText(text => text
                 .setValue(this.plugin.settings.ratingParams)
-                .onChange(async (value) => {
-                    this.plugin.settings.ratingParams = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.ratingParams = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
@@ -1452,49 +1504,57 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Skip files that already have a rating in YAML')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.ratingSkipIfRated)
-                .onChange(async (value) => {
-                    this.plugin.settings.ratingSkipIfRated = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.ratingSkipIfRated = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
     }
 
     renderWizardSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('Coherence Wizard Settings').setHeading();
+        new Setting(containerEl).setName('Coherence wizard').setHeading();
         containerEl.createEl('p', { text: 'Configure the folders used by the One Click Coherence Wizard.' });
 
         new Setting(containerEl)
-            .setName('Inbox Folder')
+            .setName('Inbox folder')
             .setDesc('Folder containing new notes to process')
             .addText(text => text
                 .setValue(this.plugin.settings.wizardInboxDir)
-                .onChange(async (value) => {
-                    this.plugin.settings.wizardInboxDir = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.wizardInboxDir = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
-            .setName('Chrono Folder')
+            .setName('Chrono folder')
             .setDesc('Folder for chronological storage (archive)')
             .addText(text => text
                 .setValue(this.plugin.settings.wizardChronoDir)
-                .onChange(async (value) => {
-                    this.plugin.settings.wizardChronoDir = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.wizardChronoDir = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
-            .setName('Living Folder')
+            .setName('Living folder')
             .setDesc('Folder for living documents (categorized)')
             .addText(text => text
                 .setValue(this.plugin.settings.wizardLivingDir)
-                .onChange(async (value) => {
-                    this.plugin.settings.wizardLivingDir = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.wizardLivingDir = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
     }
 
     renderDateFixSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('Date Fix Settings').setHeading();
+        new Setting(containerEl).setName('Date fix').setHeading();
         containerEl.createDiv({ cls: 'setting-item-description' }).setText('This tool standardizes filenames by ensuring they start with a date in the preferred format. It automatically detects and converts existing dates or date-like number strings (e.g. 20220221) found in the filename.');
 
         new Setting(containerEl)
@@ -1502,29 +1562,35 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Process subfolders by default')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.dateFixRecursive)
-                .onChange(async (value) => {
-                    this.plugin.settings.dateFixRecursive = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.dateFixRecursive = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
-            .setName('Fallback to Creation Date')
+            .setName('Fallback to creation date')
             .setDesc('If no date is found in the filename, prepend the file\'s creation date.')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.dateFixFallbackToCreationDate)
-                .onChange(async (value) => {
-                    this.plugin.settings.dateFixFallbackToCreationDate = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.dateFixFallbackToCreationDate = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
-            .setName('Preferred Date Format')
+            .setName('Preferred date format')
             .setDesc('ISO format to use (e.g. YYYY-MM-DD)')
             .addText(text => text
                 .setValue(this.plugin.settings.dateFixDateFormat)
-                .onChange(async (value) => {
-                    this.plugin.settings.dateFixDateFormat = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.dateFixDateFormat = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
@@ -1532,22 +1598,26 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Comma separated list of file extensions (e.g. *.py) or words to exclude')
             .addTextArea(text => text
                 .setValue(this.plugin.settings.dateFixExceptions)
-                .onChange(async (value) => {
-                    this.plugin.settings.dateFixExceptions = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.dateFixExceptions = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
     }
 
     renderParseAndMoveSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('Parse and Move Settings').setHeading();
+        new Setting(containerEl).setName('Parse and move').setHeading();
         new Setting(containerEl)
-            .setName('Target Directory')
+            .setName('Target directory')
             .setDesc('Directory to move parsed files to')
             .addText(text => text
                 .setValue(this.plugin.settings.parseAndMoveTargetDir)
-                .onChange(async (value) => {
-                    this.plugin.settings.parseAndMoveTargetDir = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.parseAndMoveTargetDir = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
@@ -1555,106 +1625,120 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Process subfolders by default')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.parseAndMoveRecursive)
-                .onChange(async (value) => {
-                    this.plugin.settings.parseAndMoveRecursive = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.parseAndMoveRecursive = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
     }
 
     renderDistillSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('Distill Settings').setHeading();
+        new Setting(containerEl).setName('Distill').setHeading();
 
         // Censor / Alias Settings
-        new Setting(containerEl).setName('Censor / Alias').setHeading();
+        new Setting(containerEl).setName('Censor / alias').setHeading();
 
         const dictDesc = containerEl.createDiv({ cls: 'setting-item-description coherence-mb-10' });
         dictDesc.createEl('p').createEl('strong', { text: 'Dictionary Syntax:' });
         dictDesc.createEl('p', { text: 'Each line represents a word/phrase to censor.' });
 
         new Setting(containerEl)
-            .setName('Active Dictionary')
+            .setName('Active dictionary')
             .setDesc('Select dictionary for censorship')
             .addDropdown(drop => {
                 this.plugin.settings.censorDictionaries.forEach(d => drop.addOption(d.name, d.name));
                 drop.setValue(this.plugin.settings.censorActiveDictionary)
-                    .onChange(async (value) => {
-                        this.plugin.settings.censorActiveDictionary = value;
-                        await this.plugin.saveSettings();
-                        this.display();
+                    .onChange((value) => {
+                        void (async () => {
+                            this.plugin.settings.censorActiveDictionary = value;
+                            await this.plugin.saveSettings();
+                            this.display();
+                        })();
                     });
             })
             .addExtraButton(btn => btn
                 .setIcon('plus')
-                .setTooltip('Add New Dictionary')
-                .onClick(async () => {
-                    let name = 'New Dictionary';
-                    let i = 1;
-                    while (this.plugin.settings.censorDictionaries.some(d => d.name === name)) {
-                        name = `New Dictionary ${i++}`;
-                    }
-                    this.plugin.settings.censorDictionaries.push({ name, content: '' });
-                    this.plugin.settings.censorActiveDictionary = name;
-                    await this.plugin.saveSettings();
-                    this.display();
+                .setTooltip('Add new dictionary')
+                .onClick(() => {
+                    void (async () => {
+                        let name = 'New Dictionary';
+                        let i = 1;
+                        while (this.plugin.settings.censorDictionaries.some(d => d.name === name)) {
+                            name = `New Dictionary ${i++}`;
+                        }
+                        this.plugin.settings.censorDictionaries.push({ name, content: '' });
+                        this.plugin.settings.censorActiveDictionary = name;
+                        await this.plugin.saveSettings();
+                        this.display();
+                    })();
                 }))
             .addExtraButton(btn => btn
                 .setIcon('trash')
-                .setTooltip('Delete Dictionary')
-                .onClick(async () => {
-                    if (this.plugin.settings.censorDictionaries.length <= 1) {
-                        new Notice('Cannot delete the last dictionary.');
-                        return;
-                    }
-                    this.plugin.settings.censorDictionaries = this.plugin.settings.censorDictionaries.filter(d => d.name !== this.plugin.settings.censorActiveDictionary);
-                    this.plugin.settings.censorActiveDictionary = this.plugin.settings.censorDictionaries[0].name;
-                    await this.plugin.saveSettings();
-                    this.display();
+                .setTooltip('Delete dictionary')
+                .onClick(() => {
+                    void (async () => {
+                        if (this.plugin.settings.censorDictionaries.length <= 1) {
+                            new Notice('Cannot delete the last dictionary.');
+                            return;
+                        }
+                        this.plugin.settings.censorDictionaries = this.plugin.settings.censorDictionaries.filter(d => d.name !== this.plugin.settings.censorActiveDictionary);
+                        this.plugin.settings.censorActiveDictionary = this.plugin.settings.censorDictionaries[0].name;
+                        await this.plugin.saveSettings();
+                        this.display();
+                    })();
                 }));
 
         const activeDict = this.plugin.settings.censorDictionaries.find(d => d.name === this.plugin.settings.censorActiveDictionary);
         if (activeDict) {
             new Setting(containerEl)
-                .setName('Rename Dictionary')
+                .setName('Rename dictionary')
                 .addText(text => text
                     .setValue(activeDict.name)
-                    .onChange(async (value) => {
-                        if (value && value !== activeDict.name) {
-                            if (this.plugin.settings.censorDictionaries.some(d => d.name === value)) {
-                                new Notice('Dictionary name already exists.');
-                                return;
+                    .onChange((value) => {
+                        void (async () => {
+                            if (value && value !== activeDict.name) {
+                                if (this.plugin.settings.censorDictionaries.some(d => d.name === value)) {
+                                    new Notice('Dictionary name already exists.');
+                                    return;
+                                }
+                                activeDict.name = value;
+                                this.plugin.settings.censorActiveDictionary = value;
+                                await this.plugin.saveSettings();
                             }
-                            activeDict.name = value;
-                            this.plugin.settings.censorActiveDictionary = value;
-                            await this.plugin.saveSettings();
-                        }
+                        })();
                     }))
                 .addExtraButton(btn => btn
                     .setIcon('check')
-                    .setTooltip('Apply Rename (Refresh)')
+                    .setTooltip('Apply rename (refresh)')
                     .onClick(() => this.display()));
 
             new Setting(containerEl)
-                .setName('Dictionary Content')
+                .setName('Dictionary content')
                 .setDesc('Edit the censored words (one per line)')
                 .addTextArea(text => {
                     text.inputEl.rows = 10;
                     text.inputEl.addClass('coherence-w-100');
                     text.setValue(activeDict.content)
-                        .onChange(async (value) => {
-                            activeDict.content = value;
-                            await this.plugin.saveSettings();
+                        .onChange((value) => {
+                            void (async () => {
+                                activeDict.content = value;
+                                await this.plugin.saveSettings();
+                            })();
                         });
                 });
         }
 
         new Setting(containerEl)
-            .setName('Replacement Character')
+            .setName('Replacement character')
             .setDesc('Character to replace censored words with')
             .addText(text => text
                 .setValue(this.plugin.settings.censorReplacementChar)
-                .onChange(async (value) => {
-                    this.plugin.settings.censorReplacementChar = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.censorReplacementChar = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
@@ -1662,9 +1746,11 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Process subfolders')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.censorRecursive)
-                .onChange(async (value) => {
-                    this.plugin.settings.censorRecursive = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.censorRecursive = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         // Generalizer Settings
@@ -1678,20 +1764,24 @@ class CoherenceSettingTab extends PluginSettingTab {
                     drop.addOption(this.plugin.settings.generalizerModel, this.plugin.settings.generalizerModel);
                 }
                 drop.setValue(this.plugin.settings.generalizerModel)
-                    .onChange(async (value) => {
-                        this.plugin.settings.generalizerModel = value;
-                        await this.plugin.saveSettings();
+                    .onChange((value) => {
+                        void (async () => {
+                            this.plugin.settings.generalizerModel = value;
+                            await this.plugin.saveSettings();
+                        })();
                     });
             });
 
         new Setting(containerEl)
-            .setName('System Prompt')
+            .setName('System prompt')
             .setDesc('System prompt for the model')
             .addTextArea(text => text
                 .setValue(this.plugin.settings.generalizerSystemPrompt)
-                .onChange(async (value) => {
-                    this.plugin.settings.generalizerSystemPrompt = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.generalizerSystemPrompt = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
@@ -1699,15 +1789,17 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Prompt template. Use {text} as placeholder.')
             .addTextArea(text => text
                 .setValue(this.plugin.settings.generalizerPrompt)
-                .onChange(async (value) => {
-                    this.plugin.settings.generalizerPrompt = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.generalizerPrompt = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         // Wisdom Settings
         new Setting(containerEl).setName('Wisdom Extractor').setHeading();
         new Setting(containerEl)
-            .setName('Default Model')
+            .setName('Default model')
             .setDesc('Ollama model to use for wisdom extraction')
             .addDropdown(drop => {
                 this.ollamaModels.forEach(model => drop.addOption(model, model));
@@ -1715,61 +1807,71 @@ class CoherenceSettingTab extends PluginSettingTab {
                     drop.addOption(this.plugin.settings.wisdomModel, this.plugin.settings.wisdomModel);
                 }
                 drop.setValue(this.plugin.settings.wisdomModel)
-                    .onChange(async (value) => {
-                        this.plugin.settings.wisdomModel = value;
-                        await this.plugin.saveSettings();
+                    .onChange((value) => {
+                        void (async () => {
+                            this.plugin.settings.wisdomModel = value;
+                            await this.plugin.saveSettings();
+                        })();
                     });
             });
 
         new Setting(containerEl)
-            .setName('Default Mode')
+            .setName('Default mode')
             .setDesc('Default processing mode')
             .addDropdown(drop => drop
                 .addOption('generalized', 'Generalized (AI)')
                 .addOption('safe', 'Safe (Copy Only)')
                 .setValue(this.plugin.settings.wisdomMode)
-                .onChange(async (value) => {
-                    this.plugin.settings.wisdomMode = value as any;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.wisdomMode = value as 'generalized' | 'safe';
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
-            .setName('Wisdom Prompt')
+            .setName('Wisdom prompt')
             .setDesc('The prompt template used for wisdom extraction')
             .addTextArea(text => text
                 .setValue(this.plugin.settings.wisdomPrompt)
-                .onChange(async (value) => {
-                    this.plugin.settings.wisdomPrompt = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.wisdomPrompt = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
     }
 
     renderMergeSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('Merge Settings').setHeading();
+        new Setting(containerEl).setName('Merge').setHeading();
 
         // Chrono Merge Settings
-        new Setting(containerEl).setName('Chrono Merge').setHeading();
+        new Setting(containerEl).setName('Chrono merge').setHeading();
         new Setting(containerEl)
-            .setName('Time Threshold (Minutes)')
+            .setName('Time threshold (minutes)')
             .setDesc('Files created within this time window will be merged')
             .addText(text => text
                 .setValue(String(this.plugin.settings.chronoMergeTimeThreshold))
-                .onChange(async (value) => {
-                    const num = parseFloat(value);
-                    if (!isNaN(num)) {
-                        this.plugin.settings.chronoMergeTimeThreshold = num;
-                        await this.plugin.saveSettings();
-                    }
+                .onChange((value) => {
+                    void (async () => {
+                        const num = parseFloat(value);
+                        if (!isNaN(num)) {
+                            this.plugin.settings.chronoMergeTimeThreshold = num;
+                            await this.plugin.saveSettings();
+                        }
+                    })();
                 }));
 
         new Setting(containerEl)
-            .setName('Use File Creation Time')
+            .setName('Use file creation time')
             .setDesc('If enabled, uses the file\'s creation date property instead of the date in the filename.')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.chronoMergeUseCreationTime)
-                .onChange(async (value) => {
-                    this.plugin.settings.chronoMergeUseCreationTime = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.chronoMergeUseCreationTime = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
@@ -1777,21 +1879,25 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Process subfolders by default')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.chronoMergeRecursive)
-                .onChange(async (value) => {
-                    this.plugin.settings.chronoMergeRecursive = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.chronoMergeRecursive = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         // Concatonizer Settings
         new Setting(containerEl).setName('Concatonizer').setHeading();
         new Setting(containerEl)
-            .setName('Filename Suffix')
+            .setName('Filename suffix')
             .setDesc('Suffix to append to the folder name for the combined file (default: _combined)')
             .addText(text => text
                 .setValue(this.plugin.settings.concatonizerSuffix)
-                .onChange(async (value) => {
-                    this.plugin.settings.concatonizerSuffix = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.concatonizerSuffix = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
@@ -1799,9 +1905,11 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Include subfolders by default')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.concatonizerRecursive)
-                .onChange(async (value) => {
-                    this.plugin.settings.concatonizerRecursive = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.concatonizerRecursive = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
@@ -1809,9 +1917,11 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Remove YAML frontmatter from combined files')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.concatonizerStripYaml)
-                .onChange(async (value) => {
-                    this.plugin.settings.concatonizerStripYaml = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.concatonizerStripYaml = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         // Deduplication Settings
@@ -1821,15 +1931,17 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Process subfolders by default')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.deduplicationRecursive)
-                .onChange(async (value) => {
-                    this.plugin.settings.deduplicationRecursive = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.deduplicationRecursive = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
     }
     renderRatingSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('Automatic Rating Settings').setHeading();
+        new Setting(containerEl).setName('Automatic rating').setHeading();
         new Setting(containerEl)
-            .setName('Default Model')
+            .setName('Default model')
             .setDesc('Ollama model to use for rating')
             .addDropdown(drop => {
                 this.ollamaModels.forEach(model => drop.addOption(model, model));
@@ -1837,30 +1949,36 @@ class CoherenceSettingTab extends PluginSettingTab {
                     drop.addOption(this.plugin.settings.ratingModel, this.plugin.settings.ratingModel);
                 }
                 drop.setValue(this.plugin.settings.ratingModel)
-                    .onChange(async (value) => {
-                        this.plugin.settings.ratingModel = value;
-                        await this.plugin.saveSettings();
+                    .onChange((value) => {
+                        void (async () => {
+                            this.plugin.settings.ratingModel = value;
+                            await this.plugin.saveSettings();
+                        })();
                     });
             });
 
         new Setting(containerEl)
-            .setName('Quality Parameters')
+            .setName('Quality parameters')
             .setDesc('Comma separated list of parameters to rate (e.g. coherence, profundity)')
             .addText(text => text
                 .setValue(this.plugin.settings.ratingParams)
-                .onChange(async (value) => {
-                    this.plugin.settings.ratingParams = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.ratingParams = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
 
         new Setting(containerEl)
-            .setName('Skip Rated')
+            .setName('Skip rated')
             .setDesc('Skip files that already have a rating in frontmatter')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.ratingSkipIfRated)
-                .onChange(async (value) => {
-                    this.plugin.settings.ratingSkipIfRated = value;
-                    await this.plugin.saveSettings();
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.ratingSkipIfRated = value;
+                        await this.plugin.saveSettings();
+                    })();
                 }));
     }
 }

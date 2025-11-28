@@ -3,7 +3,7 @@ import { App, TFile, TFolder, normalizePath } from 'obsidian';
 export class ChronoMergeService {
     constructor(private app: App) { }
 
-    async scanFolder(folder: TFolder, minutesThreshold: number, recursive: boolean, useCreationTime: boolean): Promise<TFile[][]> {
+    scanFolder(folder: TFolder, minutesThreshold: number, recursive: boolean, useCreationTime: boolean): TFile[][] {
         const files = this.getFiles(folder, recursive);
         const filesWithTime: { file: TFile, time: number }[] = [];
 

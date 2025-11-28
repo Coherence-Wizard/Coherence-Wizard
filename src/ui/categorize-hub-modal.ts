@@ -6,7 +6,7 @@ import { CoherenceSettings } from '../types';
 export class CategorizeHubModal extends Modal {
     private mode: 'categorize' | 'rate' = 'categorize';
 
-    constructor(app: App, private settings: CoherenceSettings, private saveSettings: (key: string, value: any) => Promise<void>, private fileOrFolder?: TFile | TFolder) {
+    constructor(app: App, private settings: CoherenceSettings, private saveSettings: (key: string, value: unknown) => Promise<void>, private fileOrFolder?: TFile | TFolder) {
         super(app);
     }
 
