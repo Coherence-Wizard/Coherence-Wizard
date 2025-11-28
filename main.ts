@@ -51,6 +51,10 @@ export interface CoherenceSettings {
     summarizerPrompt2: string;
     summarizerPrompt3: string;
     summarizerPrompt4: string;
+    summarizerPrompt1Enabled: boolean;
+    summarizerPrompt2Enabled: boolean;
+    summarizerPrompt3Enabled: boolean;
+    summarizerPrompt4Enabled: boolean;
     summarizerGenerateTitle: boolean;
 
     // Automatic Rating
@@ -163,6 +167,10 @@ const DEFAULT_SETTINGS: CoherenceSettings = {
     summarizerPrompt2: "You are a summarization assistant. Condense the following note into 50 words or fewer. Start directly with the main point and avoid phrases like 'This note', 'Key takeaways', 'It emphasizes', or any similar preamble. Use plain sentences only—no headings, quotes, markdown, dates, filenames, or filler.\n\nTitle: {filename}\n\nLonger summary:\n{summary}",
     summarizerPrompt3: "Rewrite the following text keeping it at 50 words or fewer. Remove any filler, preambles (e.g., 'This note...', 'Key takeaways...'), dates, filenames, headings, markdown, or meta-language. Return only the cleaned summary text.\n\nText:\n{summary}",
     summarizerPrompt4: "Rewrite the following summary text, capitalizing the most important words, subjects, and key concepts. Keep all other text unchanged. Return only the rewritten text with capitalized important words.\n\nSummary:\n{summary}",
+    summarizerPrompt1Enabled: true,
+    summarizerPrompt2Enabled: true,
+    summarizerPrompt3Enabled: true,
+    summarizerPrompt4Enabled: true,
     summarizerGenerateTitle: true,
 
     // Automatic Rating
@@ -894,7 +902,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
     renderAboutSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('About Coherence Wizard').setHeading();
-        containerEl.createEl('p', { text: 'Version: 0.0.26', cls: 'version-text' });
+        containerEl.createEl('p', { text: 'Version: 0.0.27', cls: 'version-text' });
 
         containerEl.createEl('p', { text: 'The intention is to streamline coherence by using tools to convert chaos into order.' });
         containerEl.createEl('p', { text: 'The included tools have significantly enhanced my PKM workflows and I want to help others passionate about self-development using Obsidian.' });
@@ -1152,6 +1160,13 @@ class CoherenceSettingTab extends PluginSettingTab {
                 .onChange(async (value) => {
                     this.plugin.settings.summarizerPrompt = value;
                     await this.plugin.saveSettings();
+                }))
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.summarizerPrompt1Enabled)
+                .setTooltip('Enable Prompt 1')
+                .onChange(async (value) => {
+                    this.plugin.settings.summarizerPrompt1Enabled = value;
+                    await this.plugin.saveSettings();
                 }));
 
         new Setting(containerEl)
@@ -1163,6 +1178,13 @@ class CoherenceSettingTab extends PluginSettingTab {
                 .then(t => t.inputEl.rows = 6)
                 .onChange(async (value) => {
                     this.plugin.settings.summarizerPrompt2 = value;
+                    await this.plugin.saveSettings();
+                }))
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.summarizerPrompt2Enabled)
+                .setTooltip('Enable Prompt 2')
+                .onChange(async (value) => {
+                    this.plugin.settings.summarizerPrompt2Enabled = value;
                     await this.plugin.saveSettings();
                 }));
 
@@ -1176,6 +1198,13 @@ class CoherenceSettingTab extends PluginSettingTab {
                 .onChange(async (value) => {
                     this.plugin.settings.summarizerPrompt3 = value;
                     await this.plugin.saveSettings();
+                }))
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.summarizerPrompt3Enabled)
+                .setTooltip('Enable Prompt 3')
+                .onChange(async (value) => {
+                    this.plugin.settings.summarizerPrompt3Enabled = value;
+                    await this.plugin.saveSettings();
                 }));
 
         new Setting(containerEl)
@@ -1187,6 +1216,13 @@ class CoherenceSettingTab extends PluginSettingTab {
                 .then(t => t.inputEl.rows = 6)
                 .onChange(async (value) => {
                     this.plugin.settings.summarizerPrompt4 = value;
+                    await this.plugin.saveSettings();
+                }))
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.summarizerPrompt4Enabled)
+                .setTooltip('Enable Prompt 4')
+                .onChange(async (value) => {
+                    this.plugin.settings.summarizerPrompt4Enabled = value;
                     await this.plugin.saveSettings();
                 }));
     }

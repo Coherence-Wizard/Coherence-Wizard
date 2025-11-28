@@ -19,6 +19,11 @@ export class SummarizerModal extends Modal {
     prompt2: string;
     prompt3: string;
     prompt4: string;
+    prompt4: string;
+    prompt1Enabled: boolean;
+    prompt2Enabled: boolean;
+    prompt3Enabled: boolean;
+    prompt4Enabled: boolean;
     generateTitle: boolean;
 
     models: string[] = [];
@@ -42,6 +47,10 @@ export class SummarizerModal extends Modal {
         this.prompt2 = settings.summarizerPrompt2;
         this.prompt3 = settings.summarizerPrompt3;
         this.prompt4 = settings.summarizerPrompt4;
+        this.prompt1Enabled = settings.summarizerPrompt1Enabled;
+        this.prompt2Enabled = settings.summarizerPrompt2Enabled;
+        this.prompt3Enabled = settings.summarizerPrompt3Enabled;
+        this.prompt4Enabled = settings.summarizerPrompt4Enabled;
         this.generateTitle = settings.summarizerGenerateTitle;
 
         if (this.target) {
@@ -131,7 +140,11 @@ export class SummarizerModal extends Modal {
                         };
 
                         try {
-                            const prompts = [this.prompt, this.prompt2, this.prompt3, this.prompt4];
+                            const prompts = [];
+                            if (this.prompt1Enabled) prompts.push(this.prompt);
+                            if (this.prompt2Enabled) prompts.push(this.prompt2);
+                            if (this.prompt3Enabled) prompts.push(this.prompt3);
+                            if (this.prompt4Enabled) prompts.push(this.prompt4);
 
                             // Check if path is file or folder
                             const abstractFile = this.app.vault.getAbstractFileByPath(this.targetPath);
