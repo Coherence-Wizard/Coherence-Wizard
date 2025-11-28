@@ -82,13 +82,8 @@ export class SummarizerService {
                     newTitle = newTitle.replace(/\s+/g, ' ');
 
                     if (newTitle.length > 0) {
-                        let newStem = newTitle;
-
-                        // Check for ISO date at start to preserve (YYYY-MM-DD or YYYY_MM_DD)
-                        const dateMatch = base.match(/^(\d{4}[-_]\d{2}[-_]\d{2})/);
-                        if (dateMatch) {
-                            newStem = `${dateMatch[1]} ${newTitle}`;
-                        }
+                        // Append to original filename and add AIG suffix
+                        const newStem = `${base} ${newTitle} AIG`;
 
                         const newPath = `${file.parent.path}/${newStem}.md`;
 

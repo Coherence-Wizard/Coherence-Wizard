@@ -427,11 +427,7 @@ ${summary}`;
           newTitle = newTitle.replace(/[.@#%$&/\\<>[\]():*?"|\n\r]/g, " ").trim();
           newTitle = newTitle.replace(/\s+/g, " ");
           if (newTitle.length > 0) {
-            let newStem = newTitle;
-            const dateMatch = base.match(/^(\d{4}[-_]\d{2}[-_]\d{2})/);
-            if (dateMatch) {
-              newStem = `${dateMatch[1]} ${newTitle}`;
-            }
+            const newStem = `${base} ${newTitle} AIG`;
             const newPath = `${file.parent.path}/${newStem}.md`;
             if (!await this.app.vault.adapter.exists(newPath)) {
               await this.app.fileManager.renameFile(file, newPath);
@@ -4295,7 +4291,7 @@ var CoherenceSettingTab = class extends import_obsidian32.PluginSettingTab {
   }
   renderAboutSettings(containerEl) {
     new import_obsidian32.Setting(containerEl).setName("About Coherence Wizard").setHeading();
-    containerEl.createEl("p", { text: "Version: 0.0.25", cls: "version-text" });
+    containerEl.createEl("p", { text: "Version: 0.0.26", cls: "version-text" });
     containerEl.createEl("p", { text: "The intention is to streamline coherence by using tools to convert chaos into order." });
     containerEl.createEl("p", { text: "The included tools have significantly enhanced my PKM workflows and I want to help others passionate about self-development using Obsidian." });
     containerEl.createEl("p", { text: "Many of these tools rely on private local AI via Ollama. (Future iterations of this plugin will allow for the use of large cloud AI via API). This is a privacy first plugin." });
