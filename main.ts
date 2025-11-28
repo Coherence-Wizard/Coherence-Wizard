@@ -300,7 +300,8 @@ export default class CoherencePlugin extends Plugin {
             await leaf.setViewState({ type: VIEW_TYPE_WIZARD, active: true });
         }
 
-        workspace.revealLeaf(leaf);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (workspace as any).revealLeaf(leaf);
     }
 
     async onload() {
@@ -710,7 +711,7 @@ export default class CoherencePlugin extends Plugin {
     }
 
     onunload() {
-        console.log('Coherence Wizard unloaded');
+        // Cleanup if needed
     }
 }
 
@@ -737,13 +738,19 @@ class CoherenceSettingTab extends PluginSettingTab {
         }
     }
 
-    async display(): Promise<void> {
-        await this.fetchModels();
+    display(): void {
+        void (async () => {
+            await this.fetchModels();
+            this.render();
+        })();
+    }
+
+    render() {
         const { containerEl } = this;
 
         containerEl.empty();
 
-        new Setting(containerEl).setName('Coherence Wizard Settings').setHeading();
+        new Setting(containerEl).setName('General').setHeading();
 
         // Create Tab Navigation
         const navContainer = containerEl.createDiv({ cls: 'settings-nav-container coherence-settings-nav' });
@@ -785,11 +792,11 @@ class CoherenceSettingTab extends PluginSettingTab {
                 this.renderRatingSettings(containerEl);
             } else if (this.activeTab === 'contextmenu') {
                 // Inline renderContextMenuSettings
-                new Setting(containerEl).setName('Context Menu Settings').setHeading();
+                new Setting(containerEl).setName('Context menu').setHeading();
                 containerEl.createEl('p', { text: 'Select which features should appear in the right-click context menu.' });
 
                 new Setting(containerEl)
-                    .setName('Date Fix')
+                    .setName('Date fix')
                     .setDesc('Available in: File, Folder')
                     .addToggle(toggle => toggle
                         .setValue(this.plugin.settings.contextMenuDateFix)
@@ -819,7 +826,7 @@ class CoherenceSettingTab extends PluginSettingTab {
                         }));
 
                 new Setting(containerEl)
-                    .setName('YAML Template')
+                    .setName('YAML template')
                     .setDesc('Available in: File, Folder')
                     .addToggle(toggle => toggle
                         .setValue(this.plugin.settings.contextMenuYamlTemplate)
@@ -839,17 +846,7 @@ class CoherenceSettingTab extends PluginSettingTab {
                         }));
 
                 new Setting(containerEl)
-                    .setName('Categorize')
-                    .setDesc('Available in: File')
-                    .addToggle(toggle => toggle
-                        .setValue(this.plugin.settings.contextMenuCategorize)
-                        .onChange(async (value) => {
-                            this.plugin.settings.contextMenuCategorize = value;
-                            await this.plugin.saveSettings();
-                        }));
-
-                new Setting(containerEl)
-                    .setName('Parse and Move')
+                    .setName('Parse and move')
                     .setDesc('Available in: File')
                     .addToggle(toggle => toggle
                         .setValue(this.plugin.settings.contextMenuParseAndMove)
@@ -1059,7 +1056,7 @@ class CoherenceSettingTab extends PluginSettingTab {
         ul.createEl('li').setText('By Divider: Splits the file using a custom divider string (e.g. \'---\').');
 
         new Setting(containerEl)
-            .setName('Default Divider')
+            .setName('Default divider')
             .setDesc('The default divider string for "By Divider" mode')
             .addText(text => text
                 .setPlaceholder('---')
@@ -1075,7 +1072,7 @@ class CoherenceSettingTab extends PluginSettingTab {
     renderSummarizerSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('Summarizer').setHeading();
         new Setting(containerEl)
-            .setName('Default Model')
+            .setName('Default model')
             .setDesc('Ollama model to use for summarization')
             .addDropdown(drop => {
                 this.ollamaModels.forEach(model => drop.addOption(model, model));
@@ -1092,63 +1089,13 @@ class CoherenceSettingTab extends PluginSettingTab {
             });
 
         new Setting(containerEl)
-            .setName('Recursive Processing')
+            .setName('Recursive processing')
             .setDesc('Process subfolders by default')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.summarizerRecursive)
                 .onChange((value) => {
                     void (async () => {
                         this.plugin.settings.summarizerRecursive = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-
-        new Setting(containerEl)
-            .setName('Overwrite Existing')
-            .setDesc('Overwrite existing summaries by default')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.summarizerOverwrite)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.summarizerOverwrite = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-
-        new Setting(containerEl)
-            .setName('Include YAML')
-            .setDesc('Include YAML frontmatter in the input sent to the model')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.summarizerIncludeYaml)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.summarizerIncludeYaml = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-
-        new Setting(containerEl)
-            .setName('Max Characters')
-            .setDesc('Maximum characters to process per file')
-            .addText(text => text
-                .setValue(String(this.plugin.settings.summarizerMaxChars))
-                .onChange((value) => {
-                    void (async () => {
-                        const num = parseInt(value);
-                        if (!isNaN(num)) {
-                            this.plugin.settings.summarizerMaxChars = num;
-                            await this.plugin.saveSettings();
-                        }
-                    })();
-                }));
-
-        new Setting(containerEl)
-            .setName('Auto-Generate Title')
-            .setDesc('Append AI-generated title to filename (useful for Untitled or Daily Notes)')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.summarizerGenerateTitle)
-                .onChange((value) => {
-                    void (async () => {
                         this.plugin.settings.summarizerGenerateTitle = value;
                         await this.plugin.saveSettings();
                     })();
@@ -1293,6 +1240,240 @@ class CoherenceSettingTab extends PluginSettingTab {
                 .onChange((value) => {
                     void (async () => {
                         this.plugin.settings.yamlRecursive = value;
+                        await this.plugin.saveSettings();
+                    })();
+                }));
+    }
+
+    renderMergeSettings(containerEl: HTMLElement) {
+        new Setting(containerEl).setName('Merge').setHeading();
+
+        // Chrono Merge Settings
+        new Setting(containerEl).setName('Chrono merge').setHeading();
+        new Setting(containerEl)
+            .setName('Time threshold (minutes)')
+            .setDesc('Files created within this time window will be merged')
+            .addText(text => text
+                .setValue(String(this.plugin.settings.chronoMergeTimeThreshold))
+                .onChange((value) => {
+                    void (async () => {
+                        const num = parseFloat(value);
+                        if (!isNaN(num)) {
+                            this.plugin.settings.chronoMergeTimeThreshold = num;
+                            await this.plugin.saveSettings();
+                        }
+                    })();
+                }));
+
+        new Setting(containerEl)
+            .setName('Use file creation time')
+            .setDesc('If enabled, uses the file\'s creation date property instead of the date in the filename.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.chronoMergeUseCreationTime)
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.chronoMergeUseCreationTime = value;
+                        await this.plugin.saveSettings();
+                    })();
+                }));
+
+        new Setting(containerEl)
+            .setName('Recursive')
+            .setDesc('Process subfolders by default')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.chronoMergeRecursive)
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.chronoMergeRecursive = value;
+                        await this.plugin.saveSettings();
+                    })();
+                }));
+
+        // Concatonizer Settings
+        new Setting(containerEl).setName('Concatonizer').setHeading();
+        new Setting(containerEl)
+            .setName('Filename suffix')
+            .setDesc('Suffix to append to the folder name for the combined file (default: _combined)')
+            .addText(text => text
+                .setValue(this.plugin.settings.concatonizerSuffix)
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.concatonizerSuffix = value;
+                        await this.plugin.saveSettings();
+                    })();
+                }));
+
+        new Setting(containerEl)
+            .setName('Recursive')
+            .setDesc('Include subfolders by default')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.concatonizerRecursive)
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.concatonizerRecursive = value;
+                        await this.plugin.saveSettings();
+                    })();
+                }));
+
+        new Setting(containerEl)
+            .setName('Strip YAML')
+            .setDesc('Remove YAML frontmatter from combined files')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.concatonizerStripYaml)
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.concatonizerStripYaml = value;
+                        await this.plugin.saveSettings();
+                    })();
+                }));
+
+        // Deduplication Settings
+        new Setting(containerEl).setName('Deduplication').setHeading();
+        new Setting(containerEl)
+            .setName('Recursive')
+            .setDesc('Process subfolders by default')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.deduplicationRecursive)
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.deduplicationRecursive = value;
+                        await this.plugin.saveSettings();
+                    })();
+                }));
+    }
+    renderRatingSettings(containerEl: HTMLElement) {
+        new Setting(containerEl).setName('Automatic rating').setHeading();
+        new Setting(containerEl)
+            .setName('Default model')
+            .setDesc('Ollama model to use for rating')
+            .addDropdown(drop => {
+                this.ollamaModels.forEach(model => drop.addOption(model, model));
+                if (!this.ollamaModels.includes(this.plugin.settings.ratingModel)) {
+                    drop.addOption(this.plugin.settings.ratingModel, this.plugin.settings.ratingModel);
+                }
+                drop.setValue(this.plugin.settings.ratingModel)
+                    .onChange((value) => {
+                        void (async () => {
+                            this.plugin.settings.ratingModel = value;
+                            await this.plugin.saveSettings();
+                        })();
+                    });
+            });
+
+        new Setting(containerEl)
+            .setName('Quality parameters')
+            .setDesc('Comma separated list of parameters to rate (e.g. coherence, profundity)')
+            .addText(text => text
+                .setValue(this.plugin.settings.ratingParams)
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.ratingParams = value;
+                        await this.plugin.saveSettings();
+                    })();
+                }));
+
+        new Setting(containerEl)
+            .setName('Skip rated')
+            .setDesc('Skip files that already have a rating in frontmatter')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.ratingSkipIfRated)
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.ratingSkipIfRated = value;
+                        await this.plugin.saveSettings();
+                    })();
+                }));
+    }
+
+    renderWizardSettings(containerEl: HTMLElement) {
+        new Setting(containerEl).setName('Coherence wizard').setHeading();
+        containerEl.createEl('p', { text: 'Configure the folders used by the One Click Coherence Wizard.' });
+
+        new Setting(containerEl)
+            .setName('Inbox folder')
+            .setDesc('Folder containing new notes to process')
+            .addText(text => text
+                .setValue(this.plugin.settings.wizardInboxDir)
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.wizardInboxDir = value;
+                        await this.plugin.saveSettings();
+                    })();
+                }));
+
+        new Setting(containerEl)
+            .setName('Chrono folder')
+            .setDesc('Folder for chronological storage (archive)')
+            .addText(text => text
+                .setValue(this.plugin.settings.wizardChronoDir)
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.wizardChronoDir = value;
+                        await this.plugin.saveSettings();
+                    })();
+                }));
+
+        new Setting(containerEl)
+            .setName('Living folder')
+            .setDesc('Folder for living documents (categorized)')
+            .addText(text => text
+                .setValue(this.plugin.settings.wizardLivingDir)
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.wizardLivingDir = value;
+                        await this.plugin.saveSettings();
+                    })();
+                }));
+    }
+
+    renderDateFixSettings(containerEl: HTMLElement) {
+        new Setting(containerEl).setName('Date fix').setHeading();
+        containerEl.createDiv({ cls: 'setting-item-description' }).setText('This tool standardizes filenames by ensuring they start with a date in the preferred format. It automatically detects and converts existing dates or date-like number strings (e.g. 20220221) found in the filename.');
+
+        new Setting(containerEl)
+            .setName('Recursive')
+            .setDesc('Process subfolders by default')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.dateFixRecursive)
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.dateFixRecursive = value;
+                        await this.plugin.saveSettings();
+                    })();
+                }));
+
+        new Setting(containerEl)
+            .setName('Fallback to creation date')
+            .setDesc('If no date is found in the filename, prepend the file\'s creation date.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.dateFixFallbackToCreationDate)
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.dateFixFallbackToCreationDate = value;
+                        await this.plugin.saveSettings();
+                    })();
+                }));
+
+        new Setting(containerEl)
+            .setName('Preferred date format')
+            .setDesc('ISO format to use (e.g. YYYY-MM-DD)')
+            .addText(text => text
+                .setValue(this.plugin.settings.dateFixDateFormat)
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.dateFixDateFormat = value;
+                        await this.plugin.saveSettings();
+                    })();
+                }));
+
+        new Setting(containerEl)
+            .setName('Exceptions')
+            .setDesc('Comma separated list of file extensions (e.g. *.py) or words to exclude')
+            .addTextArea(text => text
+                .setValue(this.plugin.settings.dateFixExceptions)
+                .onChange((value) => {
+                    void (async () => {
+                        this.plugin.settings.dateFixExceptions = value;
                         await this.plugin.saveSettings();
                     })();
                 }));
@@ -1466,142 +1647,6 @@ class CoherenceSettingTab extends PluginSettingTab {
                             this.plugin.settings.categorizerMaxCategories = num;
                             await this.plugin.saveSettings();
                         }
-                    })();
-                }));
-
-        containerEl.createEl('h2', { text: 'Automatic rating' });
-        new Setting(containerEl)
-            .setName('Default Model')
-            .setDesc('Ollama model to use for rating')
-            .addDropdown(drop => {
-                this.ollamaModels.forEach(model => drop.addOption(model, model));
-                if (!this.ollamaModels.includes(this.plugin.settings.ratingModel)) {
-                    drop.addOption(this.plugin.settings.ratingModel, this.plugin.settings.ratingModel);
-                }
-                drop.setValue(this.plugin.settings.ratingModel)
-                    .onChange((value) => {
-                        void (async () => {
-                            this.plugin.settings.ratingModel = value;
-                            await this.plugin.saveSettings();
-                        })();
-                    });
-            });
-
-        new Setting(containerEl)
-            .setName('Quality Parameters')
-            .setDesc('Comma separated list of quality parameters')
-            .addText(text => text
-                .setValue(this.plugin.settings.ratingParams)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.ratingParams = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-
-        new Setting(containerEl)
-            .setName('Skip Existing')
-            .setDesc('Skip files that already have a rating in YAML')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.ratingSkipIfRated)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.ratingSkipIfRated = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-    }
-
-    renderWizardSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('Coherence wizard').setHeading();
-        containerEl.createEl('p', { text: 'Configure the folders used by the One Click Coherence Wizard.' });
-
-        new Setting(containerEl)
-            .setName('Inbox folder')
-            .setDesc('Folder containing new notes to process')
-            .addText(text => text
-                .setValue(this.plugin.settings.wizardInboxDir)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.wizardInboxDir = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-
-        new Setting(containerEl)
-            .setName('Chrono folder')
-            .setDesc('Folder for chronological storage (archive)')
-            .addText(text => text
-                .setValue(this.plugin.settings.wizardChronoDir)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.wizardChronoDir = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-
-        new Setting(containerEl)
-            .setName('Living folder')
-            .setDesc('Folder for living documents (categorized)')
-            .addText(text => text
-                .setValue(this.plugin.settings.wizardLivingDir)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.wizardLivingDir = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-    }
-
-    renderDateFixSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('Date fix').setHeading();
-        containerEl.createDiv({ cls: 'setting-item-description' }).setText('This tool standardizes filenames by ensuring they start with a date in the preferred format. It automatically detects and converts existing dates or date-like number strings (e.g. 20220221) found in the filename.');
-
-        new Setting(containerEl)
-            .setName('Recursive')
-            .setDesc('Process subfolders by default')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.dateFixRecursive)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.dateFixRecursive = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-
-        new Setting(containerEl)
-            .setName('Fallback to creation date')
-            .setDesc('If no date is found in the filename, prepend the file\'s creation date.')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.dateFixFallbackToCreationDate)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.dateFixFallbackToCreationDate = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-
-        new Setting(containerEl)
-            .setName('Preferred date format')
-            .setDesc('ISO format to use (e.g. YYYY-MM-DD)')
-            .addText(text => text
-                .setValue(this.plugin.settings.dateFixDateFormat)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.dateFixDateFormat = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-
-        new Setting(containerEl)
-            .setName('Exceptions')
-            .setDesc('Comma separated list of file extensions (e.g. *.py) or words to exclude')
-            .addTextArea(text => text
-                .setValue(this.plugin.settings.dateFixExceptions)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.dateFixExceptions = value;
-                        await this.plugin.saveSettings();
                     })();
                 }));
     }
@@ -1837,146 +1882,6 @@ class CoherenceSettingTab extends PluginSettingTab {
                 .onChange((value) => {
                     void (async () => {
                         this.plugin.settings.wisdomPrompt = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-    }
-
-    renderMergeSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('Merge').setHeading();
-
-        // Chrono Merge Settings
-        new Setting(containerEl).setName('Chrono merge').setHeading();
-        new Setting(containerEl)
-            .setName('Time threshold (minutes)')
-            .setDesc('Files created within this time window will be merged')
-            .addText(text => text
-                .setValue(String(this.plugin.settings.chronoMergeTimeThreshold))
-                .onChange((value) => {
-                    void (async () => {
-                        const num = parseFloat(value);
-                        if (!isNaN(num)) {
-                            this.plugin.settings.chronoMergeTimeThreshold = num;
-                            await this.plugin.saveSettings();
-                        }
-                    })();
-                }));
-
-        new Setting(containerEl)
-            .setName('Use file creation time')
-            .setDesc('If enabled, uses the file\'s creation date property instead of the date in the filename.')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.chronoMergeUseCreationTime)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.chronoMergeUseCreationTime = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-
-        new Setting(containerEl)
-            .setName('Recursive')
-            .setDesc('Process subfolders by default')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.chronoMergeRecursive)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.chronoMergeRecursive = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-
-        // Concatonizer Settings
-        new Setting(containerEl).setName('Concatonizer').setHeading();
-        new Setting(containerEl)
-            .setName('Filename suffix')
-            .setDesc('Suffix to append to the folder name for the combined file (default: _combined)')
-            .addText(text => text
-                .setValue(this.plugin.settings.concatonizerSuffix)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.concatonizerSuffix = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-
-        new Setting(containerEl)
-            .setName('Recursive')
-            .setDesc('Include subfolders by default')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.concatonizerRecursive)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.concatonizerRecursive = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-
-        new Setting(containerEl)
-            .setName('Strip YAML')
-            .setDesc('Remove YAML frontmatter from combined files')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.concatonizerStripYaml)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.concatonizerStripYaml = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-
-        // Deduplication Settings
-        new Setting(containerEl).setName('Deduplication').setHeading();
-        new Setting(containerEl)
-            .setName('Recursive')
-            .setDesc('Process subfolders by default')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.deduplicationRecursive)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.deduplicationRecursive = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-    }
-    renderRatingSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('Automatic rating').setHeading();
-        new Setting(containerEl)
-            .setName('Default model')
-            .setDesc('Ollama model to use for rating')
-            .addDropdown(drop => {
-                this.ollamaModels.forEach(model => drop.addOption(model, model));
-                if (!this.ollamaModels.includes(this.plugin.settings.ratingModel)) {
-                    drop.addOption(this.plugin.settings.ratingModel, this.plugin.settings.ratingModel);
-                }
-                drop.setValue(this.plugin.settings.ratingModel)
-                    .onChange((value) => {
-                        void (async () => {
-                            this.plugin.settings.ratingModel = value;
-                            await this.plugin.saveSettings();
-                        })();
-                    });
-            });
-
-        new Setting(containerEl)
-            .setName('Quality parameters')
-            .setDesc('Comma separated list of parameters to rate (e.g. coherence, profundity)')
-            .addText(text => text
-                .setValue(this.plugin.settings.ratingParams)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.ratingParams = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-
-        new Setting(containerEl)
-            .setName('Skip rated')
-            .setDesc('Skip files that already have a rating in frontmatter')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.ratingSkipIfRated)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.ratingSkipIfRated = value;
                         await this.plugin.saveSettings();
                     })();
                 }));
