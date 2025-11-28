@@ -114,6 +114,122 @@
 }
 
 .coherence-file-actions {
+/* Coherence Plugin Styles */
+
+.my-plugin-ribbon-class {
+    color: var(--text-accent);
+}
+
+.error-text {
+    color: var(--text-error);
+}
+
+.chrono-group,
+.coherence-chrono-group {
+    margin-bottom: 20px;
+    border: 1px solid var(--background-modifier-border);
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.dedup-group,
+.coherence-dedup-group {
+    margin-bottom: 20px;
+    border: 1px solid var(--background-modifier-border);
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.dedup-file {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.dedup-file:last-child {
+    border-bottom: none;
+}
+
+/* Settings Styles */
+.coherence-settings-nav {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    gap: 10px;
+}
+
+.coherence-bmc-container {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.coherence-bmc-img {
+    height: 40px;
+}
+
+.coherence-setting-desc {
+    margin-bottom: 20px;
+}
+
+.coherence-dict-desc {
+    margin-bottom: 10px;
+}
+
+.coherence-textarea-full,
+.coherence-input-full {
+    width: 100%;
+}
+
+.coherence-btn-container-right {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+.coherence-btn-margin-right {
+    margin-right: 10px;
+}
+
+/* Deduplication Styles */
+.coherence-dedup-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.coherence-dedup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.coherence-dedup-files {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.coherence-dedup-card {
+    background-color: var(--background-secondary);
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.coherence-file-preview {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    margin-top: 5px;
+    margin-bottom: 5px;
+    font-style: italic;
+}
+
+.coherence-file-actions {
     display: flex;
     justify-content: flex-end;
     gap: 5px;
@@ -124,4 +240,63 @@
     display: flex;
     justify-content: flex-end;
     margin-top: 10px;
+}
+
+/* Utility Classes */
+.coherence-mt-20 {
+    margin-top: 20px;
+}
+
+.coherence-mt-10 {
+    margin-top: 10px;
+}
+
+.coherence-mt-5 {
+    margin-top: 5px;
+}
+
+.coherence-mb-20 {
+    margin-bottom: 20px;
+}
+
+.coherence-w-100 {
+    width: 100%;
+}
+
+.coherence-h-100 {
+    height: 100%;
+}
+
+.coherence-progress-container {
+    margin-top: 20px;
+}
+
+.coherence-progress-bar-bg {
+    width: 100%;
+    height: 10px;
+    background-color: var(--background-modifier-border);
+    border-radius: 5px;
+}
+
+.coherence-progress-bar-fill {
+    width: 0%;
+    height: 100%;
+    background-color: var(--interactive-accent);
+    border-radius: 5px;
+    transition: width 0.1s;
+}
+
+.coherence-progress-text {
+    margin-top: 5px;
+    font-size: 0.8em;
+    color: var(--text-muted);
+}
+
+.coherence-version-text {
+    color: var(--text-muted);
+    font-size: 0.8em;
+}
+
+.coherence-text-error {
+    color: var(--text-error);
 }

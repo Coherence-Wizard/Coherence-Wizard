@@ -12,7 +12,7 @@ export class DateFixModal extends Modal {
 
     constructor(app: App, settings: CoherenceSettings, target?: TFile | TFolder) {
         super(app);
-        this.service = new DateFixService(app.vault);
+        this.service = new DateFixService(app);
         this.target = target ?? this.app.workspace.getActiveFile();
         this.recursive = settings.dateFixRecursive;
         this.fallbackToCreationDate = settings.dateFixFallbackToCreationDate;
@@ -65,30 +65,31 @@ export class DateFixModal extends Modal {
             .addButton(btn => btn
                 .setButtonText('Run date fix')
                 .setCta()
-                .onClick(async () => {
-                    btn.setButtonText('Processing...').setDisabled(true);
-                    try {
-                        if (this.target instanceof TFile) {
-                            // Single File
-                            const result = await this.service.fixDateInFile(this.target, this.fallbackToCreationDate, this.dateFormat, this.exceptions);
-                            new Notice(result);
-                        } else {
-                            // Folder
-                            const result = await this.service.fixDatesInFolder(
-                                this.target.path,
-                                this.recursive,
-                                this.fallbackToCreationDate,
-                                this.dateFormat,
-                                this.exceptions
-                            );
-                            new Notice(`Complete: ${result.processed} processed, ${result.renamed} renamed, ${result.errors} errors.`);
+                .onClick(() => {
+                    void (async () => {
+                        btn.setButtonText('Processing...').setDisabled(true);
+                        try {
+                            if (this.target instanceof TFile) {
+                                // Single File
+                                const result = await this.service.fixDateInFile(this.target, this.fallbackToCreationDate, this.dateFormat, this.exceptions);
+                                new Notice(result);
+                            } else if (this.target instanceof TFolder) {
+                                // Folder
+                                const result = await this.service.fixDatesInFolder(
+                                    this.target.path,
+                                    this.recursive,
+                                    this.fallbackToCreationDate,
+                                    this.dateFormat,
+                                    this.exceptions
+                                );
+                                new Notice(`Complete: ${result.processed} processed, ${result.renamed} renamed, ${result.errors} errors.`);
+                            }
+                            this.close();
+                        } catch (e) {
+                            new Notice('Error during date fix.');
+                            btn.setButtonText('Run date fix').setDisabled(false);
                         }
-                        this.close();
-                    } catch (e) {
-                        new Notice('Error during date fix.');
-                        console.error(e);
-                        btn.setButtonText('Run date fix').setDisabled(false);
-                    }
+                    })();
                 }));
     }
 

@@ -52,34 +52,35 @@ export class AtomizerModal extends Modal {
                 .setButtonText(isFolder ? 'Atomize all files' : 'Atomize')
                 .setCta()
                 .setDisabled(!this.target)
-                .onClick(async () => {
-                    if (this.target) {
-                        this.close();
-                        if (this.target instanceof TFolder) {
-                            new Notice(`Atomizing files in ${this.target.name}...`);
-                            let count = 0;
-                            for (const child of this.target.children) {
-                                if (child instanceof TFile && child.extension === 'md') {
-                                    try {
-                                        await this.runAtomizer(child);
-                                        count++;
-                                    } catch (e) {
-                                        console.error(`Failed to atomize ${child.name}`, e);
+                .onClick(() => {
+                    (async () => {
+                        if (this.target) {
+                            this.close();
+                            if (this.target instanceof TFolder) {
+                                new Notice(`Atomizing files in ${this.target.name}...`);
+                                let count = 0;
+                                for (const child of this.target.children) {
+                                    if (child instanceof TFile && child.extension === 'md') {
+                                        try {
+                                            await this.runAtomizer(child);
+                                            count++;
+                                        } catch (e) {
+                                            new Notice(`Failed to atomize ${child.name}`);
+                                        }
                                     }
                                 }
-                            }
-                            new Notice(`Atomization complete. Processed ${count} files.`);
-                        } else if (this.target instanceof TFile) {
-                            new Notice('Atomizing...');
-                            try {
-                                await this.runAtomizer(this.target);
-                                new Notice('Atomization complete.');
-                            } catch (e) {
-                                new Notice('Error during atomization.');
-                                console.error(e);
+                                new Notice(`Atomization complete. Processed ${count} files.`);
+                            } else if (this.target instanceof TFile) {
+                                new Notice('Atomizing...');
+                                try {
+                                    await this.runAtomizer(this.target);
+                                    new Notice('Atomization complete.');
+                                } catch (e) {
+                                    new Notice('Error during atomization.');
+                                }
                             }
                         }
-                    }
+                    })();
                 }));
     }
 

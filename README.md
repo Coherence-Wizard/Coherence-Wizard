@@ -78,7 +78,7 @@ If this tool saves you time or helps you bring order to your chaos, please consi
 
 ## 📄 License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT License. See [license](D%20-%20PROCESS/Python%20Scripts/Text%20and%20Folders/Popular%20Scripts%20GUI%20For%20Testing%20Antigravity/Coherence%20Wizard%200.0.17/node_modules/ms/license.md) for details.
 
 ---
 

@@ -5,7 +5,7 @@ import { CoherenceSettings } from '../../main';
 
 export class RatingModal extends Modal {
     service: RatingService;
-    target: any;
+    target: TFile | TFolder;
     recursive = false;
     skipExisting = true;
     model: string;
@@ -15,7 +15,7 @@ export class RatingModal extends Modal {
     models: string[] = [];
     saveSettings: (key: string, value: any) => Promise<void>;
 
-    constructor(app: App, settings: CoherenceSettings, saveSettings: (key: string, value: any) => Promise<void>, target?: any) {
+    constructor(app: App, settings: CoherenceSettings, saveSettings: (key: string, value: any) => Promise<void>, target?: TFile | TFolder) {
         super(app);
         this.ollama = new OllamaService(settings.ollamaUrl);
         this.service = new RatingService(app, this.ollama);
@@ -29,7 +29,7 @@ export class RatingModal extends Modal {
     async onOpen() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Automatic Rating' });
+        new Setting(contentEl).setName('Automatic Rating').setHeading();
         contentEl.createEl('p', { text: 'Loading models...' });
 
         try {
@@ -44,10 +44,10 @@ export class RatingModal extends Modal {
     display() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Automatic Rating' });
+        new Setting(contentEl).setName('Automatic Rating').setHeading();
 
         if (this.target) {
-            const type = this.target.extension ? 'File' : 'Folder';
+            const type = this.target instanceof TFile ? 'File' : 'Folder';
             contentEl.createEl('p', { text: `Target: ${this.target.name} (${type})` });
         } else {
             contentEl.createEl('p', { text: `No target selected. (Target is ${this.target})`, cls: 'error-text' });
@@ -74,7 +74,7 @@ export class RatingModal extends Modal {
             .setDesc('Comma separated list')
             .addText((text: TextComponent) => text.setValue(this.params).onChange((v: string) => this.params = v));
 
-        if (!this.target.extension) {
+        if (this.target instanceof TFolder) {
             new Setting(contentEl)
                 .setName('Recursive')
                 .addToggle((t: ToggleComponent) => t.setValue(this.recursive).onChange((v: boolean) => this.recursive = v));
@@ -89,53 +89,39 @@ export class RatingModal extends Modal {
             .addButton(btn => btn
                 .setButtonText('Start Rating')
                 .setCta()
-                .onClick(async () => {
-                    btn.setButtonText('Processing...').setDisabled(true);
-                    const params = this.params.split(',').map(p => p.trim()).filter(p => p);
+                .onClick(() => {
+                    void (async () => {
+                        btn.setButtonText('Processing...').setDisabled(true);
+                        const params = this.params.split(',').map(p => p.trim()).filter(p => p);
 
-                    // Create Progress Bar
-                    const progressContainer = contentEl.createDiv();
-                    progressContainer.style.marginTop = '20px';
-                    const progressBarBg = progressContainer.createDiv();
-                    progressBarBg.style.width = '100%';
-                    progressBarBg.style.height = '10px';
-                    progressBarBg.style.backgroundColor = 'var(--background-modifier-border)';
-                    progressBarBg.style.borderRadius = '5px';
+                        // Create Progress Bar
+                        const progressContainer = contentEl.createDiv({ cls: 'coherence-progress-container' });
+                        const progressBarBg = progressContainer.createDiv({ cls: 'coherence-progress-bar-bg' });
+                        const progressBar = progressBarBg.createDiv({ cls: 'coherence-progress-bar-fill' });
+                        const progressText = progressContainer.createDiv({ cls: 'coherence-progress-text' });
+                        progressText.setText('Starting...');
 
-                    const progressBar = progressBarBg.createDiv();
-                    progressBar.style.width = '0%';
-                    progressBar.style.height = '100%';
-                    progressBar.style.backgroundColor = 'var(--interactive-accent)';
-                    progressBar.style.borderRadius = '5px';
-                    progressBar.style.transition = 'width 0.1s';
+                        const onProgress = (processed: number, total: number, currentFile: string) => {
+                            const percent = Math.floor((processed / total) * 100);
+                            progressBar.style.width = `${percent}%`;
+                            progressText.setText(`Processing ${processed}/${total}: ${currentFile}`);
+                        };
 
-                    const progressText = progressContainer.createDiv();
-                    progressText.style.marginTop = '5px';
-                    progressText.style.fontSize = '0.8em';
-                    progressText.style.color = 'var(--text-muted)';
-                    progressText.setText('Starting...');
-
-                    const onProgress = (processed: number, total: number, currentFile: string) => {
-                        const percent = Math.floor((processed / total) * 100);
-                        progressBar.style.width = `${percent}%`;
-                        progressText.setText(`Processing ${processed}/${total}: ${currentFile}`);
-                    };
-
-                    try {
-                        if (this.target.extension) {
-                            const rating = await this.service.rateFile(this.target, this.model, params, this.skipExisting);
-                            new Notice(rating ? `Rated: ${rating}` : 'Failed to rate');
-                        } else {
-                            const res = await this.service.rateFolder(this.target.path, this.model, params, this.recursive, this.skipExisting, onProgress);
-                            new Notice(`Processed: ${res.processed}, Rated: ${res.rated}, Errors: ${res.errors}`);
+                        try {
+                            if (this.target instanceof TFile) {
+                                const rating = await this.service.rateFile(this.target, this.model, params, this.skipExisting);
+                                new Notice(rating ? `Rated: ${rating}` : 'Failed to rate');
+                            } else {
+                                const res = await this.service.rateFolder(this.target.path, this.model, params, this.recursive, this.skipExisting, onProgress);
+                                new Notice(`Processed: ${res.processed}, Rated: ${res.rated}, Errors: ${res.errors}`);
+                            }
+                            this.close();
+                        } catch (e) {
+                            new Notice('Error during rating');
+                            btn.setButtonText('Start Rating').setDisabled(false);
+                            progressText.setText('Error occurred.');
                         }
-                        this.close();
-                    } catch (e) {
-                        new Notice('Error during rating');
-                        console.error(e);
-                        btn.setButtonText('Start Rating').setDisabled(false);
-                        progressText.setText('Error occurred.');
-                    }
+                    })();
                 }));
     }
 

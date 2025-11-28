@@ -309,7 +309,6 @@ export default class CoherencePlugin extends Plugin {
     }
 
     async onload() {
-        console.log('Coherence Plugin: Loaded version 0.0.24');
         await this.loadSettings();
 
         this.registerView(
@@ -319,7 +318,9 @@ export default class CoherencePlugin extends Plugin {
 
         // Add Ribbon Icon
         this.addRibbonIcon('wand-2', 'Coherence Wizard', (evt: MouseEvent) => {
-            this.activateWizardView();
+            (async () => {
+                await this.activateWizardView();
+            })();
         });
 
         // Add Status Bar Item
@@ -491,9 +492,11 @@ export default class CoherencePlugin extends Plugin {
         // Coherence Wizard Command
         this.addCommand({
             id: 'open-coherence-wizard',
-            name: 'Open Coherence Wizard',
+            name: 'Open Dashboard',
             callback: () => {
-                this.activateWizardView();
+                (async () => {
+                    await this.activateWizardView();
+                })();
             }
         });
 
@@ -505,7 +508,7 @@ export default class CoherencePlugin extends Plugin {
                     menu.addItem((item) => {
                         item.setTitle('Coherence: Date Fix')
                             .setIcon('calendar')
-                            .onClick(async () => {
+                            .onClick(() => {
                                 new DateFixModal(this.app, this.settings, view.file).open();
                             });
                     });
@@ -515,7 +518,7 @@ export default class CoherencePlugin extends Plugin {
                     menu.addItem((item) => {
                         item.setTitle('Coherence: Merge')
                             .setIcon('merge')
-                            .onClick(async () => {
+                            .onClick(() => {
                                 new MergeModal(this.app, this.settings, view.file).open();
                             });
                     });
@@ -525,7 +528,7 @@ export default class CoherencePlugin extends Plugin {
                     menu.addItem((item) => {
                         item.setTitle('Coherence: Atomize')
                             .setIcon('scissors')
-                            .onClick(async () => {
+                            .onClick(() => {
                                 new AtomizerModal(this.app, this.settings, view.file).open();
                             });
                     });
@@ -535,7 +538,7 @@ export default class CoherencePlugin extends Plugin {
                     menu.addItem((item) => {
                         item.setTitle('Coherence: Apply YAML Template')
                             .setIcon('layout-template')
-                            .onClick(async () => {
+                            .onClick(() => {
                                 new YamlTemplateModal(this.app, this.settings, view.file).open();
                             });
                     });
@@ -545,7 +548,7 @@ export default class CoherencePlugin extends Plugin {
                     menu.addItem((item) => {
                         item.setTitle('Coherence: Summarize')
                             .setIcon('lines-of-text')
-                            .onClick(async () => {
+                            .onClick(() => {
                                 new SummarizerModal(this.app, this.settings, async (key, value) => {
                                     (this.settings as any)[key] = value;
                                     await this.saveSettings();
@@ -558,7 +561,7 @@ export default class CoherencePlugin extends Plugin {
                     menu.addItem((item) => {
                         item.setTitle('Coherence: Categorize')
                             .setIcon('folder')
-                            .onClick(async () => {
+                            .onClick(() => {
                                 new CategorizeHubModal(this.app, this.settings, async (key, value) => {
                                     (this.settings as any)[key] = value;
                                     await this.saveSettings();
@@ -571,7 +574,7 @@ export default class CoherencePlugin extends Plugin {
                     menu.addItem((item) => {
                         item.setTitle('Coherence: Parse and Move')
                             .setIcon('folder-input')
-                            .onClick(async () => {
+                            .onClick(() => {
                                 new ParseAndMoveModal(this.app, this.settings, view.file).open();
                             });
                     });
@@ -581,7 +584,7 @@ export default class CoherencePlugin extends Plugin {
                     menu.addItem((item) => {
                         item.setTitle('Coherence: Distill')
                             .setIcon('flask-conical')
-                            .onClick(async () => {
+                            .onClick(() => {
                                 new DistillModal(this.app, this.settings, view.file).open();
                             });
                     });
@@ -599,7 +602,7 @@ export default class CoherencePlugin extends Plugin {
                     menu.addItem((item) => {
                         item.setTitle('Coherence: Date Fix')
                             .setIcon('calendar')
-                            .onClick(async () => {
+                            .onClick(() => {
                                 if (file instanceof TFile || file instanceof TFolder) {
                                     new DateFixModal(this.app, this.settings, file).open();
                                 }
@@ -611,7 +614,7 @@ export default class CoherencePlugin extends Plugin {
                     menu.addItem((item) => {
                         item.setTitle('Coherence: Merge')
                             .setIcon('merge')
-                            .onClick(async () => {
+                            .onClick(() => {
                                 if (file instanceof TFile || file instanceof TFolder) {
                                     new MergeModal(this.app, this.settings, file).open();
                                 }
@@ -624,7 +627,7 @@ export default class CoherencePlugin extends Plugin {
                     menu.addItem((item) => {
                         item.setTitle('Coherence: Atomize')
                             .setIcon('scissors')
-                            .onClick(async () => {
+                            .onClick(() => {
                                 if (file instanceof TFile || file instanceof TFolder) {
                                     new AtomizerModal(this.app, this.settings, file).open();
                                 }
@@ -636,7 +639,7 @@ export default class CoherencePlugin extends Plugin {
                     menu.addItem((item) => {
                         item.setTitle('Coherence: Apply YAML Template')
                             .setIcon('layout-template')
-                            .onClick(async () => {
+                            .onClick(() => {
                                 if (file instanceof TFile || file instanceof TFolder) {
                                     new YamlTemplateModal(this.app, this.settings, file).open();
                                 }
@@ -650,7 +653,7 @@ export default class CoherencePlugin extends Plugin {
                         menu.addItem((item) => {
                             item.setTitle('Coherence: Summarize')
                                 .setIcon('lines-of-text')
-                                .onClick(async () => {
+                                .onClick(() => {
                                     new SummarizerModal(this.app, this.settings, async (key, value) => {
                                         (this.settings as any)[key] = value;
                                         await this.saveSettings();
@@ -663,7 +666,7 @@ export default class CoherencePlugin extends Plugin {
                         menu.addItem((item) => {
                             item.setTitle('Coherence: Categorize')
                                 .setIcon('folder')
-                                .onClick(async () => {
+                                .onClick(() => {
                                     new CategorizeHubModal(this.app, this.settings, async (key, value) => {
                                         (this.settings as any)[key] = value;
                                         await this.saveSettings();
@@ -676,7 +679,7 @@ export default class CoherencePlugin extends Plugin {
                         menu.addItem((item) => {
                             item.setTitle('Coherence: Parse and Move')
                                 .setIcon('folder-input')
-                                .onClick(async () => {
+                                .onClick(() => {
                                     new ParseAndMoveModal(this.app, this.settings, file).open();
                                 });
                         });
@@ -686,7 +689,7 @@ export default class CoherencePlugin extends Plugin {
                         menu.addItem((item) => {
                             item.setTitle('Coherence: Distill')
                                 .setIcon('flask-conical')
-                                .onClick(async () => {
+                                .onClick(() => {
                                     new DistillModal(this.app, this.settings, file).open();
                                 });
                         });
@@ -737,20 +740,15 @@ class CoherenceSettingTab extends PluginSettingTab {
     }
 
     async display(): Promise<void> {
-        console.log('Coherence Settings: Displaying tab', this.activeTab);
         await this.fetchModels();
         const { containerEl } = this;
 
         containerEl.empty();
 
-        containerEl.createEl('h1', { text: 'Coherence Wizard Settings' });
+        new Setting(containerEl).setName('Coherence Wizard Settings').setHeading();
 
         // Create Tab Navigation
-        const navContainer = containerEl.createDiv({ cls: 'settings-nav-container' });
-        navContainer.style.display = 'flex';
-        navContainer.style.flexWrap = 'wrap';
-        navContainer.style.marginBottom = '20px';
-        navContainer.style.gap = '10px';
+        const navContainer = containerEl.createDiv({ cls: 'settings-nav-container coherence-settings-nav' });
 
         const tabs = [
             { id: 'about', name: 'About' },
@@ -789,8 +787,7 @@ class CoherenceSettingTab extends PluginSettingTab {
                 this.renderRatingSettings(containerEl);
             } else if (this.activeTab === 'contextmenu') {
                 // Inline renderContextMenuSettings
-                console.log('Rendering Context Menu Settings (Inlined)');
-                containerEl.createEl('h2', { text: 'Context Menu Settings' });
+                new Setting(containerEl).setName('Context Menu Settings').setHeading();
                 containerEl.createEl('p', { text: 'Select which features should appear in the right-click context menu.' });
 
                 new Setting(containerEl)
@@ -896,8 +893,8 @@ class CoherenceSettingTab extends PluginSettingTab {
     }
 
     renderAboutSettings(containerEl: HTMLElement) {
-        containerEl.createEl('h2', { text: 'About Coherence Wizard' });
-        containerEl.createEl('p', { text: 'Version: 0.0.24', cls: 'version-text' });
+        new Setting(containerEl).setName('About Coherence Wizard').setHeading();
+        containerEl.createEl('p', { text: 'Version: 0.0.25', cls: 'version-text' });
 
         containerEl.createEl('p', { text: 'The intention is to streamline coherence by using tools to convert chaos into order.' });
         containerEl.createEl('p', { text: 'The included tools have significantly enhanced my PKM workflows and I want to help others passionate about self-development using Obsidian.' });
@@ -909,20 +906,18 @@ class CoherenceSettingTab extends PluginSettingTab {
 
         containerEl.createEl('p', { text: 'You will need to install Ollama on your computer and pull your favorite local AI models. I recommend gemma3:12b-it-qat if your computer can handle it. Otherwise gemma3:4b-it-qat for constrained resources.' });
 
-        const bmcContainer = containerEl.createDiv();
-        bmcContainer.style.marginTop = '20px';
-        bmcContainer.style.marginBottom = '20px';
+        const bmcContainer = containerEl.createDiv({ cls: 'coherence-bmc-container' });
 
         const bmcLink = bmcContainer.createEl('a', { href: 'https://www.buymeacoffee.com/rastovich' });
         const bmcImg = bmcLink.createEl('img', {
             attr: {
                 src: 'https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=rastovich&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff',
                 alt: 'Buy me a coffee'
-            }
+            },
+            cls: 'coherence-bmc-img'
         });
-        bmcImg.style.height = '40px';
 
-        containerEl.createEl('h3', { text: 'Configuration' });
+        new Setting(containerEl).setName('Configuration').setHeading();
 
         new Setting(containerEl)
             .setName('Ollama URL')
@@ -953,14 +948,13 @@ class CoherenceSettingTab extends PluginSettingTab {
 
         containerEl.createEl('p', { text: 'Each settings tab will explain what each function does.' });
 
-        containerEl.createEl('h3', { text: 'Support' });
+        new Setting(containerEl).setName('Support').setHeading();
         containerEl.createEl('p', { text: 'If this app benefits you and want to encourage me to develop these and other tools. Please consider "Buying Me A Coffee" which would go a long way in encouraging me!' });
         containerEl.createEl('p', { text: 'If this tool saves you just one hour of time per month, please consider donating or subscribing!' });
     }
 
     renderContextMenuSettings(containerEl: HTMLElement) {
-        console.log('Rendering Context Menu Settings');
-        containerEl.createEl('h2', { text: 'Context Menu Settings' });
+        new Setting(containerEl).setName('Context Menu Settings').setHeading();
         containerEl.createEl('p', { text: 'Select which features should appear in the right-click context menu.' });
 
         new Setting(containerEl)
@@ -1055,18 +1049,14 @@ class CoherenceSettingTab extends PluginSettingTab {
     }
 
     renderAtomizerSettings(containerEl: HTMLElement) {
-        containerEl.createEl('h2', { text: 'Atomizer Settings' });
+        new Setting(containerEl).setName('Atomizer Settings').setHeading();
 
-        const desc = containerEl.createDiv({ cls: 'setting-item-description' });
-        desc.style.marginBottom = '20px';
-        desc.innerHTML = `
-            <p><strong>Atomization Modes:</strong></p>
-            <ul>
-                <li><strong>By Heading:</strong> Splits the file based on markdown headings (H1, H2, etc.). Each section becomes a new file.</li>
-                <li><strong>By ISO Date:</strong> Splits the file based on ISO 8601 date patterns found in the text (e.g. YYYY-MM-DD). Useful for splitting daily logs.</li>
-                <li><strong>By Divider:</strong> Splits the file using a custom divider string (e.g. '---').</li>
-            </ul>
-        `;
+        const desc = containerEl.createDiv({ cls: 'setting-item-description coherence-mb-20' });
+        desc.createEl('p').createEl('strong', { text: 'Atomization Modes:' });
+        const ul = desc.createEl('ul');
+        ul.createEl('li').innerHTML = '<strong>By Heading:</strong> Splits the file based on markdown headings (H1, H2, etc.). Each section becomes a new file.';
+        ul.createEl('li').innerHTML = '<strong>By ISO Date:</strong> Splits the file based on ISO 8601 date patterns found in the text (e.g. YYYY-MM-DD). Useful for splitting daily logs.';
+        ul.createEl('li').innerHTML = '<strong>By Divider:</strong> Splits the file using a custom divider string (e.g. \'---\').';
 
         new Setting(containerEl)
             .setName('Default Divider')
@@ -1081,7 +1071,7 @@ class CoherenceSettingTab extends PluginSettingTab {
     }
 
     renderSummarizerSettings(containerEl: HTMLElement) {
-        containerEl.createEl('h2', { text: 'Summarizer Settings' });
+        new Setting(containerEl).setName('Summarizer Settings').setHeading();
         new Setting(containerEl)
             .setName('Default Model')
             .setDesc('Ollama model to use for summarization')
@@ -1150,7 +1140,7 @@ class CoherenceSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-        containerEl.createEl('h3', { text: 'Progressive Sequential Summarization Prompts' });
+        new Setting(containerEl).setName('Progressive Sequential Summarization Prompts').setHeading();
 
         new Setting(containerEl)
             .setName('Prompt 1 (General Summary)')
@@ -1202,24 +1192,20 @@ class CoherenceSettingTab extends PluginSettingTab {
     }
 
     renderYamlSettings(containerEl: HTMLElement) {
-        containerEl.createEl('h2', { text: 'YAML Template Settings' });
+        new Setting(containerEl).setName('YAML Template Settings').setHeading();
 
-        const desc = containerEl.createDiv({ cls: 'setting-item-description' });
-        desc.style.marginBottom = '20px';
-        desc.innerHTML = `
-            <p><strong>Note:</strong></p>
-            <ul>
-                <li>Any YAML keys that are not in the template will be preserved and added after the main template keys.</li>
-                <li>Existing values for keys in the template will be preserved but reordered.</li>
-            </ul>
-        `;
+        const desc = containerEl.createDiv({ cls: 'setting-item-description coherence-mb-20' });
+        desc.createEl('p').createEl('strong', { text: 'Note:' });
+        const ul = desc.createEl('ul');
+        ul.createEl('li', { text: 'Any YAML keys that are not in the template will be preserved and added after the main template keys.' });
+        ul.createEl('li', { text: 'Existing values for keys in the template will be preserved but reordered.' });
 
         new Setting(containerEl)
             .setName('Default Template')
             .setDesc('Default fields for YAML template (one per line)')
             .addTextArea(text => {
                 text.inputEl.rows = 10;
-                text.inputEl.style.width = '100%';
+                text.inputEl.addClass('coherence-w-100');
                 text.setValue(this.plugin.settings.yamlTemplate)
                     .onChange(async (value) => {
                         this.plugin.settings.yamlTemplate = value;
@@ -1249,7 +1235,7 @@ class CoherenceSettingTab extends PluginSettingTab {
     }
 
     renderCategorizerSettings(containerEl: HTMLElement) {
-        containerEl.createEl('h2', { text: 'Categorizer Settings' });
+        new Setting(containerEl).setName('Categorizer Settings').setHeading();
         new Setting(containerEl)
             .setName('Categorizer Model')
             .setDesc('The Ollama model to use for categorization')
@@ -1265,18 +1251,14 @@ class CoherenceSettingTab extends PluginSettingTab {
                     });
             });
 
-        containerEl.createEl('h3', { text: 'Dictionaries' });
+        new Setting(containerEl).setName('Dictionaries').setHeading();
 
-        const dictDesc = containerEl.createDiv({ cls: 'setting-item-description' });
-        dictDesc.style.marginBottom = '10px';
-        dictDesc.innerHTML = `
-            <p><strong>Dictionary Syntax:</strong></p>
-            <p>Each line represents a category. You can optionally provide a description after a semicolon.</p>
-            <pre>Category Name; Description of the category</pre>
-            <p>Example:</p>
-            <pre>Personal; Notes related to personal life
-Work; Job related tasks and projects</pre>
-        `;
+        const dictDesc = containerEl.createDiv({ cls: 'setting-item-description coherence-mb-10' });
+        dictDesc.createEl('p').createEl('strong', { text: 'Dictionary Syntax:' });
+        dictDesc.createEl('p', { text: 'Each line represents a category. You can optionally provide a description after a semicolon.' });
+        dictDesc.createEl('pre', { text: 'Category Name; Description of the category' });
+        dictDesc.createEl('p', { text: 'Example:' });
+        dictDesc.createEl('pre', { text: 'Personal; Notes related to personal life\nWork; Job related tasks and projects' });
 
         // Dictionary Selector & Management
         const dictSetting = new Setting(containerEl)
@@ -1348,7 +1330,7 @@ Work; Job related tasks and projects</pre>
                 .setDesc('Edit the categories for the selected dictionary')
                 .addTextArea(text => {
                     text.inputEl.rows = 15;
-                    text.inputEl.style.width = '100%';
+                    text.inputEl.addClass('coherence-w-100');
                     text.setValue(activeDict.content)
                         .onChange(async (value) => {
                             activeDict.content = value;
@@ -1358,7 +1340,7 @@ Work; Job related tasks and projects</pre>
         }
 
         // Default Options
-        containerEl.createEl('h3', { text: 'Default Options' });
+        new Setting(containerEl).setName('Default Options').setHeading();
 
         new Setting(containerEl)
             .setName('Apply as Tag')
@@ -1441,7 +1423,7 @@ Work; Job related tasks and projects</pre>
     }
 
     renderWizardSettings(containerEl: HTMLElement) {
-        containerEl.createEl('h2', { text: 'Coherence Wizard Settings' });
+        new Setting(containerEl).setName('Coherence Wizard Settings').setHeading();
         containerEl.createEl('p', { text: 'Configure the folders used by the One Click Coherence Wizard.' });
 
         new Setting(containerEl)
@@ -1476,8 +1458,8 @@ Work; Job related tasks and projects</pre>
     }
 
     renderDateFixSettings(containerEl: HTMLElement) {
-        containerEl.createEl('h2', { text: 'Date Fix Settings' });
-        containerEl.createEl('p', { text: 'This tool standardizes filenames by ensuring they start with a date in the preferred format. It automatically detects and converts existing dates or date-like number strings (e.g. 20220221) found in the filename.', cls: 'setting-item-description' });
+        new Setting(containerEl).setName('Date Fix Settings').setHeading();
+        containerEl.createDiv({ cls: 'setting-item-description' }).setText('This tool standardizes filenames by ensuring they start with a date in the preferred format. It automatically detects and converts existing dates or date-like number strings (e.g. 20220221) found in the filename.');
 
         new Setting(containerEl)
             .setName('Recursive')
@@ -1521,7 +1503,7 @@ Work; Job related tasks and projects</pre>
     }
 
     renderParseAndMoveSettings(containerEl: HTMLElement) {
-        containerEl.createEl('h2', { text: 'Parse and Move Settings' });
+        new Setting(containerEl).setName('Parse and Move Settings').setHeading();
         new Setting(containerEl)
             .setName('Target Directory')
             .setDesc('Directory to move parsed files to')
@@ -1544,17 +1526,14 @@ Work; Job related tasks and projects</pre>
     }
 
     renderDistillSettings(containerEl: HTMLElement) {
-        containerEl.createEl('h2', { text: 'Distill Settings' });
+        new Setting(containerEl).setName('Distill Settings').setHeading();
 
         // Censor / Alias Settings
-        containerEl.createEl('h3', { text: 'Censor / Alias' });
+        new Setting(containerEl).setName('Censor / Alias').setHeading();
 
-        const dictDesc = containerEl.createDiv({ cls: 'setting-item-description' });
-        dictDesc.style.marginBottom = '10px';
-        dictDesc.innerHTML = `
-            <p><strong>Dictionary Syntax:</strong></p>
-            <p>Each line represents a word/phrase to censor.</p>
-        `;
+        const dictDesc = containerEl.createDiv({ cls: 'setting-item-description coherence-mb-10' });
+        dictDesc.createEl('p').createEl('strong', { text: 'Dictionary Syntax:' });
+        dictDesc.createEl('p', { text: 'Each line represents a word/phrase to censor.' });
 
         new Setting(containerEl)
             .setName('Active Dictionary')
@@ -1623,7 +1602,7 @@ Work; Job related tasks and projects</pre>
                 .setDesc('Edit the censored words (one per line)')
                 .addTextArea(text => {
                     text.inputEl.rows = 10;
-                    text.inputEl.style.width = '100%';
+                    text.inputEl.addClass('coherence-w-100');
                     text.setValue(activeDict.content)
                         .onChange(async (value) => {
                             activeDict.content = value;
@@ -1653,7 +1632,7 @@ Work; Job related tasks and projects</pre>
                 }));
 
         // Generalizer Settings
-        containerEl.createEl('h3', { text: 'Generalize' });
+        new Setting(containerEl).setName('Generalize').setHeading();
         new Setting(containerEl)
             .setName('Model')
             .setDesc('Ollama model to use')
@@ -1690,7 +1669,7 @@ Work; Job related tasks and projects</pre>
                 }));
 
         // Wisdom Settings
-        containerEl.createEl('h3', { text: 'Wisdom Extractor' });
+        new Setting(containerEl).setName('Wisdom Extractor').setHeading();
         new Setting(containerEl)
             .setName('Default Model')
             .setDesc('Ollama model to use for wisdom extraction')
@@ -1730,10 +1709,10 @@ Work; Job related tasks and projects</pre>
     }
 
     renderMergeSettings(containerEl: HTMLElement) {
-        containerEl.createEl('h2', { text: 'Merge Settings' });
+        new Setting(containerEl).setName('Merge Settings').setHeading();
 
         // Chrono Merge Settings
-        containerEl.createEl('h3', { text: 'Chrono Merge' });
+        new Setting(containerEl).setName('Chrono Merge').setHeading();
         new Setting(containerEl)
             .setName('Time Threshold (Minutes)')
             .setDesc('Files created within this time window will be merged')
@@ -1768,7 +1747,7 @@ Work; Job related tasks and projects</pre>
                 }));
 
         // Concatonizer Settings
-        containerEl.createEl('h3', { text: 'Concatonizer' });
+        new Setting(containerEl).setName('Concatonizer').setHeading();
         new Setting(containerEl)
             .setName('Filename Suffix')
             .setDesc('Suffix to append to the folder name for the combined file (default: _combined)')
@@ -1800,7 +1779,7 @@ Work; Job related tasks and projects</pre>
                 }));
 
         // Deduplication Settings
-        containerEl.createEl('h3', { text: 'Deduplication' });
+        new Setting(containerEl).setName('Deduplication').setHeading();
         new Setting(containerEl)
             .setName('Recursive')
             .setDesc('Process subfolders by default')
@@ -1812,7 +1791,7 @@ Work; Job related tasks and projects</pre>
                 }));
     }
     renderRatingSettings(containerEl: HTMLElement) {
-        containerEl.createEl('h2', { text: 'Automatic Rating Settings' });
+        new Setting(containerEl).setName('Automatic Rating Settings').setHeading();
         new Setting(containerEl)
             .setName('Default Model')
             .setDesc('Ollama model to use for rating')

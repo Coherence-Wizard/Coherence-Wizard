@@ -14,7 +14,7 @@ export class ConcatonizerModal extends Modal {
     constructor(app: App, settings: CoherenceSettings, target?: TFolder | TFile) {
         super(app);
         this.service = new ConcatonizerService(app.vault);
-        this.target = target;
+        this.target = target || null;
         this.recursive = settings.concatonizerRecursive;
         this.stripYaml = settings.concatonizerStripYaml;
 
@@ -37,7 +37,9 @@ export class ConcatonizerModal extends Modal {
             // If target is a file, maybe use its parent?
             if (this.target instanceof TFile) {
                 this.target = this.target.parent;
-                contentEl.createEl('p', { text: `Using parent folder: ${this.target.path}` });
+                if (this.target) {
+                    contentEl.createEl('p', { text: `Using parent folder: ${this.target.path}` });
+                }
             } else {
                 return;
             }
@@ -77,23 +79,29 @@ export class ConcatonizerModal extends Modal {
             .addButton(btn => btn
                 .setButtonText('Concatonize')
                 .setCta()
-                .onClick(async () => {
-                    btn.setButtonText('Processing...').setDisabled(true);
-                    try {
-                        const result = await this.service.concatonizeFolder(
-                            this.target.path,
-                            this.outputName,
-                            this.recursive,
-                            this.stripYaml,
-                            this.includeFilename
-                        );
-                        new Notice(result);
-                        this.close();
-                    } catch (e) {
-                        new Notice('Error during concatenation.');
-                        console.error(e);
-                        btn.setButtonText('Concatonize').setDisabled(false);
-                    }
+                .onClick(() => {
+                    void (async () => {
+                        btn.setButtonText('Processing...').setDisabled(true);
+                        try {
+                            if (this.target instanceof TFolder) {
+                                const result = await this.service.concatonizeFolder(
+                                    this.target.path,
+                                    this.outputName,
+                                    this.recursive,
+                                    this.stripYaml,
+                                    this.includeFilename
+                                );
+                                new Notice(result);
+                                this.close();
+                            } else {
+                                new Notice('Invalid target folder.');
+                                btn.setButtonText('Concatonize').setDisabled(false);
+                            }
+                        } catch (e) {
+                            new Notice('Error during concatenation.');
+                            btn.setButtonText('Concatonize').setDisabled(false);
+                        }
+                    })();
                 }));
     }
 

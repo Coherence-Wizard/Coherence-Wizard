@@ -52,24 +52,25 @@ export class YamlTemplateModal extends Modal {
             .addButton(btn => btn
                 .setButtonText('Apply template')
                 .setCta()
-                .onClick(async () => {
-                    btn.setButtonText('Processing...').setDisabled(true);
-                    const order = this.template.split('\n').map(s => s.trim()).filter(s => s);
+                .onClick(() => {
+                    void (async () => {
+                        btn.setButtonText('Processing...').setDisabled(true);
+                        const order = this.template.split('\n').map(s => s.trim()).filter(s => s);
 
-                    try {
-                        if (this.target instanceof TFile) {
-                            await this.service.processFile(this.target, order, this.addDate);
-                            new Notice('YAML Updated');
-                        } else {
-                            const res = await this.service.processFolder(this.target.path, order, this.addDate, this.recursive);
-                            new Notice(`Processed: ${res.processed}, Errors: ${res.errors}`);
+                        try {
+                            if (this.target instanceof TFile) {
+                                await this.service.processFile(this.target, order, this.addDate);
+                                new Notice('YAML Updated');
+                            } else if (this.target instanceof TFolder) {
+                                const res = await this.service.processFolder(this.target.path, order, this.addDate, this.recursive);
+                                new Notice(`Processed: ${res.processed}, Errors: ${res.errors}`);
+                            }
+                            this.close();
+                        } catch (e) {
+                            new Notice('Error applying template');
+                            btn.setButtonText('Apply template').setDisabled(false);
                         }
-                        this.close();
-                    } catch (e) {
-                        new Notice('Error applying template');
-                        console.error(e);
-                        btn.setButtonText('Apply template').setDisabled(false);
-                    }
+                    })();
                 }));
     }
 

@@ -118,7 +118,7 @@ export class GeneralizerModal extends Modal {
             .addButton(btn => btn
                 .setButtonText('Generalize')
                 .setCta()
-                .onClick(() => this.process()));
+                .onClick(() => { void this.process(); }));
     }
 
     async process() {

@@ -87,7 +87,7 @@ export class WizardView extends ItemView {
                 this.availableModels = ['llama3', 'mistral', 'gemma'];
             }
         } catch (e) {
-            console.error('Failed to fetch models', e);
+            new Notice('Failed to fetch models');
             this.availableModels = ['llama3', 'mistral', 'gemma'];
         }
     }
@@ -99,7 +99,7 @@ export class WizardView extends ItemView {
                 await this.app.vault.createFolder(path);
                 new Notice(`Created folder: ${path}`);
             } catch (e) {
-                console.error(`Failed to create folder ${path}`, e);
+                new Notice(`Failed to create folder: ${path}`);
                 new Notice(`Failed to create folder: ${path}`);
             }
         }
@@ -157,12 +157,14 @@ export class WizardView extends ItemView {
             .addText(t => t.setValue(format).onChange(v => format = v));
 
         new Setting(container)
-            .addButton(btn => btn.setButtonText('Run Date Fix').setCta().onClick(async () => {
-                const service = new DateFixService(this.app);
-                // Fix: Pass exceptions as string, not array
-                await service.fixDatesInFolder(this.inboxDir, recursive, fallback, format, this.settings.dateFixExceptions);
-                new Notice('Date Fix Complete');
-                this.next();
+            .addButton(btn => btn.setButtonText('Run Date Fix').setCta().onClick(() => {
+                void (async () => {
+                    const service = new DateFixService(this.app);
+                    // Fix: Pass exceptions as string, not array
+                    await service.fixDatesInFolder(this.inboxDir, recursive, fallback, format, this.settings.dateFixExceptions);
+                    new Notice('Date Fix Complete');
+                    this.next();
+                })();
             }))
             .addButton(btn => btn.setButtonText('Skip').onClick(() => this.next()));
     }
@@ -211,21 +213,23 @@ export class WizardView extends ItemView {
             .addText(t => t.setValue(divider).onChange(v => divider = v));
 
         new Setting(container)
-            .addButton(btn => btn.setButtonText('Atomize').setCta().onClick(async () => {
-                const service = new AtomizerService(this.app.vault);
-                const folder = this.app.vault.getAbstractFileByPath(this.inboxDir) as TFolder;
-                new Notice('Atomizing...');
+            .addButton(btn => btn.setButtonText('Atomize').setCta().onClick(() => {
+                void (async () => {
+                    const service = new AtomizerService(this.app.vault);
+                    const folder = this.app.vault.getAbstractFileByPath(this.inboxDir) as TFolder;
+                    new Notice('Atomizing...');
 
-                // We need to collect files first because atomizing modifies the folder structure
-                const files = folder.children.filter(c => c instanceof TFile && c.extension === 'md') as TFile[];
+                    // We need to collect files first because atomizing modifies the folder structure
+                    const files = folder.children.filter(c => c instanceof TFile && c.extension === 'md') as TFile[];
 
-                for (const child of files) {
-                    if (mode === 'heading') await service.atomizeByHeading(child);
-                    else if (mode === 'date') await service.atomizeByDate(child);
-                    else await service.atomizeByDivider(child, divider);
-                }
-                new Notice('Atomization Complete');
-                this.next();
+                    for (const child of files) {
+                        if (mode === 'heading') await service.atomizeByHeading(child);
+                        else if (mode === 'date') await service.atomizeByDate(child);
+                        else await service.atomizeByDivider(child, divider);
+                    }
+                    new Notice('Atomization Complete');
+                    this.next();
+                })();
             }))
             .addButton(btn => btn.setButtonText('Skip').onClick(() => this.next()));
     }
@@ -250,12 +254,14 @@ export class WizardView extends ItemView {
         textArea.onchange = (e: Event) => templateStr = (e.target as HTMLTextAreaElement).value;
 
         new Setting(container)
-            .addButton(btn => btn.setButtonText('Apply Template').setCta().onClick(async () => {
-                const service = new YamlTemplateService(this.app);
-                const template = templateStr.split('\n').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
-                await service.processFolder(this.inboxDir, template, addDate, false);
-                new Notice('YAML Template Applied');
-                this.next();
+            .addButton(btn => btn.setButtonText('Apply Template').setCta().onClick(() => {
+                void (async () => {
+                    const service = new YamlTemplateService(this.app);
+                    const template = templateStr.split('\n').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+                    await service.processFolder(this.inboxDir, template, addDate, false);
+                    new Notice('YAML Template Applied');
+                    this.next();
+                })();
             }))
             .addButton(btn => btn.setButtonText('Skip').onClick(() => this.next()));
     }
@@ -284,13 +290,15 @@ export class WizardView extends ItemView {
             .addToggle(t => t.setValue(genTitle).onChange(v => genTitle = v));
 
         new Setting(container)
-            .addButton(btn => btn.setButtonText('Summarize').setCta().onClick(async () => {
-                const service = new SummarizerService(this.app, this.ollama);
-                new Notice('Summarizing... this may take a while.');
-                const prompts = [this.settings.summarizerPrompt, this.settings.summarizerPrompt2, this.settings.summarizerPrompt3, this.settings.summarizerPrompt4];
-                await service.summarizeFolder(this.inboxDir, model, false, overwrite, prompts, genTitle);
-                new Notice('Summarization Complete');
-                this.next();
+            .addButton(btn => btn.setButtonText('Summarize').setCta().onClick(() => {
+                void (async () => {
+                    const service = new SummarizerService(this.app, this.ollama);
+                    new Notice('Summarizing... this may take a while.');
+                    const prompts = [this.settings.summarizerPrompt, this.settings.summarizerPrompt2, this.settings.summarizerPrompt3, this.settings.summarizerPrompt4];
+                    await service.summarizeFolder(this.inboxDir, model, false, overwrite, prompts, genTitle);
+                    new Notice('Summarization Complete');
+                    this.next();
+                })();
             }))
             .addButton(btn => btn.setButtonText('Skip').onClick(() => this.next()));
     }
@@ -309,13 +317,15 @@ export class WizardView extends ItemView {
             });
 
         new Setting(container)
-            .addButton(btn => btn.setButtonText('Rate').setCta().onClick(async () => {
-                const service = new RatingService(this.app, this.ollama);
-                new Notice('Rating...');
-                const params = this.settings.ratingParams.split(',').map((s: string) => s.trim());
-                await service.rateFolder(this.inboxDir, model, params, false, this.settings.ratingSkipIfRated);
-                new Notice('Rating Complete');
-                this.next();
+            .addButton(btn => btn.setButtonText('Rate').setCta().onClick(() => {
+                void (async () => {
+                    const service = new RatingService(this.app, this.ollama);
+                    new Notice('Rating...');
+                    const params = this.settings.ratingParams.split(',').map((s: string) => s.trim());
+                    await service.rateFolder(this.inboxDir, model, params, false, this.settings.ratingSkipIfRated);
+                    new Notice('Rating Complete');
+                    this.next();
+                })();
             }))
             .addButton(btn => btn.setButtonText('Skip').onClick(() => this.next()));
     }
@@ -349,28 +359,30 @@ export class WizardView extends ItemView {
             .addText(t => t.setValue(maxCats.toString()).onChange(v => maxCats = parseInt(v) || 1));
 
         new Setting(container)
-            .addButton(btn => btn.setButtonText('Categorize').setCta().onClick(async () => {
-                const service = new CategorizerService(this.app, this.ollama);
-                const dict = this.settings.categorizerDictionaries.find((d: { name: string; content: string }) => d.name === selectedDict);
-                if (!dict) return;
+            .addButton(btn => btn.setButtonText('Categorize').setCta().onClick(() => {
+                void (async () => {
+                    const service = new CategorizerService(this.app, this.ollama);
+                    const dict = this.settings.categorizerDictionaries.find((d: { name: string; content: string }) => d.name === selectedDict);
+                    if (!dict) return;
 
-                new Notice('Categorizing...');
+                    new Notice('Categorizing...');
 
-                const options = {
-                    model: model,
-                    categories: dict.content.split('\n').map((line: string) => {
-                        const parts = line.split(/[-;]/);
-                        return parts[0].trim();
-                    }).filter((s: string) => s.length > 0),
-                    maxCategories: maxCats,
-                    applyAsTag: this.settings.categorizerApplyAsTag,
-                    applyAsBacklink: this.settings.categorizerApplyAsBacklink,
-                    moveToFolder: false
-                };
+                    const options = {
+                        model: model,
+                        categories: dict.content.split('\n').map((line: string) => {
+                            const parts = line.split(/[-;]/);
+                            return parts[0].trim();
+                        }).filter((s: string) => s.length > 0),
+                        maxCategories: maxCats,
+                        applyAsTag: this.settings.categorizerApplyAsTag,
+                        applyAsBacklink: this.settings.categorizerApplyAsBacklink,
+                        moveToFolder: false
+                    };
 
-                await service.processFolder(this.inboxDir, options, false);
-                new Notice('Categorization Complete');
-                this.next();
+                    await service.processFolder(this.inboxDir, options, false);
+                    new Notice('Categorization Complete');
+                    this.next();
+                })();
             }))
             .addButton(btn => btn.setButtonText('Skip').onClick(() => this.next()));
     }
@@ -380,11 +392,13 @@ export class WizardView extends ItemView {
         container.createEl('p', { text: `Move categorized files to '${this.livingDir}' and copy to '${this.chronoDir}'?` });
 
         new Setting(container)
-            .addButton(btn => btn.setButtonText('Execute').setCta().onClick(async () => {
-                new Notice('Moving and Copying...');
-                await this.moveAndCopyLogic();
-                new Notice('Move & Copy Complete');
-                this.next();
+            .addButton(btn => btn.setButtonText('Execute').setCta().onClick(() => {
+                void (async () => {
+                    new Notice('Moving and Copying...');
+                    await this.moveAndCopyLogic();
+                    new Notice('Move & Copy Complete');
+                    this.next();
+                })();
             }))
             .addButton(btn => btn.setButtonText('Skip').onClick(() => this.next()));
     }
@@ -435,19 +449,21 @@ export class WizardView extends ItemView {
             .addToggle(t => t.setValue(stripYaml).onChange(v => stripYaml = v));
 
         new Setting(container)
-            .addButton(btn => btn.setButtonText('Combine').setCta().onClick(async () => {
-                const service = new ConcatonizerService(this.app.vault);
-                const living = this.app.vault.getAbstractFileByPath(this.livingDir) as TFolder;
-                new Notice('Combining...');
+            .addButton(btn => btn.setButtonText('Combine').setCta().onClick(() => {
+                void (async () => {
+                    const service = new ConcatonizerService(this.app.vault);
+                    const living = this.app.vault.getAbstractFileByPath(this.livingDir) as TFolder;
+                    new Notice('Combining...');
 
-                for (const child of living.children) {
-                    if (child instanceof TFolder) {
-                        const outputName = `${child.name}_Combined.md`;
-                        await service.concatonizeFolder(child.path, outputName, false, stripYaml, true);
+                    for (const child of living.children) {
+                        if (child instanceof TFolder) {
+                            const outputName = `${child.name}_Combined.md`;
+                            await service.concatonizeFolder(child.path, outputName, false, stripYaml, true);
+                        }
                     }
-                }
-                new Notice('Combine Complete');
-                this.next();
+                    new Notice('Combine Complete');
+                    this.next();
+                })();
             }))
             .addButton(btn => btn.setButtonText('Skip').onClick(() => this.next()));
     }
@@ -466,33 +482,35 @@ export class WizardView extends ItemView {
             });
 
         new Setting(container)
-            .addButton(btn => btn.setButtonText('Extract').setCta().onClick(async () => {
-                const service = new GeneralizerService(this.app, this.settings);
-                const living = this.app.vault.getAbstractFileByPath(this.livingDir) as TFolder;
-                new Notice('Extracting Wisdom...');
+            .addButton(btn => btn.setButtonText('Extract').setCta().onClick(() => {
+                void (async () => {
+                    const service = new GeneralizerService(this.app, this.settings);
+                    const living = this.app.vault.getAbstractFileByPath(this.livingDir) as TFolder;
+                    new Notice('Extracting Wisdom...');
 
-                for (const child of living.children) {
-                    if (child instanceof TFolder) {
-                        const combinedPath = `${child.path}/${child.name}_Combined.md`;
-                        const file = this.app.vault.getAbstractFileByPath(combinedPath);
-                        if (file instanceof TFile) {
-                            await service.processFile(
-                                file,
-                                model,
-                                this.settings.generalizerPrompt,
-                                'same-folder',
-                                '_Wisdom',
-                                this.settings.generalizerSystemPrompt,
-                                this.settings.generalizerMaxTokens,
-                                this.settings.generalizerRepeatPenalty,
-                                this.settings.generalizerMultiStage,
-                                this.settings.generalizerIntermediatePrompt
-                            );
+                    for (const child of living.children) {
+                        if (child instanceof TFolder) {
+                            const combinedPath = `${child.path}/${child.name}_Combined.md`;
+                            const file = this.app.vault.getAbstractFileByPath(combinedPath);
+                            if (file instanceof TFile) {
+                                await service.processFile(
+                                    file,
+                                    model,
+                                    this.settings.generalizerPrompt,
+                                    'same-folder',
+                                    '_Wisdom',
+                                    this.settings.generalizerSystemPrompt,
+                                    this.settings.generalizerMaxTokens,
+                                    this.settings.generalizerRepeatPenalty,
+                                    this.settings.generalizerMultiStage,
+                                    this.settings.generalizerIntermediatePrompt
+                                );
+                            }
                         }
                     }
-                }
-                new Notice('Wisdom Extraction Complete');
-                this.next();
+                    new Notice('Wisdom Extraction Complete');
+                    this.next();
+                })();
             }))
             .addButton(btn => btn.setButtonText('Skip').onClick(() => this.next()));
     }
@@ -502,26 +520,28 @@ export class WizardView extends ItemView {
         container.createEl('p', { text: `Merge all Wisdom files into a final output?` });
 
         new Setting(container)
-            .addButton(btn => btn.setButtonText('Merge').setCta().onClick(async () => {
-                // const service = new ConcatonizerService(this.app.vault); // Unused
-                let finalContent = '# Final Wisdom\n\n';
-                const living = this.app.vault.getAbstractFileByPath(this.livingDir) as TFolder;
+            .addButton(btn => btn.setButtonText('Merge').setCta().onClick(() => {
+                void (async () => {
+                    // const service = new ConcatonizerService(this.app.vault); // Unused
+                    let finalContent = '# Final Wisdom\n\n';
+                    const living = this.app.vault.getAbstractFileByPath(this.livingDir) as TFolder;
 
-                for (const child of living.children) {
-                    if (child instanceof TFolder) {
-                        const wisdomPath = `${child.path}/${child.name}_Combined_Wisdom.md`;
-                        const file = this.app.vault.getAbstractFileByPath(wisdomPath);
-                        if (file instanceof TFile) {
-                            const content = await this.app.vault.read(file);
-                            finalContent += `## ${child.name}\n\n${content}\n\n`;
+                    for (const child of living.children) {
+                        if (child instanceof TFolder) {
+                            const wisdomPath = `${child.path}/${child.name}_Combined_Wisdom.md`;
+                            const file = this.app.vault.getAbstractFileByPath(wisdomPath);
+                            if (file instanceof TFile) {
+                                const content = await this.app.vault.read(file);
+                                finalContent += `## ${child.name}\n\n${content}\n\n`;
+                            }
                         }
                     }
-                }
 
-                await this.app.vault.create(`${this.livingDir}/Final_Wisdom.md`, finalContent);
+                    await this.app.vault.create(`${this.livingDir}/Final_Wisdom.md`, finalContent);
 
-                new Notice('Final Merge Complete');
-                this.leaf.detach();
+                    new Notice('Final Merge Complete');
+                    this.leaf.detach();
+                })();
             }))
             .addButton(btn => btn.setButtonText('Skip').onClick(() => this.leaf.detach()));
     }

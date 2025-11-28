@@ -23,7 +23,7 @@ export class WisdomModal extends Modal {
 
         // Load defaults from settings
         this.selectedModel = settings.wisdomModel;
-        this.mode = settings.wisdomMode;
+        this.mode = settings.wisdomMode as any;
         this.prompt = settings.wisdomPrompt;
     }
 
@@ -79,34 +79,35 @@ export class WisdomModal extends Modal {
             .addButton(btn => btn
                 .setButtonText('Extract wisdom')
                 .setCta()
-                .onClick(async () => {
-                    btn.setButtonText('Processing...').setDisabled(true);
-                    try {
-                        if (this.target instanceof TFile) {
-                            // Single File
-                            const result = await this.service.processFile(
-                                this.target,
-                                this.selectedModel,
-                                this.mode,
-                                this.prompt
-                            );
-                            new Notice(result);
-                        } else {
-                            // Folder
-                            const result = await this.service.processFolder(
-                                this.target.path,
-                                this.selectedModel,
-                                this.mode,
-                                this.prompt
-                            );
-                            new Notice(`Batch Complete: ${result.processed} processed, ${result.skipped} skipped, ${result.errors} errors.`);
+                .onClick(() => {
+                    void (async () => {
+                        btn.setButtonText('Processing...').setDisabled(true);
+                        try {
+                            if (this.target instanceof TFile) {
+                                // Single File
+                                const result = await this.service.processFile(
+                                    this.target,
+                                    this.selectedModel,
+                                    this.mode,
+                                    this.prompt
+                                );
+                                new Notice(result);
+                            } else if (this.target instanceof TFolder) {
+                                // Folder
+                                const result = await this.service.processFolder(
+                                    this.target.path,
+                                    this.selectedModel,
+                                    this.mode,
+                                    this.prompt
+                                );
+                                new Notice(`Batch Complete: ${result.processed} processed, ${result.skipped} skipped, ${result.errors} errors.`);
+                            }
+                            this.close();
+                        } catch (e) {
+                            new Notice('Error during extraction.');
+                            btn.setButtonText('Extract wisdom').setDisabled(false);
                         }
-                        this.close();
-                    } catch (e) {
-                        new Notice('Error during extraction.');
-                        console.error(e);
-                        btn.setButtonText('Extract wisdom').setDisabled(false);
-                    }
+                    })();
                 }));
     }
 

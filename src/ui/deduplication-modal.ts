@@ -90,22 +90,23 @@ export class DeduplicationModal extends Modal {
             .addButton(btn => btn
                 .setButtonText('Find duplicates')
                 .setCta()
-                .onClick(async () => {
-                    btn.setButtonText('Scanning...').setDisabled(true);
-                    try {
-                        if (this.searchScope === 'vault') {
-                            this.duplicates = await this.service.findDuplicatesInFolder('/', this.recursive);
-                        } else if (this.searchScope === 'folder') {
-                            this.duplicates = await this.service.findDuplicatesInFolder(this.folderA, this.recursive);
-                        } else {
-                            this.duplicates = await this.service.compareFolders(this.folderA, this.folderB, this.recursive);
+                .onClick(() => {
+                    void (async () => {
+                        btn.setButtonText('Scanning...').setDisabled(true);
+                        try {
+                            if (this.searchScope === 'vault') {
+                                this.duplicates = await this.service.findDuplicatesInFolder('/', this.recursive);
+                            } else if (this.searchScope === 'folder') {
+                                this.duplicates = await this.service.findDuplicatesInFolder(this.folderA, this.recursive);
+                            } else {
+                                this.duplicates = await this.service.compareFolders(this.folderA, this.folderB, this.recursive);
+                            }
+                            this.display();
+                        } catch (e) {
+                            new Notice('Error finding duplicates');
+                            btn.setButtonText('Find duplicates').setDisabled(false);
                         }
-                        this.display();
-                    } catch (e) {
-                        new Notice('Error finding duplicates');
-                        console.error(e);
-                        btn.setButtonText('Find duplicates').setDisabled(false);
-                    }
+                    })();
                 }));
     }
 
@@ -150,20 +151,22 @@ export class DeduplicationModal extends Modal {
                     .addButton(btn => btn
                         .setButtonText('Delete')
                         .setWarning()
-                        .onClick(async () => {
-                            await this.service.deleteFile(file);
-                            // Remove from UI and data
-                            const fileIdx = group.files.indexOf(file);
-                            if (fileIdx > -1) group.files.splice(fileIdx, 1);
+                        .onClick(() => {
+                            void (async () => {
+                                await this.service.deleteFile(file);
+                                // Remove from UI and data
+                                const fileIdx = group.files.indexOf(file);
+                                if (fileIdx > -1) group.files.splice(fileIdx, 1);
 
-                            if (group.files.length < 2) {
-                                // Group no longer has duplicates
-                                const groupIdx = this.duplicates?.indexOf(group);
-                                if (groupIdx !== undefined && groupIdx > -1) {
-                                    this.duplicates?.splice(groupIdx, 1);
+                                if (group.files.length < 2) {
+                                    // Group no longer has duplicates
+                                    const groupIdx = this.duplicates?.indexOf(group);
+                                    if (groupIdx !== undefined && groupIdx > -1) {
+                                        this.duplicates?.splice(groupIdx, 1);
+                                    }
                                 }
-                            }
-                            this.display(); // Refresh
+                                this.display(); // Refresh
+                            })();
                         }));
 
                 new Setting(actions)

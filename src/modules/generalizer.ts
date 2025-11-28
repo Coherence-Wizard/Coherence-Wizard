@@ -29,47 +29,41 @@ export class GeneralizerService {
 
         let inputBody = body;
 
-        try {
-            // Step 1: Intermediate Summarization (if enabled)
-            if (multiStage) {
-                let summaryPrompt = '';
-                if (intermediatePrompt.includes('{text}')) {
-                    summaryPrompt = intermediatePrompt.replace('{text}', body);
-                } else {
-                    summaryPrompt = `${intermediatePrompt}\n\n${body}`;
-                }
-
-                const summary = await this.ollama.generate(model, summaryPrompt, {
-                    system: systemPrompt, // Use the same system prompt to enforce "no preamble"
-                    num_predict: maxTokens,
-                    repeat_penalty: repeatPenalty
-                });
-
-                inputBody = summary.replace(/<\/end_of_turn>/g, '').trim();
-            }
-
-            // Step 2: Final Generalization/Wisdom
-            let prompt = '';
-            if (promptTemplate.includes('{text}')) {
-                prompt = promptTemplate.replace('{text}', inputBody);
+        // Step 1: Intermediate Summarization (if enabled)
+        if (multiStage) {
+            let summaryPrompt = '';
+            if (intermediatePrompt.includes('{text}')) {
+                summaryPrompt = intermediatePrompt.replace('{text}', body);
             } else {
-                prompt = `${promptTemplate}\n\n${inputBody}`;
+                summaryPrompt = `${intermediatePrompt}\n\n${body}`;
             }
 
-            let generalizedText = await this.ollama.generate(model, prompt, {
-                system: systemPrompt,
+            const summary = await this.ollama.generate(model, summaryPrompt, {
+                system: systemPrompt, // Use the same system prompt to enforce "no preamble"
                 num_predict: maxTokens,
                 repeat_penalty: repeatPenalty
             });
-            generalizedText = generalizedText.replace(/<\/end_of_turn>/g, '').trim();
 
-            const newContent = yaml ? `${yaml}\n${generalizedText}` : generalizedText;
-            await this.saveOutput(file, newContent, outputMode, suffix);
-
-        } catch (error) {
-            console.error(`Error generalizing file ${file.path}:`, error);
-            throw error;
+            inputBody = summary.replace(/<\/end_of_turn>/g, '').trim();
         }
+
+        // Step 2: Final Generalization/Wisdom
+        let prompt = '';
+        if (promptTemplate.includes('{text}')) {
+            prompt = promptTemplate.replace('{text}', inputBody);
+        } else {
+            prompt = `${promptTemplate}\n\n${inputBody}`;
+        }
+
+        let generalizedText = await this.ollama.generate(model, prompt, {
+            system: systemPrompt,
+            num_predict: maxTokens,
+            repeat_penalty: repeatPenalty
+        });
+        generalizedText = generalizedText.replace(/<\/end_of_turn>/g, '').trim();
+
+        const newContent = yaml ? `${yaml}\n${generalizedText}` : generalizedText;
+        await this.saveOutput(file, newContent, outputMode, suffix);
     }
 
     async processFolder(

@@ -69,14 +69,13 @@ export class ChronoMergeModal extends Modal {
                 .addButton(btn => btn
                     .setButtonText('Scan')
                     .setCta()
-                    .onClick(() => this.scan()));
+                    .onClick(() => { this.scan(); }));
         } else {
             // Results View
             new Setting(contentEl).setName(`Found ${this.groups.length} groups`).setHeading();
 
             this.groups.forEach((group, index) => {
-                const groupEl = contentEl.createDiv({ cls: 'chrono-group' });
-                groupEl.addClass('coherence-chrono-group');
+                const groupEl = contentEl.createDiv({ cls: 'chrono-group coherence-chrono-group' });
 
                 new Setting(groupEl).setName(`Group ${index + 1} (${group.length} files)`).setHeading();
 
@@ -91,8 +90,7 @@ export class ChronoMergeModal extends Modal {
                 let mergedContent = "";
 
                 // Output Filename - Full Width
-                const nameContainer = groupEl.createDiv();
-                nameContainer.style.marginBottom = '10px';
+                const nameContainer = groupEl.createDiv({ cls: 'coherence-mb-10' });
                 nameContainer.createEl('div', { text: 'Output Filename', cls: 'setting-item-name' });
                 const nameInput = nameContainer.createEl('input', { type: 'text' });
                 nameInput.addClass('coherence-input-full');
@@ -100,8 +98,7 @@ export class ChronoMergeModal extends Modal {
                 nameInput.onchange = (e: Event) => outputName = (e.target as HTMLInputElement).value;
 
                 // Merged Content Preview
-                const contentContainer = groupEl.createDiv();
-                contentContainer.style.marginBottom = '10px';
+                const contentContainer = groupEl.createDiv({ cls: 'coherence-mb-10' });
                 contentContainer.createEl('div', { text: 'Merged Content', cls: 'setting-item-name' });
                 const contentArea = contentContainer.createEl('textarea');
                 contentArea.addClass('coherence-textarea-full');
@@ -130,16 +127,18 @@ export class ChronoMergeModal extends Modal {
 
                 const btn = btnContainer.createEl('button', { text: 'Merge Group' });
                 btn.addClass('mod-cta');
-                btn.onclick = async () => {
-                    await this.service.mergeGroup(group, outputName, this.useCreationTime, mergedContent);
-                    new Notice(`Merged group into ${outputName}.md`);
-                    groupEl.remove();
-                    // Remove from groups array
-                    const idx = this.groups.indexOf(group);
-                    if (idx > -1) this.groups.splice(idx, 1);
-                    if (this.groups.length === 0) {
-                        this.display(); // Go back to scan view
-                    }
+                btn.onclick = () => {
+                    (async () => {
+                        await this.service.mergeGroup(group, outputName, this.useCreationTime, mergedContent);
+                        new Notice(`Merged group into ${outputName}.md`);
+                        groupEl.remove();
+                        // Remove from groups array
+                        const idx = this.groups.indexOf(group);
+                        if (idx > -1) this.groups.splice(idx, 1);
+                        if (this.groups.length === 0) {
+                            this.display(); // Go back to scan view
+                        }
+                    })();
                 };
             });
 

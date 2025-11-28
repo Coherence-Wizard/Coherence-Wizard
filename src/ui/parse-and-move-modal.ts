@@ -127,17 +127,19 @@ WRI - Writing Career: #WRI`;
         new Setting(contentEl)
             .setName('Categories')
             .setDesc('Format: Category Name: #Tag')
-            .addTextArea(text => text
-                .setValue(this.categoriesText)
-                .setPlaceholder('Category: #TAG')
-                .onChange(value => this.categoriesText = value)
-                .inputEl.rows = 10);
+            .addTextArea(text => {
+                text.setValue(this.categoriesText)
+                    .setPlaceholder('Category: #TAG')
+                    .onChange(value => this.categoriesText = value);
+                text.inputEl.rows = 10;
+                text.inputEl.addClass('coherence-w-100');
+            });
 
         new Setting(contentEl)
             .addButton(btn => btn
                 .setButtonText('Parse')
                 .setCta()
-                .onClick(() => this.parse()));
+                .onClick(() => { void this.parse(); }));
     }
 
     display() {

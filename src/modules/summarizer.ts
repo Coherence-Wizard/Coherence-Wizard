@@ -1,4 +1,4 @@
-import { App, TFile, parseYaml, stringifyYaml } from 'obsidian';
+import { App, TFile, TFolder, parseYaml, stringifyYaml } from 'obsidian';
 import { OllamaService } from './ollama';
 
 export class SummarizerService {
@@ -11,7 +11,7 @@ export class SummarizerService {
         const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
         const match = content.match(frontmatterRegex);
 
-        let frontmatter: any = {};
+        let frontmatter: Record<string, unknown> = {};
         let body = content;
 
         if (match) {
@@ -19,7 +19,7 @@ export class SummarizerService {
                 frontmatter = parseYaml(match[1]);
                 body = content.substring(match[0].length).trim();
             } catch (e) {
-                console.error('Failed to parse YAML', e);
+                // Failed to parse YAML
             }
         }
 
@@ -39,52 +39,61 @@ export class SummarizerService {
         let currentText = body.substring(0, 50000); // Limit input size
         let summary = "";
 
-        try {
-            for (const promptTemplate of activePrompts) {
-                // Replace placeholders
-                let prompt = promptTemplate
-                    .replace(/{filename}/g, file.basename)
-                    .replace(/{text}/g, body.substring(0, 50000))
-                    .replace(/{summary}/g, currentText); // Use current accumulated text as summary input
+        // Generate Summary loop
+        for (const promptTemplate of activePrompts) {
+            // Replace placeholders
+            let prompt = promptTemplate
+                .replace(/{filename}/g, file.basename)
+                .replace(/{text}/g, body.substring(0, 50000))
+                .replace(/{summary}/g, currentText); // Use current accumulated text as summary input
 
-                // If prompt doesn't contain placeholders, append content (legacy behavior)
-                if (!promptTemplate.includes('{text}') && !promptTemplate.includes('{summary}')) {
-                    prompt = `${promptTemplate}\n\n${currentText}`;
-                }
-
-                summary = await this.ollama.generate(model, prompt);
-                currentText = summary; // Use summary as input for next pass
+            // If prompt doesn't contain placeholders, append content (legacy behavior)
+            if (!promptTemplate.includes('{text}') && !promptTemplate.includes('{summary}')) {
+                prompt = `${promptTemplate}\n\n${currentText}`;
             }
 
-            // Update Frontmatter
-            frontmatter.summary = summary.trim();
-            frontmatter['summary model'] = model;
+            summary = await this.ollama.generate(model, prompt);
+            currentText = summary; // Use summary as input for next pass
+        }
 
-            // Reconstruct file
-            const newFrontmatter = `---\n${stringifyYaml(frontmatter)}---\n`;
-            const newContent = newFrontmatter + body;
+        // Update Frontmatter
+        frontmatter.summary = summary.trim();
+        frontmatter['summary model'] = model;
 
-            await this.app.vault.modify(file, newContent);
+        // Reconstruct file
+        const newFrontmatter = `---\n${stringifyYaml(frontmatter)}---\n`;
+        const newContent = newFrontmatter + body;
 
-            // Handle Title Generation
-            if (generateTitle) {
+        await this.app.vault.modify(file, newContent);
+
+        // Handle Title Generation
+        if (generateTitle) {
+            const base = file.basename;
+            const isUntitled = /untitled/i.test(base);
+            const hasAlpha = /[a-zA-Z]/.test(base);
+
+            if (isUntitled || !hasAlpha) {
                 try {
                     const titlePrompt = `Output exactly one 3-12-word title (no digits, punctuation, list markers). Return only the title.\n\nAbstract:\n${summary}`;
                     let newTitle = await this.ollama.generate(model, titlePrompt);
 
                     // Sanitize title
-                    // Strip out illegal characters: . @ # % $ & / \ < > [ ] ( ) : * ? " | and newlines
-                    newTitle = newTitle.replace(/[.@#%$&/\\<>\[\]():*?"|\n\r]/g, ' ').trim();
-                    newTitle = newTitle.replace(/\s+/g, ' '); // Collapse spaces
+                    newTitle = newTitle.replace(/[.@#%$&/\\<>[\]():*?"|\n\r]/g, ' ').trim();
+                    newTitle = newTitle.replace(/\s+/g, ' ');
 
                     if (newTitle.length > 0) {
-                        // Format: {stem} {title} AIG.md
-                        const newStem = `${file.basename} ${newTitle} AIG`;
+                        let newStem = newTitle;
+
+                        // Check for ISO date at start to preserve (YYYY-MM-DD or YYYY_MM_DD)
+                        const dateMatch = base.match(/^(\d{4}[-_]\d{2}[-_]\d{2})/);
+                        if (dateMatch) {
+                            newStem = `${dateMatch[1]} ${newTitle}`;
+                        }
+
                         const newPath = `${file.parent.path}/${newStem}.md`;
 
                         // Check if file exists
                         if (!await this.app.vault.adapter.exists(newPath)) {
-                            // Use fileManager.renameFile to update links
                             await this.app.fileManager.renameFile(file, newPath);
                         } else {
                             // Append number if exists
@@ -96,15 +105,12 @@ export class SummarizerService {
                         }
                     }
                 } catch (e) {
-                    console.error('Failed to generate title', e);
+                    // Failed to generate title
                 }
             }
-
-            return true;
-        } catch (e) {
-            console.error(`Failed to summarize ${file.path}`, e);
-            throw e;
         }
+
+        return true;
     }
 
     async summarizeFolder(
@@ -120,8 +126,8 @@ export class SummarizerService {
 
         const collectFiles = (path: string) => {
             const folder = this.app.vault.getAbstractFileByPath(path);
-            if (folder && 'children' in folder) {
-                for (const child of (folder as any).children) {
+            if (folder && folder instanceof TFolder) {
+                for (const child of folder.children) {
                     if (child instanceof TFile && child.extension === 'md') {
                         files.push(child);
                     } else if (recursive && 'children' in child) {
