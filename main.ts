@@ -300,8 +300,8 @@ export default class CoherencePlugin extends Plugin {
             await leaf.setViewState({ type: VIEW_TYPE_WIZARD, active: true });
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (workspace as any).revealLeaf(leaf);
+        // Cast to unknown first to avoid type overlap issues, then to the extended interface
+        (workspace as unknown as { revealLeaf(leaf: WorkspaceLeaf): void }).revealLeaf(leaf);
     }
 
     async onload() {
