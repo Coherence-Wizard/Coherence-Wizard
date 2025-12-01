@@ -1,10 +1,10 @@
-import { App, TFile, Notice } from 'obsidian';
+import { App, TFile, TFolder } from 'obsidian';
 import { OllamaService } from './ollama';
 
 export class RatingService {
     constructor(private app: App, private ollama: OllamaService) { }
 
-    async rateFile(file: TFile, model: string, qualityParams: string[], skipExisting: boolean = true): Promise<number | null> {
+    async rateFile(file: TFile, model: string, qualityParams: string[], skipExisting: boolean = true): Promise<number> {
         try {
             const content = await this.app.vault.read(file);
 
@@ -12,14 +12,14 @@ export class RatingService {
             if (skipExisting) {
                 const cache = this.app.metadataCache.getFileCache(file);
                 if (cache?.frontmatter && 'auto rating' in cache.frontmatter) {
-                    return cache.frontmatter['auto rating'];
+                    return (cache.frontmatter as Record<string, unknown>)['auto rating'] as number;
                 }
             }
 
             const rating = await this.getRatingFromAI(content, model, qualityParams);
 
             if (rating) {
-                await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+                await this.app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
                     frontmatter['auto rating'] = rating;
                 });
                 return rating;
@@ -79,18 +79,18 @@ export class RatingService {
 
     private collectFiles(path: string, files: TFile[], recursive: boolean) {
         const folder = this.app.vault.getAbstractFileByPath(path);
-        if (folder && 'children' in folder) {
-            for (const child of (folder as any).children) {
+        if (folder instanceof TFolder) {
+            for (const child of folder.children) {
                 if (child instanceof TFile && child.extension === 'md') {
                     files.push(child);
-                } else if (recursive && 'children' in child) {
+                } else if (recursive && child instanceof TFolder) {
                     this.collectFiles(child.path, files, recursive);
                 }
             }
         }
     }
 
-    private async getRatingFromAI(text: string, model: string, qualityParams: string[]): Promise<number | null> {
+    private async getRatingFromAI(text: string, model: string, qualityParams: string[]): Promise<number> {
         const paramsText = qualityParams.join(", ");
         const systemPrompt = `You are a writing quality evaluator.
 Rate the quality of writing based on: ${paramsText}.
@@ -125,8 +125,22 @@ Return JSON only, matching the given schema, with a single integer rating from 1
                 { role: 'user', content: text }
             ], schema, { temperature: 0 });
 
-            const data = JSON.parse(response);
-            return data.rating;
+            if (typeof response !== 'string') {
+                throw new Error('AI response was not a string');
+            }
+
+            const parsed: unknown = JSON.parse(response);
+
+            if (
+                typeof parsed === 'object' &&
+                parsed !== null &&
+                'rating' in parsed &&
+                typeof (parsed as { rating: unknown }).rating === 'number'
+            ) {
+                return (parsed as { rating: number }).rating;
+            }
+
+            throw new Error('AI response did not match expected schema');
         } catch (e) {
             console.error('AI Rating failed', e);
             return null;

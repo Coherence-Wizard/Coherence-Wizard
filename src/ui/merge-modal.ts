@@ -29,9 +29,9 @@ export class MergeModal extends Modal {
             .setName('Select merge tool')
             .setDesc('Choose the merge strategy to use.')
             .addDropdown(drop => drop
-                .addOption('chrono', 'Chrono Merge (Time-based)')
-                .addOption('concat', 'Combine (Append files)')
-                .addOption('dedup', 'Find Duplicates')
+                .addOption('chrono', 'Chrono merge (time-based)')
+                .addOption('concat', 'Combine (append files)')
+                .addOption('dedup', 'Find duplicates')
                 .setValue(this.mode)
                 .onChange((value: string) => {
                     this.mode = value as 'chrono' | 'concat' | 'dedup';

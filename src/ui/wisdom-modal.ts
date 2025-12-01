@@ -23,7 +23,7 @@ export class WisdomModal extends Modal {
 
         // Load defaults from settings
         this.selectedModel = settings.wisdomModel;
-        this.mode = settings.wisdomMode as any;
+        this.mode = settings.wisdomMode;
         this.prompt = settings.wisdomPrompt;
     }
 
@@ -59,18 +59,21 @@ export class WisdomModal extends Modal {
         new Setting(contentEl)
             .setName('Ollama model')
             .addDropdown(drop => {
-                this.models.forEach(m => drop.addOption(m, m));
+                this.models.forEach(m => {drop.addOption(m, m)});
                 drop.setValue(this.selectedModel);
                 drop.onChange(value => this.selectedModel = value);
             });
 
-        // Mode Selection
+        // Mode Selection#
+
+        const desc = 'Generalized (AI rewrite) or safe (copy as-is)';
+    
         new Setting(contentEl)
             .setName('Mode')
-            .setDesc('Generalized (AI Rewrite) or Safe (Copy as-is)')
+            .setDesc(desc)
             .addDropdown(drop => drop
                 .addOption('generalized', 'Generalized (AI)')
-                .addOption('safe', 'Safe (Copy Only)')
+                .addOption('safe', 'Safe (copy only)')
                 .setValue(this.mode)
                 .onChange(value => this.mode = value as 'safe' | 'generalized'));
 

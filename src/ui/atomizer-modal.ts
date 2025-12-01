@@ -27,9 +27,9 @@ export class AtomizerModal extends Modal {
             .setName('Atomization mode')
             .setDesc('How to split the content')
             .addDropdown(drop => drop
-                .addOption('heading', 'By Heading')
-                .addOption('date', 'By ISO Date')
-                .addOption('divider', 'By Divider')
+                .addOption('heading', 'By heading')
+                .addOption('date', 'By iso date')
+                .addOption('divider', 'By divider')
                 .setValue(this.mode)
                 .onChange(value => {
                     this.mode = value as 'heading' | 'date' | 'divider';
@@ -52,35 +52,33 @@ export class AtomizerModal extends Modal {
                 .setButtonText(isFolder ? 'Atomize all files' : 'Atomize')
                 .setCta()
                 .setDisabled(!this.target)
-                .onClick(() => {
-                    (async () => {
-                        if (this.target) {
-                            this.close();
-                            if (this.target instanceof TFolder) {
-                                new Notice(`Atomizing files in ${this.target.name}...`);
-                                let count = 0;
-                                for (const child of this.target.children) {
-                                    if (child instanceof TFile && child.extension === 'md') {
-                                        try {
-                                            await this.runAtomizer(child);
-                                            count++;
-                                        } catch (e) {
-                                            new Notice(`Failed to atomize ${child.name}`);
-                                        }
+                .onClick(async () => {
+                    if (this.target) {
+                        this.close();
+                        if (this.target instanceof TFolder) {
+                            new Notice(`Atomizing files in ${this.target.name}...`);
+                            let count = 0;
+                            for (const child of this.target.children) {
+                                if (child instanceof TFile && child.extension === 'md') {
+                                    try {
+                                        await this.runAtomizer(child);
+                                        count++;
+                                    } catch {
+                                        new Notice(`Failed to atomize ${child.name}`);
                                     }
                                 }
-                                new Notice(`Atomization complete. Processed ${count} files.`);
-                            } else if (this.target instanceof TFile) {
-                                new Notice('Atomizing...');
-                                try {
-                                    await this.runAtomizer(this.target);
-                                    new Notice('Atomization complete.');
-                                } catch (e) {
-                                    new Notice('Error during atomization.');
-                                }
+                            }
+                            new Notice(`Atomization complete. Processed ${count} files.`);
+                        } else if (this.target instanceof TFile) {
+                            new Notice('Atomizing...');
+                            try {
+                                await this.runAtomizer(this.target);
+                                new Notice('Atomization complete.');
+                            } catch {
+                                new Notice('Error during atomization.');
                             }
                         }
-                    })();
+                    }
                 }));
     }
 

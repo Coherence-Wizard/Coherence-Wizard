@@ -8,7 +8,7 @@ export class ChronoMergeService {
         const filesWithTime: { file: TFile, time: number }[] = [];
 
         for (const file of files) {
-            let time: number | null = null;
+            let time: number = null;
             if (useCreationTime) {
                 time = file.stat.ctime;
             } else {
@@ -194,7 +194,7 @@ export class ChronoMergeService {
         return files;
     }
 
-    private parseTimestamp(filename: string): number | null {
+    private parseTimestamp(filename: string): number {
         // Pattern: YYYY-MM-DD_HHMMSS
         const match = filename.match(/(\d{4}-\d{2}-\d{2}_\d{6})/);
         if (match) {

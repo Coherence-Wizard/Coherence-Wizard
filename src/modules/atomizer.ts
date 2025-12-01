@@ -109,7 +109,7 @@ export class AtomizerService {
 
         const intro: string[] = [];
         const sections: { level: number; title: string; content: string[] }[] = [];
-        let current: { level: number; title: string; content: string[] } | null = null;
+        let current: { level: number; title: string; content: string[] } = null;
 
         for (const line of remainingLines) {
             const match = line.match(headingRegex);
@@ -193,7 +193,7 @@ export class AtomizerService {
 
         const intro: string[] = [];
         const sections: { title: string; content: string[] }[] = [];
-        let currentTitle: string | null = null;
+        let currentTitle: string = null;
         let currentBlock: string[] = [];
 
         for (const line of remainingLines) {
@@ -260,7 +260,7 @@ export class AtomizerService {
         const intro: string[] = [];
         const sections: { title: string; content: string[] }[] = [];
         let currentBlock: string[] = [];
-        let currentTitle: string | null = null;
+        let currentTitle: string = null;
         let needTitle = false;
 
         for (const line of remainingLines) {

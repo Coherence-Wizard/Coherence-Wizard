@@ -30,7 +30,7 @@ export class WisdomService {
 
         if (match) {
             try {
-                frontmatter = parseYaml(match[1]);
+                frontmatter = parseYaml(match[1]) as Record<string, unknown>;
                 body = content.substring(match[0].length).trim();
             } catch (e) {
                 console.error('Failed to parse YAML', e);
@@ -114,6 +114,7 @@ export class WisdomService {
                 const result = await this.processFile(file, model, mode, promptTemplate);
                 if (result.startsWith('Created')) processed++;
                 else skipped++;
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (e) {
                 errors++;
             }

@@ -16,7 +16,7 @@ export class SummarizerService {
 
         if (match) {
             try {
-                frontmatter = parseYaml(match[1]);
+                frontmatter = parseYaml(match[1]) as Record<string, unknown>;
                 body = content.substring(match[0].length).trim();
             } catch (e) {
                 // Failed to parse YAML

@@ -10,7 +10,7 @@ export class DeduplicationModal extends Modal {
     folderA = '';
     folderB = '';
     recursive = true;
-    duplicates: DuplicateGroup[] | null = null;
+    duplicates: DuplicateGroup[] = null;
 
     constructor(app: App, target?: TFile | TFolder) {
         super(app);
@@ -46,9 +46,9 @@ export class DeduplicationModal extends Modal {
             .setName('Scope')
             .setDesc('Where to search for duplicates')
             .addDropdown(drop => drop
-                .addOption('vault', 'Entire Vault')
-                .addOption('folder', 'Single Folder')
-                .addOption('two-folders', 'Compare Two Folders')
+                .addOption('vault', 'Entire vault')
+                .addOption('folder', 'Single folder')
+                .addOption('two-folders', 'Compare two folders')
                 .setValue(this.searchScope)
                 .onChange(v => {
                     this.searchScope = v as 'vault' | 'folder' | 'two-folders';
@@ -61,21 +61,21 @@ export class DeduplicationModal extends Modal {
                 .setName('Folder')
                 .addText(text => text
                     .setValue(this.folderA)
-                    .setPlaceholder('Example: Folder/Subfolder')
+                    .setPlaceholder('Example: folder/subfolder')
                     .onChange(v => this.folderA = v));
         } else if (this.searchScope === 'two-folders') {
             new Setting(contentEl)
-                .setName('Folder A')
+                .setName('Folder a')
                 .addText(text => text
                     .setValue(this.folderA)
-                    .setPlaceholder('Example: Folder/A')
+                    .setPlaceholder('Example: folder/a')
                     .onChange(v => this.folderA = v));
 
             new Setting(contentEl)
-                .setName('Folder B')
+                .setName('Folder b')
                 .addText(text => text
                     .setValue(this.folderB)
-                    .setPlaceholder('Example: Folder/B')
+                    .setPlaceholder('Example: folder/b')
                     .onChange(v => this.folderB = v));
         }
 

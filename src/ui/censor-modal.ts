@@ -43,7 +43,7 @@ export class CensorModal extends Modal {
                 .setName('Target folder')
                 .setDesc('Select the folder to process')
                 .addText(text => text
-                    .setPlaceholder('Example: Folder/Subfolder')
+                    .setPlaceholder('Example: folder/subfolder')
                     .onChange(value => {
                         const folder = this.app.vault.getAbstractFileByPath(value);
                         if (folder instanceof TFolder) {
@@ -56,10 +56,10 @@ export class CensorModal extends Modal {
 
         new Setting(contentEl)
             .setName('Direction')
-            .setDesc('Forward (Censor) or Reverse (Uncensor)')
+            .setDesc('Forward (censor) or reverse (uncensor)')
             .addDropdown(drop => drop
-                .addOption('forward', 'Forward (Censor)')
-                .addOption('reverse', 'Reverse (Uncensor)')
+                .addOption('forward', 'Forward (censor)')
+                .addOption('reverse', 'Reverse (uncensor)')
                 .setValue(this.direction)
                 .onChange((value: 'forward' | 'reverse') => {
                     this.direction = value;
@@ -101,7 +101,7 @@ export class CensorModal extends Modal {
             .setName('Dictionary')
             .setDesc('Select dictionary to use')
             .addDropdown(drop => {
-                this.settings.censorDictionaries.forEach((d: { name: string }) => drop.addOption(d.name, d.name));
+                this.settings.censorDictionaries.forEach((d) => { drop.addOption(d.name, d.name); });
                 drop.setValue(this.selectedDictionaryName)
                     .onChange(value => {
                         this.selectedDictionaryName = value;
@@ -112,10 +112,10 @@ export class CensorModal extends Modal {
 
         new Setting(contentEl)
             .setName('Dictionary content')
-            .setDesc('Edit the censored words and aliases (Changes here are temporary unless saved in settings)')
+            .setDesc('Edit the censored words and aliases (changes here are temporary unless saved in settings)')
             .addTextArea(text => {
                 text.setValue(this.dictionaryText)
-                    .setPlaceholder('Variant1, Variant2 = Alias')
+                    .setPlaceholder('Variant1, variant2 = alias')
                     .onChange(value => this.dictionaryText = value);
                 text.inputEl.rows = 10;
                 text.inputEl.addClass('coherence-w-100');
@@ -150,7 +150,8 @@ export class CensorModal extends Modal {
         }
 
         if (files.length === 0) {
-            new Notice('No markdown files found to process.');
+            const noticeText = 'No markdown files found to process.';
+            new Notice(noticeText);
             return;
         }
 

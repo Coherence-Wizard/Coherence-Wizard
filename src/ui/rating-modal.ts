@@ -29,13 +29,13 @@ export class RatingModal extends Modal {
     async onOpen() {
         const { contentEl } = this;
         contentEl.empty();
-        new Setting(contentEl).setName('Automatic Rating').setHeading();
+        new Setting(contentEl).setName('Automatic rating').setHeading();
         contentEl.createEl('p', { text: 'Loading models...' });
 
         try {
             this.models = await this.ollama.listModels();
         } catch (e) {
-            contentEl.createEl('p', { text: 'Failed to load models. Is Ollama running?', cls: 'error-text' });
+            contentEl.createEl('p', { text: 'Failed to load models. Is ollama running?', cls: 'error-text' });
         }
 
         this.display();
@@ -44,13 +44,13 @@ export class RatingModal extends Modal {
     display() {
         const { contentEl } = this;
         contentEl.empty();
-        new Setting(contentEl).setName('Automatic Rating').setHeading();
+        new Setting(contentEl).setName('Automatic rating').setHeading();
 
         if (this.target) {
             const type = this.target instanceof TFile ? 'File' : 'Folder';
             contentEl.createEl('p', { text: `Target: ${this.target.name} (${type})` });
         } else {
-            contentEl.createEl('p', { text: `No target selected. (Target is ${this.target})`, cls: 'error-text' });
+            contentEl.createEl('p', { text: `No target selected. (Target is ${this.target as unknown as string})`, cls: 'error-text' });
             return;
         }
 
@@ -58,7 +58,7 @@ export class RatingModal extends Modal {
             .setName('Model')
             .addDropdown((drop: DropdownComponent) => {
                 drop.addOption('', 'Select a model');
-                this.models.forEach(m => drop.addOption(m, m));
+                this.models.forEach(m => {drop.addOption(m, m)});
                 if (!this.models.includes(this.model)) {
                     drop.addOption(this.model, this.model);
                 }
@@ -70,7 +70,7 @@ export class RatingModal extends Modal {
             });
 
         new Setting(contentEl)
-            .setName('Quality Parameters')
+            .setName('Quality parameters')
             .setDesc('Comma separated list')
             .addText((text: TextComponent) => text.setValue(this.params).onChange((v: string) => this.params = v));
 
@@ -81,13 +81,13 @@ export class RatingModal extends Modal {
         }
 
         new Setting(contentEl)
-            .setName('Skip Existing')
+            .setName('Skip existing')
             .setDesc('Skip files that already have a rating')
             .addToggle((t: ToggleComponent) => t.setValue(this.skipExisting).onChange((v: boolean) => this.skipExisting = v));
 
         new Setting(contentEl)
             .addButton(btn => btn
-                .setButtonText('Start Rating')
+                .setButtonText('Start rating')
                 .setCta()
                 .onClick(() => {
                     void (async () => {
@@ -118,7 +118,7 @@ export class RatingModal extends Modal {
                             this.close();
                         } catch (e) {
                             new Notice('Error during rating');
-                            btn.setButtonText('Start Rating').setDisabled(false);
+                            btn.setButtonText('Start rating').setDisabled(false);
                             progressText.setText('Error occurred.');
                         }
                     })();
