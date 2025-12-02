@@ -1,6 +1,6 @@
 {
     "name": "obsidian-coherence-plugin",
-    "version": "0.0.27",
+    "version": "0.0.28",
     "description": "Coherence Plugin for Obsidian",
     "main": "main.js",
     "scripts": {
@@ -8,7 +8,7 @@
         "build": "node esbuild.config.mjs production"
     },
     "keywords": [],
-    "author": "Antigravity",
+    "author": "Coherence Wizard",
     "license": "MIT",
     "repository": {
         "type": "git",
@@ -22,12 +22,13 @@
         "@types/node": "^20.11.30",
         "@typescript-eslint/eslint-plugin": "^8.48.0",
         "@typescript-eslint/parser": "^8.48.0",
+        "builtin-modules": "^5.0.0",
         "esbuild": "0.17.3",
         "eslint": "^9.14.0",
+        "eslint-plugin-obsidianmd": "^0.1.9",
         "obsidian": "latest",
         "tslib": "2.4.0",
         "typescript": "^5.6.3",
-        "typescript-eslint": "^8.48.0",
-        "eslint-plugin-obsidianmd": "^0.1.9"
+        "typescript-eslint": "^8.48.0"
     }
 }
