@@ -28,8 +28,8 @@ export class CategorizeHubModal extends Modal {
             .setName('Select tool')
             .setDesc('Choose the categorization or rating tool to use.')
             .addDropdown(drop => drop
-                .addOption('categorize', 'Categorize (Assign Categories)')
-                .addOption('rate', 'Auto Rate (Assign Quality Score)')
+                .addOption('categorize', 'Categorize (assign categories)')
+                .addOption('rate', 'Auto rate (assign quality score)')
                 .setValue(this.mode)
                 .onChange((value: string) => {
                     this.mode = value as 'categorize' | 'rate';

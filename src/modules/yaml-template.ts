@@ -5,7 +5,7 @@ export class YamlTemplateService {
 
     async processFile(file: TFile, templateOrder: string[], addDate: boolean): Promise<void> {
         try {
-            await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+            await this.app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
                 // 1. Sanitize existing keys (Obsidian's processFrontMatter gives us an object, 
                 // we can't easily rename keys in-place without creating a new object, 
                 // but processFrontMatter expects us to mutate the passed object or return a new one? 

@@ -47,9 +47,12 @@ export class DateFixModal extends Modal {
                 .setValue(this.fallbackToCreationDate)
                 .onChange(value => this.fallbackToCreationDate = value));
 
+
+        const desc = 'ISO format to use (e.g. YYYY-MM-DD)';
+            
         new Setting(contentEl)
             .setName('Preferred date format')
-            .setDesc('ISO format to use (e.g. YYYY-MM-DD)')
+            .setDesc(desc)
             .addText(text => text
                 .setValue(this.dateFormat)
                 .onChange(value => this.dateFormat = value));

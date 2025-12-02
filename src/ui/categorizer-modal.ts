@@ -1,11 +1,11 @@
-import { App, Modal, Setting, Notice, TFile, DropdownComponent } from 'obsidian';
+import { App, Modal, Setting, Notice, TFile, DropdownComponent, TFolder } from 'obsidian';
 import { CategorizerService, CategorizerOptions } from '../modules/categorizer';
 import { OllamaService } from '../modules/ollama';
 import { CoherenceSettings } from '../../main';
 
 export class CategorizerModal extends Modal {
     service: CategorizerService;
-    target: any;
+    target: unknown;
     settings: CoherenceSettings;
 
     // State
@@ -19,7 +19,7 @@ export class CategorizerModal extends Modal {
     recursive = false;
     ollamaModels: string[] = [];
 
-    constructor(app: App, settings: CoherenceSettings, target?: any) {
+    constructor(app: App, settings: CoherenceSettings, target?: unknown) {
         super(app);
         this.settings = settings;
         const ollama = new OllamaService(settings.ollamaUrl);
@@ -60,7 +60,8 @@ export class CategorizerModal extends Modal {
 
         if (this.target) {
             const type = this.target instanceof TFile ? 'File' : 'Folder';
-            contentEl.createEl('p', { text: `Target: ${this.target.name} (${type})` });
+
+            contentEl.createEl('p', { text: `Target: ${(this.target as TFile | TFolder).name} (${type})` });
         } else {
             contentEl.createEl('p', { text: 'No target selected.', cls: 'error-text' });
             return;
@@ -70,7 +71,7 @@ export class CategorizerModal extends Modal {
         new Setting(contentEl)
             .setName('Model')
             .addDropdown((drop: DropdownComponent) => {
-                this.ollamaModels.forEach(m => drop.addOption(m, m));
+                this.ollamaModels.forEach(m => { drop.addOption(m, m); });
                 if (!this.ollamaModels.includes(this.model)) {
                     drop.addOption(this.model, this.model);
                 }
@@ -84,7 +85,7 @@ export class CategorizerModal extends Modal {
             .setDesc('Select the category dictionary to use')
             .addDropdown((drop: DropdownComponent) => {
                 if (this.settings.categorizerDictionaries) {
-                    this.settings.categorizerDictionaries.forEach((d: any) => drop.addOption(d.name, d.name));
+                    this.settings.categorizerDictionaries.forEach((d) => { drop.addOption(d.name, d.name); });
                 }
                 drop.setValue(this.selectedDictionary)
                     .onChange((v: string) => this.selectedDictionary = v);
@@ -119,7 +120,7 @@ export class CategorizerModal extends Modal {
                     .addOption('overwrite', 'Overwrite existing tags')
                     .addOption('skip', 'Skip notes with existing tags')
                     .setValue(this.tagHandlingMode)
-                    .onChange((v: string) => this.tagHandlingMode = v as any)
+                    .onChange((v: string) => this.tagHandlingMode = v as 'append' | 'overwrite' | 'skip')
                 );
         }
 
@@ -129,7 +130,7 @@ export class CategorizerModal extends Modal {
 
         new Setting(contentEl)
             .setName('Move to folder')
-            .setDesc('Move/Copy file to category folder(s)')
+            .setDesc('Move/copy file to category folder(s)')
             .addToggle(t => t.setValue(this.moveToFolder).onChange(v => this.moveToFolder = v));
 
         // Recursive (if folder)
@@ -162,7 +163,7 @@ export class CategorizerModal extends Modal {
                         };
 
                         // Get categories from selected dictionary
-                        const dict = this.settings.categorizerDictionaries.find((d: any) => d.name === this.selectedDictionary);
+                        const dict = this.settings.categorizerDictionaries.find((d) => d.name === this.selectedDictionary);
                         const categories = dict ? dict.content.split('\n')
                             .map((c: string) => c.split(';')[0].trim()) // Split by ; and take first part
                             .filter((c: string) => c.length > 0) : [];
@@ -191,7 +192,7 @@ export class CategorizerModal extends Modal {
                                 } else {
                                     new Notice('No categories assigned.');
                                 }
-                            } else {
+                            } else if (this.target instanceof TFolder) {
                                 const res = await this.service.processFolder(this.target.path, options, this.recursive, onProgress);
                                 new Notice(`Processed: ${res.processed}, Categorized: ${res.categorized}, Errors: ${res.errors}`);
                             }

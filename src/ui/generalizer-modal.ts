@@ -34,7 +34,7 @@ export class GeneralizerModal extends Modal {
     display() {
         const { contentEl } = this;
         contentEl.empty();
-        new Setting(contentEl).setName('Generalizer (Wisdom extractor)').setHeading();
+        new Setting(contentEl).setName('Generalizer (wisdom extractor)').setHeading();
 
         if (this.fileOrFolder) {
             const type = this.fileOrFolder instanceof TFile ? 'File' : 'Folder';
@@ -44,7 +44,7 @@ export class GeneralizerModal extends Modal {
                 .setName('Target folder')
                 .setDesc('Select the folder to process')
                 .addText(text => text
-                    .setPlaceholder('Example: Folder/Subfolder')
+                    .setPlaceholder('Example: folder/subfolder')
                     .onChange(value => {
                         const folder = this.app.vault.getAbstractFileByPath(value);
                         if (folder instanceof TFolder) {
@@ -59,8 +59,8 @@ export class GeneralizerModal extends Modal {
             .setName('Mode')
             .setDesc('Select the generalization strategy')
             .addDropdown(drop => drop
-                .addOption('generalize', 'Standard Generalization')
-                .addOption('wisdom', 'Wisdom Extractor (Self-Help)')
+                .addOption('generalize', 'Standard generalization')
+                .addOption('wisdom', 'Wisdom extractor (self-help)')
                 .setValue(this.mode)
                 .onChange((value: string) => {
                     this.mode = value as 'generalize' | 'wisdom';
@@ -74,9 +74,9 @@ export class GeneralizerModal extends Modal {
 
         new Setting(contentEl)
             .setName('Model')
-            .setDesc('Select Ollama model')
+            .setDesc('Select ollama model')
             .addDropdown(drop => {
-                this.models.forEach(m => drop.addOption(m, m));
+                this.models.forEach(m => {drop.addOption(m, m)});
                 drop.setValue(this.model)
                     .onChange(value => this.model = value);
             });
@@ -102,8 +102,8 @@ export class GeneralizerModal extends Modal {
             .setName('Output mode')
             .setDesc('Where to save generalized files')
             .addDropdown(drop => drop
-                .addOption('folder', 'New "Generalized" Folder')
-                .addOption('same-folder', 'Same Folder (Next to original)')
+                .addOption('folder', 'New "generalized" folder')
+                .addOption('same-folder', 'Same folder (next to original)')
                 .setValue(this.outputMode)
                 .onChange((value: string) => this.outputMode = value as 'folder' | 'same-folder'));
 

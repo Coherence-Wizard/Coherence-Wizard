@@ -1,4 +1,4 @@
-import { App, TFile, normalizePath, Notice } from 'obsidian';
+import { App, TFile, TFolder, normalizePath, Notice } from 'obsidian';
 import { OllamaService } from './ollama';
 
 export interface CategorizerOptions {
@@ -19,7 +19,7 @@ export class CategorizerService {
             // Check for skip mode first
             if (options.tagHandlingMode === 'skip') {
                 const cache = this.app.metadataCache.getFileCache(file);
-                const tags = cache?.frontmatter?.['tags'];
+                const tags = (cache?.frontmatter as Record<string, string>)?.['tags'];
                 if (tags && (Array.isArray(tags) ? tags.length > 0 : String(tags).trim().length > 0)) {
                     return []; // Skip
                 }
@@ -46,22 +46,25 @@ export class CategorizerService {
     ): Promise<void> {
         // 1. Apply as Tag (YAML)
         if (options.applyAsTag) {
-            await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                let currentTags = frontmatter['tags'];
+            await this.app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
+                const rawTags = frontmatter['tags'];
+                let currentTags: string[] = [];
 
                 if (options.tagHandlingMode === 'overwrite') {
                     currentTags = [];
                 } else {
-                    // Normalize current tags to array
-                    if (!currentTags) {
+                    if (!rawTags) {
                         currentTags = [];
-                    } else if (!Array.isArray(currentTags)) {
-                        // Handle comma-separated string or single string
-                        if (typeof currentTags === 'string') {
-                            currentTags = currentTags.split(',').map(t => t.trim()).filter(t => t.length > 0);
-                        } else {
-                            currentTags = [String(currentTags)];
-                        }
+                    } else if (Array.isArray(rawTags)) {
+                        currentTags = (rawTags as string[])
+                            .map(v => String(v).trim())
+                            .filter(t => t.length > 0);
+                    } else if (typeof rawTags === 'string') {
+                        currentTags = rawTags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                    } else if (typeof rawTags === 'number' || typeof rawTags === 'boolean') {
+                        currentTags = [String(rawTags)];
+                    } else {
+                        currentTags = [];
                     }
                 }
 
@@ -192,11 +195,11 @@ export class CategorizerService {
 
     private collectFiles(path: string, files: TFile[], recursive: boolean) {
         const folder = this.app.vault.getAbstractFileByPath(path);
-        if (folder && 'children' in folder) {
-            for (const child of (folder as any).children) {
+        if (folder instanceof TFolder) {
+            for (const child of folder.children) {
                 if (child instanceof TFile && child.extension === 'md') {
                     files.push(child);
-                } else if (recursive && 'children' in child) {
+                } else if (recursive && child instanceof TFolder) {
                     this.collectFiles(child.path, files, recursive);
                 }
             }
@@ -233,19 +236,29 @@ If multiple categories are plausible, pick the most relevant ones, up to the lim
                 { role: 'user', content: text }
             ], schema, { temperature: 0 });
 
-            const data = JSON.parse(response);
-            let result = data.categories || [];
+            const parsed: unknown = JSON.parse(response);
+            let result: string[] = [];
+
+            if (this.isValidAiResponse(parsed)) {
+                // Only keep categories that are in the allowed list
+                result = parsed.categories.filter(c => categories.includes(c));
+            }
 
             // Strictly enforce limit
             if (result.length > maxCategories) {
                 result = result.slice(0, maxCategories);
             }
-
-            return result;
         } catch (e) {
-            console.error('AI Classification failed', e);
+            console.error('Categorization failed', e);
             return [];
         }
+    }
+
+    private isValidAiResponse(input: unknown): input is { categories: string[] } {
+        if (typeof input !== 'object' || input === null) return false;
+        const value = (input as Record<string, unknown>)['categories'];
+        if (!Array.isArray(value)) return false;
+        return value.every(item => typeof item === 'string');
     }
 
     private sanitizeFileName(name: string): string {

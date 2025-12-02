@@ -40,7 +40,7 @@ export class ChronoMergeModal extends Modal {
                     .setName('Folder')
                     .setDesc('Select folder to scan')
                     .addText(text => text
-                        .setPlaceholder('Example: Folder/Subfolder')
+                        .setPlaceholder('Example: folder/subfolder')
                         .onChange(value => {
                             const f = this.app.vault.getAbstractFileByPath(value);
                             if (f instanceof TFolder) this.targetFolder = f;
@@ -91,7 +91,7 @@ export class ChronoMergeModal extends Modal {
 
                 // Output Filename - Full Width
                 const nameContainer = groupEl.createDiv({ cls: 'coherence-mb-10' });
-                nameContainer.createEl('div', { text: 'Output Filename', cls: 'setting-item-name' });
+                nameContainer.createEl('div', { text: 'Output filename', cls: 'setting-item-name' });
                 const nameInput = nameContainer.createEl('input', { type: 'text' });
                 nameInput.addClass('coherence-input-full');
                 nameInput.value = outputName;
@@ -99,7 +99,7 @@ export class ChronoMergeModal extends Modal {
 
                 // Merged Content Preview
                 const contentContainer = groupEl.createDiv({ cls: 'coherence-mb-10' });
-                contentContainer.createEl('div', { text: 'Merged Content', cls: 'setting-item-name' });
+                contentContainer.createEl('div', { text: 'Merged content', cls: 'setting-item-name' });
                 const contentArea = contentContainer.createEl('textarea');
                 contentArea.addClass('coherence-textarea-full');
                 contentArea.rows = 10;
@@ -114,7 +114,7 @@ export class ChronoMergeModal extends Modal {
 
                 const btnContainer = groupEl.createDiv({ cls: 'coherence-btn-container-right' });
 
-                const skipBtn = btnContainer.createEl('button', { text: 'Skip Group' });
+                const skipBtn = btnContainer.createEl('button', { text: 'Skip group' });
                 skipBtn.addClass('coherence-btn-margin-right');
                 skipBtn.onclick = () => {
                     groupEl.remove();
@@ -125,7 +125,7 @@ export class ChronoMergeModal extends Modal {
                     }
                 };
 
-                const btn = btnContainer.createEl('button', { text: 'Merge Group' });
+                const btn = btnContainer.createEl('button', { text: 'Merge group' });
                 btn.addClass('mod-cta');
                 btn.onclick = () => {
                     void (async () => {
@@ -144,7 +144,7 @@ export class ChronoMergeModal extends Modal {
 
             new Setting(contentEl)
                 .addButton(btn => btn
-                    .setButtonText('Back to Scan')
+                    .setButtonText('Back to scan')
                     .onClick(() => {
                         this.groups = [];
                         this.display();

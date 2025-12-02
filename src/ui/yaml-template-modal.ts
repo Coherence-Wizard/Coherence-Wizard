@@ -29,17 +29,21 @@ export class YamlTemplateModal extends Modal {
             return;
         }
 
+        const placeholder = 'date\nsummary\ntags';
+
         new Setting(contentEl)
             .setName('Template fields')
             .setDesc('One field per line. These will be ordered first.')
             .addTextArea(text => text
                 .setValue(this.template)
-                .setPlaceholder('date\nsummary\ntags')
+                .setPlaceholder(placeholder)
                 .onChange(v => this.template = v));
 
+
+        const desc = 'If filename starts with YYYY-MM-DD, add it to "date" field.';
         new Setting(contentEl)
             .setName('Add date from filename')
-            .setDesc('If filename starts with YYYY-MM-DD, add it to "date" field')
+            .setDesc(desc)
             .addToggle(t => t.setValue(this.addDate).onChange(v => this.addDate = v));
 
         if (!(this.target instanceof TFile)) {
@@ -60,7 +64,7 @@ export class YamlTemplateModal extends Modal {
                         try {
                             if (this.target instanceof TFile) {
                                 await this.service.processFile(this.target, order, this.addDate);
-                                new Notice('YAML Updated');
+                                new Notice('YAML updated');
                             } else if (this.target instanceof TFolder) {
                                 const res = await this.service.processFolder(this.target.path, order, this.addDate, this.recursive);
                                 new Notice(`Processed: ${res.processed}, Errors: ${res.errors}`);

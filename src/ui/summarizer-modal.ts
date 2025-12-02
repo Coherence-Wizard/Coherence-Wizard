@@ -65,13 +65,13 @@ export class SummarizerModal extends Modal {
     async onOpen() {
         const { contentEl } = this;
         contentEl.empty();
-        new Setting(contentEl).setName('Summarize Files').setHeading();
+        new Setting(contentEl).setName('Summarize files').setHeading();
         contentEl.createEl('p', { text: 'Loading models...' });
 
         try {
             this.models = await this.ollama.listModels();
         } catch (e) {
-            contentEl.createEl('p', { text: 'Failed to load models. Is Ollama running?', cls: 'error-text' });
+            contentEl.createEl('p', { text: 'Failed to load models. Is ollama running?', cls: 'error-text' });
         }
 
         this.display();
@@ -80,14 +80,14 @@ export class SummarizerModal extends Modal {
     display() {
         const { contentEl } = this;
         contentEl.empty();
-        new Setting(contentEl).setName('Summarize Files').setHeading();
+        new Setting(contentEl).setName('Summarize files').setHeading();
 
         // Model Selection
         new Setting(contentEl)
-            .setName('Ollama Model')
+            .setName('Ollama model')
             .addDropdown((drop: DropdownComponent) => {
                 drop.addOption('', 'Select a model');
-                this.models.forEach(m => drop.addOption(m, m));
+                this.models.forEach(m => {drop.addOption(m, m)});
                 drop.setValue(this.selectedModel);
                 drop.onChange(async (value: string) => {
                     this.selectedModel = value;
@@ -104,15 +104,15 @@ export class SummarizerModal extends Modal {
                 .onChange(value => this.recursive = value));
 
         new Setting(contentEl)
-            .setName('Overwrite Existing')
+            .setName('Overwrite existing')
             .setDesc('Re-summarize files that already have a summary')
             .addToggle(toggle => toggle
                 .setValue(this.overwrite)
                 .onChange(value => this.overwrite = value));
 
         new Setting(contentEl)
-            .setName('Generate Title for Untitled')
-            .setDesc('Automatically rename "Untitled" files using AI generated title')
+            .setName('Generate title for untitled')
+            .setDesc('Automatically rename untitled files using an AI-generated title')
             .addToggle(toggle => toggle
                 .setValue(this.generateTitle)
                 .onChange(value => this.generateTitle = value));
@@ -120,7 +120,7 @@ export class SummarizerModal extends Modal {
         // Action
         new Setting(contentEl)
             .addButton(btn => btn
-                .setButtonText('Start Summarization')
+                .setButtonText('Start summarization')
                 .setCta()
                 .onClick(() => {
                     void (async () => {
@@ -178,7 +178,7 @@ export class SummarizerModal extends Modal {
                             this.close();
                         } catch (e) {
                             new Notice('Error during summarization.');
-                            btn.setButtonText('Start Summarization').setDisabled(false);
+                            btn.setButtonText('Start summarization').setDisabled(false);
                             progressText.setText('Error occurred.');
                         }
                     })();

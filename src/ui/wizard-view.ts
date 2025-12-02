@@ -10,6 +10,7 @@ import { ConcatonizerService } from '../modules/concatonizer';
 import { GeneralizerService } from '../modules/generalizer';
 import { OllamaService } from '../modules/ollama';
 import { CoherenceSettings } from '../types';
+import { CategorizerOptions } from '../modules/categorizer';
 
 export const VIEW_TYPE_WIZARD = 'coherence-wizard-view';
 
@@ -37,7 +38,7 @@ export class WizardView extends ItemView {
     }
 
     getDisplayText() {
-        return 'Coherence Wizard';
+        return 'Coherence wizard';
     }
 
     getIcon() {
@@ -51,7 +52,7 @@ export class WizardView extends ItemView {
     async display() {
         const container = this.contentEl;
         container.empty();
-        new Setting(container).setName('Coherence Wizard').setHeading();
+        new Setting(container).setName('Coherence wizard').setHeading();
         await this.fetchModels();
 
         // Ensure Folders Exist
@@ -107,7 +108,7 @@ export class WizardView extends ItemView {
 
     renderStep(container: HTMLElement) {
         container.empty();
-        new Setting(container).setName('Coherence Wizard').setHeading();
+        new Setting(container).setName('Coherence wizard').setHeading();
 
         switch (this.step) {
             case 0: this.stepDateFix(container); break;
@@ -122,7 +123,7 @@ export class WizardView extends ItemView {
             case 9: this.stepWisdom(container); break;
             case 10: this.stepFinalMerge(container); break;
             default:
-                container.createEl('p', { text: 'Wizard Complete!' });
+                container.createEl('p', { text: 'Wizard complete!' });
                 new Setting(container).addButton(btn => btn.setButtonText('Close').onClick(() => {
                     this.leaf.detach();
                 }));
@@ -137,7 +138,7 @@ export class WizardView extends ItemView {
     // --- Steps ---
 
     stepDateFix(container: HTMLElement) {
-        new Setting(container).setName('Step 1: Date fix').setHeading();
+        new Setting(container).setName('Step 1: date fix').setHeading();
         container.createEl('p', { text: `Standardize dates in filenames in '${this.inboxDir}'?` });
 
         let recursive = this.settings.dateFixRecursive;
@@ -149,20 +150,20 @@ export class WizardView extends ItemView {
             .addToggle(t => t.setValue(recursive).onChange(v => recursive = v));
 
         new Setting(container)
-            .setName('Fallback to Creation Date')
+            .setName('Fallback to creation date')
             .addToggle(t => t.setValue(fallback).onChange(v => fallback = v));
 
         new Setting(container)
-            .setName('Date Format')
+            .setName('Date format')
             .addText(t => t.setValue(format).onChange(v => format = v));
 
         new Setting(container)
-            .addButton(btn => btn.setButtonText('Run Date Fix').setCta().onClick(() => {
+            .addButton(btn => btn.setButtonText('Run date fix').setCta().onClick(() => {
                 void (async () => {
                     const service = new DateFixService(this.app);
                     // Fix: Pass exceptions as string, not array
                     await service.fixDatesInFolder(this.inboxDir, recursive, fallback, format, this.settings.dateFixExceptions);
-                    new Notice('Date Fix Complete');
+                    new Notice('Date fix complete');
                     this.next();
                 })();
             }))
@@ -170,14 +171,15 @@ export class WizardView extends ItemView {
     }
 
     stepChronoMerge(container: HTMLElement) {
-        new Setting(container).setName('Step 2: Chrono merge').setHeading();
+        new Setting(container).setName('Step 2: chrono merge').setHeading();
         container.createEl('p', { text: `Merge chronological notes in '${this.inboxDir}'?` });
 
         new Setting(container)
-            .addButton(btn => btn.setButtonText('Open Chrono Merge').setCta().onClick(() => {
+            .addButton(btn => btn.setButtonText('Open chrono merge').setCta().onClick(() => {
                 // We can't easily embed ChronoMergeModal in a view without refactoring it to be a view or component.
                 // For now, we open the modal and wait for it to close.
-                const folder = this.app.vault.getAbstractFileByPath(this.inboxDir) as TFolder;
+                const folder = this.app.vault.getAbstractFileByPath(this.inboxDir);
+                if (!(folder instanceof TFolder)) return;
                 const modal = new ChronoMergeModal(this.app, this.settings, folder);
                 // @ts-ignore
                 modal.onCloseCallback = () => {
@@ -189,7 +191,7 @@ export class WizardView extends ItemView {
     }
 
     stepAtomize(container: HTMLElement) {
-        new Setting(container).setName('Step 3: Atomize').setHeading();
+        new Setting(container).setName('Step 3: atomize').setHeading();
         container.createEl('p', { text: `Atomize notes in '${this.inboxDir}'?` });
 
         let mode: 'heading' | 'date' | 'divider' = 'heading';
@@ -209,14 +211,15 @@ export class WizardView extends ItemView {
                 }));
 
         new Setting(container)
-            .setName('Divider (if mode is Divider)')
+            .setName('Divider (if mode is divider)')
             .addText(t => t.setValue(divider).onChange(v => divider = v));
 
         new Setting(container)
             .addButton(btn => btn.setButtonText('Atomize').setCta().onClick(() => {
                 void (async () => {
                     const service = new AtomizerService(this.app.vault);
-                    const folder = this.app.vault.getAbstractFileByPath(this.inboxDir) as TFolder;
+                    const folder = this.app.vault.getAbstractFileByPath(this.inboxDir);
+                    if (!(folder instanceof TFolder)) return;
                     new Notice('Atomizing...');
 
                     // We need to collect files first because atomizing modifies the folder structure
@@ -227,7 +230,7 @@ export class WizardView extends ItemView {
                         else if (mode === 'date') await service.atomizeByDate(child);
                         else await service.atomizeByDivider(child, divider);
                     }
-                    new Notice('Atomization Complete');
+                    new Notice('Atomization complete');
                     this.next();
                 })();
             }))
@@ -242,24 +245,23 @@ export class WizardView extends ItemView {
         let addDate = this.settings.yamlAddDate;
 
         new Setting(container)
-            .setName('Add Date')
+            .setName('Add date')
             .addToggle(t => t.setValue(addDate).onChange(v => addDate = v));
 
         const templateContainer = container.createDiv();
         templateContainer.createEl('p', { text: 'Template:' });
         const textArea = templateContainer.createEl('textarea');
-        textArea.style.width = '100%';
-        textArea.style.height = '100px';
+        textArea.classList.add('coherence-textarea');
         textArea.value = templateStr;
         textArea.onchange = (e: Event) => templateStr = (e.target as HTMLTextAreaElement).value;
 
         new Setting(container)
-            .addButton(btn => btn.setButtonText('Apply Template').setCta().onClick(() => {
+            .addButton(btn => btn.setButtonText('Apply template').setCta().onClick(() => {
                 void (async () => {
                     const service = new YamlTemplateService(this.app);
                     const template = templateStr.split('\n').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
                     await service.processFolder(this.inboxDir, template, addDate, false);
-                    new Notice('YAML Template Applied');
+                    new Notice('YAML template applied');
                     this.next();
                 })();
             }))
@@ -267,7 +269,7 @@ export class WizardView extends ItemView {
     }
 
     stepSummarize(container: HTMLElement) {
-        new Setting(container).setName('Step 5: Summarize').setHeading();
+        new Setting(container).setName('Step 5: summarize').setHeading();
         container.createEl('p', { text: `Summarize notes in '${this.inboxDir}'?` });
 
         let model = this.settings.summarizerModel;
@@ -277,26 +279,26 @@ export class WizardView extends ItemView {
         new Setting(container)
             .setName('Model')
             .addDropdown(d => {
-                this.availableModels.forEach(m => d.addOption(m, m));
+                this.availableModels.forEach(m => {d.addOption(m, m)});
                 d.setValue(model).onChange(v => model = v);
             });
 
         new Setting(container)
-            .setName('Overwrite Existing')
+            .setName('Overwrite existing')
             .addToggle(t => t.setValue(overwrite).onChange(v => overwrite = v));
 
         new Setting(container)
-            .setName('Generate Title')
+            .setName('Generate title')
             .addToggle(t => t.setValue(genTitle).onChange(v => genTitle = v));
 
         new Setting(container)
             .addButton(btn => btn.setButtonText('Summarize').setCta().onClick(() => {
                 void (async () => {
                     const service = new SummarizerService(this.app, this.ollama);
-                    new Notice('Summarizing... this may take a while.');
+                    new Notice('Summarizing this may take a while.');
                     const prompts = [this.settings.summarizerPrompt, this.settings.summarizerPrompt2, this.settings.summarizerPrompt3, this.settings.summarizerPrompt4];
                     await service.summarizeFolder(this.inboxDir, model, false, overwrite, prompts, genTitle);
-                    new Notice('Summarization Complete');
+                    new Notice('Summarization complete');
                     this.next();
                 })();
             }))
@@ -304,7 +306,7 @@ export class WizardView extends ItemView {
     }
 
     stepRate(container: HTMLElement) {
-        new Setting(container).setName('Step 6: Auto rate').setHeading();
+        new Setting(container).setName('Step 6: auto rate').setHeading();
         container.createEl('p', { text: `Rate notes in '${this.inboxDir}'?` });
 
         let model = this.settings.ratingModel;
@@ -312,7 +314,7 @@ export class WizardView extends ItemView {
         new Setting(container)
             .setName('Model')
             .addDropdown(d => {
-                this.availableModels.forEach(m => d.addOption(m, m));
+                this.availableModels.forEach(m => {d.addOption(m, m)});
                 d.setValue(model).onChange(v => model = v);
             });
 
@@ -323,7 +325,7 @@ export class WizardView extends ItemView {
                     new Notice('Rating...');
                     const params = this.settings.ratingParams.split(',').map((s: string) => s.trim());
                     await service.rateFolder(this.inboxDir, model, params, false, this.settings.ratingSkipIfRated);
-                    new Notice('Rating Complete');
+                    new Notice('Rating complete');
                     this.next();
                 })();
             }))
@@ -331,9 +333,9 @@ export class WizardView extends ItemView {
     }
 
     stepCategorize(container: HTMLElement) {
-        new Setting(container).setName('Step 7: Categorize').setHeading();
+        new Setting(container).setName('Step 7: categorize').setHeading();
         container.createEl('p', { text: `Categorize notes in '${this.inboxDir}'?` });
-        container.createEl('p', { text: 'Note: This will add categories as tags in the YAML frontmatter. The next step will prompt you to move files to their respective Living folders based on these tags.', cls: 'setting-item-description' });
+        container.createEl('p', {cls: 'setting-item-description' }).appendText( 'Note: this will add categories as tags in the yaml frontmatter. The next step will prompt you to move files to their respective living folders based on these tags.');
 
         let selectedDict = this.settings.categorizerActiveDictionary;
         let maxCats = this.settings.categorizerMaxCategories;
@@ -342,20 +344,20 @@ export class WizardView extends ItemView {
         new Setting(container)
             .setName('Model')
             .addDropdown(d => {
-                this.availableModels.forEach(m => d.addOption(m, m));
+                this.availableModels.forEach(m => {d.addOption(m, m)});
                 d.setValue(model).onChange(v => model = v);
             });
 
         new Setting(container)
             .setName('Dictionary')
             .addDropdown(d => {
-                this.settings.categorizerDictionaries.forEach((dict: { name: string; content: string }) => d.addOption(dict.name, dict.name));
+                this.settings.categorizerDictionaries.forEach((dict: { name: string; content: string }) => { d.addOption(dict.name, dict.name)});
                 d.setValue(selectedDict);
                 d.onChange(v => selectedDict = v);
             });
 
         new Setting(container)
-            .setName('Max Categories')
+            .setName('Max categories')
             .addText(t => t.setValue(maxCats.toString()).onChange(v => maxCats = parseInt(v) || 1));
 
         new Setting(container)
@@ -367,7 +369,7 @@ export class WizardView extends ItemView {
 
                     new Notice('Categorizing...');
 
-                    const options = {
+                    const options:  CategorizerOptions = {
                         model: model,
                         categories: dict.content.split('\n').map((line: string) => {
                             const parts = line.split(/[-;]/);
@@ -376,11 +378,12 @@ export class WizardView extends ItemView {
                         maxCategories: maxCats,
                         applyAsTag: this.settings.categorizerApplyAsTag,
                         applyAsBacklink: this.settings.categorizerApplyAsBacklink,
-                        moveToFolder: false
+                        moveToFolder: false,
+                        tagHandlingMode: 'append'
                     };
 
                     await service.processFolder(this.inboxDir, options, false);
-                    new Notice('Categorization Complete');
+                    new Notice('Categorization complete');
                     this.next();
                 })();
             }))
@@ -388,15 +391,15 @@ export class WizardView extends ItemView {
     }
 
     stepMoveCopy(container: HTMLElement) {
-        new Setting(container).setName('Step 8: Move & copy').setHeading();
+        new Setting(container).setName('Step 8: move & copy').setHeading();
         container.createEl('p', { text: `Move categorized files to '${this.livingDir}' and copy to '${this.chronoDir}'?` });
 
         new Setting(container)
             .addButton(btn => btn.setButtonText('Execute').setCta().onClick(() => {
                 void (async () => {
-                    new Notice('Moving and Copying...');
+                    new Notice('Moving and copying...');
                     await this.moveAndCopyLogic();
-                    new Notice('Move & Copy Complete');
+                    new Notice('Move & copy complete');
                     this.next();
                 })();
             }))
@@ -404,14 +407,15 @@ export class WizardView extends ItemView {
     }
 
     async moveAndCopyLogic() {
-        const inbox = this.app.vault.getAbstractFileByPath(this.inboxDir) as TFolder;
+        const inbox = this.app.vault.getAbstractFileByPath(this.inboxDir)
+        if (!(inbox instanceof TFolder)) return;
         const files = inbox.children.filter(f => f instanceof TFile && f.extension === 'md') as TFile[];
 
         for (const file of files) {
             let category = '';
-            await this.app.fileManager.processFrontMatter(file, (fm) => {
+            await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
                 if (fm.tags) {
-                    if (Array.isArray(fm.tags) && fm.tags.length > 0) category = fm.tags[0];
+                    if (Array.isArray(fm.tags) && fm.tags.length > 0) category = fm.tags[0] as string;
                     else if (typeof fm.tags === 'string') category = fm.tags;
                 }
             });
@@ -439,7 +443,7 @@ export class WizardView extends ItemView {
     }
 
     stepCombine(container: HTMLElement) {
-        new Setting(container).setName('Step 9: Combine').setHeading();
+        new Setting(container).setName('Step 9: combine').setHeading();
         container.createEl('p', { text: `Combine files in '${this.livingDir}' subfolders?` });
 
         let stripYaml = this.settings.concatonizerStripYaml;
@@ -452,7 +456,8 @@ export class WizardView extends ItemView {
             .addButton(btn => btn.setButtonText('Combine').setCta().onClick(() => {
                 void (async () => {
                     const service = new ConcatonizerService(this.app.vault);
-                    const living = this.app.vault.getAbstractFileByPath(this.livingDir) as TFolder;
+                    const living = this.app.vault.getAbstractFileByPath(this.livingDir);
+                    if (!(living instanceof TFolder)) return;
                     new Notice('Combining...');
 
                     for (const child of living.children) {
@@ -461,7 +466,7 @@ export class WizardView extends ItemView {
                             await service.concatonizeFolder(child.path, outputName, false, stripYaml, true);
                         }
                     }
-                    new Notice('Combine Complete');
+                    new Notice('Combine complete');
                     this.next();
                 })();
             }))
@@ -469,7 +474,7 @@ export class WizardView extends ItemView {
     }
 
     stepWisdom(container: HTMLElement) {
-        new Setting(container).setName('Step 10: Extract wisdom').setHeading();
+        new Setting(container).setName('Step 10: extract wisdom').setHeading();
         container.createEl('p', { text: `Extract wisdom from combined files in '${this.livingDir}'?` });
 
         let model = this.settings.generalizerModel;
@@ -477,7 +482,7 @@ export class WizardView extends ItemView {
         new Setting(container)
             .setName('Model')
             .addDropdown(d => {
-                this.availableModels.forEach(m => d.addOption(m, m));
+                this.availableModels.forEach(m => { d.addOption(m, m) });
                 d.setValue(model).onChange(v => model = v);
             });
 
@@ -485,8 +490,9 @@ export class WizardView extends ItemView {
             .addButton(btn => btn.setButtonText('Extract').setCta().onClick(() => {
                 void (async () => {
                     const service = new GeneralizerService(this.app, this.settings);
-                    const living = this.app.vault.getAbstractFileByPath(this.livingDir) as TFolder;
-                    new Notice('Extracting Wisdom...');
+                    const living = this.app.vault.getAbstractFileByPath(this.livingDir);
+                    if (!(living instanceof TFolder)) return;
+                    new Notice('Extracting wisdom...');
 
                     for (const child of living.children) {
                         if (child instanceof TFolder) {
@@ -508,7 +514,7 @@ export class WizardView extends ItemView {
                             }
                         }
                     }
-                    new Notice('Wisdom Extraction Complete');
+                    new Notice('Wisdom extraction complete');
                     this.next();
                 })();
             }))
@@ -516,15 +522,16 @@ export class WizardView extends ItemView {
     }
 
     stepFinalMerge(container: HTMLElement) {
-        new Setting(container).setName('Step 11: Final merge').setHeading();
-        container.createEl('p', { text: `Merge all Wisdom files into a final output?` });
+        new Setting(container).setName('Step 11: final merge').setHeading();
+        container.createEl('p', { text: `Merge all wisdom files into a final output?` });
 
         new Setting(container)
             .addButton(btn => btn.setButtonText('Merge').setCta().onClick(() => {
                 void (async () => {
                     // const service = new ConcatonizerService(this.app.vault); // Unused
                     let finalContent = '# Final Wisdom\n\n';
-                    const living = this.app.vault.getAbstractFileByPath(this.livingDir) as TFolder;
+                    const living = this.app.vault.getAbstractFileByPath(this.livingDir);
+                    if (!(living instanceof TFolder)) return;
 
                     for (const child of living.children) {
                         if (child instanceof TFolder) {
@@ -539,7 +546,7 @@ export class WizardView extends ItemView {
 
                     await this.app.vault.create(`${this.livingDir}/Final_Wisdom.md`, finalContent);
 
-                    new Notice('Final Merge Complete');
+                    new Notice('Final merge complete');
                     this.leaf.detach();
                 })();
             }))

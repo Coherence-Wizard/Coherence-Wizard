@@ -28,7 +28,7 @@ export class DistillModal extends Modal {
             .setName('Select tool')
             .setDesc('Choose the distillation tool to use.')
             .addDropdown(drop => drop
-                .addOption('censor', 'Censor / Alias')
+                .addOption('censor', 'Censor / alias')
                 .addOption('generalize', 'Generalize (AI)')
                 .setValue(this.mode)
                 .onChange((value: string) => {

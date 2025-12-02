@@ -11,7 +11,7 @@ export class OllamaService {
             });
 
             if (response.status === 200) {
-                const data = response.json;
+                const data = response.json as { models: { name: string }[] };
                 return data.models.map((m: { name: string }) => m.name);
             }
             return [];
@@ -39,7 +39,8 @@ export class OllamaService {
             });
 
             if (response.status === 200) {
-                return response.json.response;
+                const data = response.json as { response: string };
+                return data.response;
             }
             throw new Error(`Ollama API Error: ${response.status}`);
         } catch (e) {
@@ -68,7 +69,8 @@ export class OllamaService {
             });
 
             if (response.status === 200) {
-                return response.json.message.content;
+                const data = response.json as { message: { role: string; content: string } };
+                return data.message.content;
             }
             throw new Error(`Ollama API Error: ${response.status}`);
         } catch (e) {

@@ -87,7 +87,7 @@ WRI - Writing Career: #WRI`;
                 .setName('Target folder')
                 .setDesc('Select the folder to parse (leave empty for root)')
                 .addText(text => text
-                    .setPlaceholder('Example: Folder/Subfolder')
+                    .setPlaceholder('Example: folder/subfolder')
                     .onChange(value => {
                         const folder = this.app.vault.getAbstractFileByPath(value);
                         if (folder instanceof TFolder) {
@@ -107,7 +107,7 @@ WRI - Writing Career: #WRI`;
 
         new Setting(contentEl)
             .setName('Move to target directory')
-            .setDesc('If enabled, files will be moved from Output Directory to Target Directory/Category/Resources')
+            .setDesc('If enabled, files will be moved from output directory to target directory/category/resources')
             .addToggle(toggle => toggle
                 .setValue(this.shouldMove)
                 .onChange(value => {
@@ -126,10 +126,10 @@ WRI - Writing Career: #WRI`;
 
         new Setting(contentEl)
             .setName('Categories')
-            .setDesc('Format: Category Name: #Tag')
+            .setDesc('Format: category name: #tag')
             .addTextArea(text => {
                 text.setValue(this.categoriesText)
-                    .setPlaceholder('Category: #TAG')
+                    .setPlaceholder('Category: #tag')
                     .onChange(value => this.categoriesText = value);
                 text.inputEl.rows = 10;
                 text.inputEl.addClass('coherence-w-100');
