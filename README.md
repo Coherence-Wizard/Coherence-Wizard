@@ -4,7 +4,11 @@ Organize, summarize, split, merge, and refine notes in Obsidian. Coherence Wizar
 
 ## Install
 
-Requires **Obsidian desktop 1.13.0 or later**. Mobile is not supported. The plugin is not yet approved for the community directory.
+Requires **Obsidian desktop 1.13.0 or later**. Mobile is not supported.
+
+Install from [the Obsidian community directory](https://community.obsidian.md/plugins/coherence-wizard), or search for **Coherence Wizard** in **Settings → Community plugins → Browse**.
+
+For manual installation:
 
 1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/Coherence-Wizard/Coherence-Wizard/releases/latest), or download and extract `coherence-wizard-0.0.36.zip`.
 2. Put those three files in `<your vault>/.obsidian/plugins/coherence-wizard/` (use your configured settings folder if it differs from `.obsidian`).
