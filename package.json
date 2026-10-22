@@ -1,0 +1,42 @@
+{
+  "name": "coherence-wizard",
+  "version": "0.0.36",
+  "description": "Coherence Plugin for Obsidian",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "npm run typecheck && node esbuild.config.mjs production",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint main.ts src --max-warnings 1",
+    "test": "node --test tests/*.test.cjs"
+  },
+  "keywords": [],
+  "author": "Coherence Wizard",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Coherence-Wizard/Coherence-Wizard.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Coherence-Wizard/Coherence-Wizard/issues"
+  },
+  "homepage": "https://github.com/Coherence-Wizard/Coherence-Wizard#readme",
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@typescript-eslint/eslint-plugin": "^8.48.0",
+    "@typescript-eslint/parser": "^8.48.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.14.0",
+    "eslint-plugin-obsidianmd": "^0.4.2",
+    "globals": "^17.13.0",
+    "obsidian": "^1.14.4",
+    "tslib": "2.4.0",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.48.0"
+  },
+  "overrides": {
+    "eslint-plugin-obsidianmd": {
+      "obsidian": "$obsidian"
+    }
+  }
+}

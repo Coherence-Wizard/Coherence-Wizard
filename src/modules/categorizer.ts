@@ -1,0 +1,299 @@
+import { App, TFile, TFolder, normalizePath, Notice } from 'obsidian';
+import { OllamaService } from './ollama';
+
+export interface CategorizerOptions {
+    model: string;
+    categories: string[];
+    maxCategories: number;
+    applyAsTag: boolean;
+    applyAsBacklink: boolean;
+    moveToFolder: boolean;
+    tagHandlingMode: 'overwrite' | 'append' | 'skip';
+}
+
+export class CategorizerService {
+    constructor(private app: App, private ollama: OllamaService) { }
+
+    async categorizeFile(file: TFile, options: CategorizerOptions): Promise<string[]> {
+        try {
+            // Check for skip mode first
+            if (options.tagHandlingMode === 'skip') {
+                const cache = this.app.metadataCache.getFileCache(file);
+                const tags = (cache?.frontmatter as Record<string, string>)?.['tags'];
+                if (tags && (Array.isArray(tags) ? tags.length > 0 : String(tags).trim().length > 0)) {
+                    return []; // Skip
+                }
+            }
+
+            const content = await this.app.vault.read(file);
+            const assignedCategories = await this.getCategoriesFromAI(content, options.model, options.categories, options.maxCategories);
+
+            if (assignedCategories.length > 0) {
+                await this.processFile(file, assignedCategories, options);
+                return assignedCategories;
+            }
+            return [];
+        } catch (e) {
+            console.error(`Failed to categorize file ${file.path}`, e);
+            return [];
+        }
+    }
+
+    async processFile(
+        file: TFile,
+        assignedCategories: string[],
+        options: CategorizerOptions
+    ): Promise<void> {
+        // 1. Apply as Tag (YAML)
+        if (options.applyAsTag) {
+            await this.app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
+                const rawTags = frontmatter['tags'];
+                let currentTags: string[] = [];
+
+                if (options.tagHandlingMode === 'overwrite') {
+                    currentTags = [];
+                } else {
+                    if (!rawTags) {
+                        currentTags = [];
+                    } else if (Array.isArray(rawTags)) {
+                        currentTags = (rawTags as string[])
+                            .map(v => String(v).trim())
+                            .filter(t => t.length > 0);
+                    } else if (typeof rawTags === 'string') {
+                        currentTags = rawTags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                    } else if (typeof rawTags === 'number' || typeof rawTags === 'boolean') {
+                        currentTags = [String(rawTags)];
+                    } else {
+                        currentTags = [];
+                    }
+                }
+
+                assignedCategories.forEach(c => {
+                    // Remove # if present
+                    let cleanCategory = c.startsWith('#') ? c.substring(1) : c;
+
+                    // Replace spaces with underscores
+                    cleanCategory = cleanCategory.replace(/\s+/g, '_');
+
+                    // Remove old versions (hashed or with spaces)
+                    // We want to remove:
+                    // 1. The exact original category string 'c'
+                    // 2. The hashed version of 'c' (if 'c' didn't have hash)
+                    // 3. The version with spaces (if 'cleanCategory' has underscores)
+
+                    const variantsToRemove = [
+                        c,
+                        `#${c}`,
+                        c.replace(/^#/, ''),
+                        cleanCategory.replace(/_/g, ' ') // version with spaces
+                    ];
+
+                    variantsToRemove.forEach(variant => {
+                        const idx = currentTags.indexOf(variant);
+                        if (idx > -1) currentTags.splice(idx, 1);
+                    });
+
+                    // Add cleaned version if not present
+                    if (!currentTags.includes(cleanCategory)) {
+                        currentTags.push(cleanCategory);
+                    }
+                });
+
+                frontmatter['tags'] = currentTags;
+            });
+        }
+
+        // 2. Apply as Backlink
+        if (options.applyAsBacklink) {
+            const backlinks = assignedCategories.map(c => `[[${c}]]`).join(' ');
+            // Append to end of file
+            const content = await this.app.vault.read(file);
+            // Check if already exists to avoid spamming?
+            // Simple check: if the exact backlink string is not at the end.
+            // But for now, just append.
+            await this.app.vault.modify(file, content + `\n\n${backlinks}`);
+        }
+
+        // 3. Move to Folder (including related files)
+        if (options.moveToFolder && assignedCategories.length > 0) {
+            try {
+                // If parent is root, path is '/'. normalizePath allows handling this.
+                const parent = file.parent;
+                const originParentPath = parent ? parent.path : '/';
+                const basename = file.basename;
+
+                // 1. Identify files to move
+                let filesToMove: TFile[] = [file];
+
+                if (parent && parent.children) {
+                    const siblings = parent.children.filter(child => {
+                        return child instanceof TFile &&
+                            child.name !== file.name &&
+                            child.basename.toLowerCase() === basename.toLowerCase();
+                    }) as TFile[];
+
+                    if (siblings.length > 0) {
+
+                        filesToMove = filesToMove.concat(siblings);
+                    }
+                }
+
+                if (filesToMove.length > 1) {
+                    new Notice(`Moving ${filesToMove.length} related files for "${basename}"...`);
+                }
+
+                // 2. Ensure all category folders exist
+                for (const category of assignedCategories) {
+                    const sanitizedCat = this.sanitizeFileName(category);
+                    const destFolder = normalizePath(`${originParentPath}/${sanitizedCat}`);
+
+                    if (!(await this.app.vault.adapter.exists(destFolder))) {
+                        await this.app.vault.createFolder(destFolder);
+                    }
+                }
+
+                // 3. Move/Copy files
+                const firstCategory = assignedCategories[0];
+                const sanitizedFirstCat = this.sanitizeFileName(firstCategory);
+                const firstDestFolder = normalizePath(`${originParentPath}/${sanitizedFirstCat}`);
+
+                for (const item of filesToMove) {
+                    const destPath = normalizePath(`${firstDestFolder}/${item.name}`);
+
+                    // A. Move to first category
+                    if (await this.app.vault.adapter.exists(destPath)) {
+                        new Notice(`File ${item.name} already exists in ${firstCategory}.`);
+                    } else {
+                        await this.app.fileManager.renameFile(item, destPath);
+                    }
+
+                    // B. Copy to subsequent categories
+                    for (let i = 1; i < assignedCategories.length; i++) {
+                        const nextCat = assignedCategories[i];
+                        const nextFolder = normalizePath(`${originParentPath}/${this.sanitizeFileName(nextCat)}`);
+                        const nextPath = normalizePath(`${nextFolder}/${item.name}`);
+
+                        if (!(await this.app.vault.adapter.exists(nextPath))) {
+                            await this.app.vault.copy(item, nextPath);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('[Coherence] Error in Move to Folder:', err);
+                new Notice('Error moving files. Check console.');
+            }
+        }
+    }
+
+    async processFolder(
+        folderPath: string,
+        options: CategorizerOptions,
+        recursive: boolean,
+        onProgress?: (processed: number, total: number, currentFile: string) => void
+    ): Promise<{ processed: number, categorized: number, errors: number }> {
+        const files: TFile[] = [];
+        this.collectFiles(folderPath, files, recursive);
+
+        let processed = 0;
+        let categorized = 0;
+        let errors = 0;
+        const total = files.length;
+
+        for (let i = 0; i < total; i++) {
+            const file = files[i];
+
+            if (onProgress) {
+                onProgress(i + 1, total, file.name);
+            }
+
+            // Yield to event loop
+            await new Promise(resolve => window.setTimeout(resolve, 10));
+
+            processed++;
+            try {
+                const cats = await this.categorizeFile(file, options);
+                if (cats.length > 0) {
+                    categorized++;
+                }
+            } catch (e) {
+                console.error(`Error processing ${file.path}`, e);
+                errors++;
+            }
+        }
+
+        return { processed, categorized, errors };
+    }
+
+    private collectFiles(path: string, files: TFile[], recursive: boolean) {
+        const folder = this.app.vault.getAbstractFileByPath(path);
+        if (folder instanceof TFolder) {
+            for (const child of folder.children) {
+                if (child instanceof TFile && child.extension === 'md') {
+                    files.push(child);
+                } else if (recursive && child instanceof TFolder) {
+                    this.collectFiles(child.path, files, recursive);
+                }
+            }
+        }
+    }
+
+    private async getCategoriesFromAI(text: string, model: string, categories: string[], maxCategories: number): Promise<string[]> {
+        const categoriesList = categories.join("\n- ");
+        const systemPrompt = `You are a strict classifier.
+Select up to ${maxCategories} categories from the provided list that best fit the note.
+Return JSON only, matching the given schema.
+
+Categories:
+- ${categoriesList}
+
+If multiple categories are plausible, pick the most relevant ones, up to the limit of ${maxCategories}.`;
+
+        const schema = {
+            "type": "object",
+            "properties": {
+                "categories": {
+                    "type": "array",
+                    "items": { "type": "string", "enum": categories },
+                    "maxItems": maxCategories
+                }
+            },
+            "required": ["categories"],
+            "additionalProperties": false,
+        };
+
+        try {
+            const response = await this.ollama.chat(model, [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: text }
+            ], schema, { temperature: 0 });
+
+            const parsed: unknown = JSON.parse(response);
+            let result: string[] = [];
+
+            if (this.isValidAiResponse(parsed)) {
+                // Only keep categories that are in the allowed list
+                result = parsed.categories.filter(c => categories.includes(c));
+            }
+
+            // Strictly enforce limit
+            if (result.length > maxCategories) {
+                result = result.slice(0, maxCategories);
+            }
+            return result;
+        } catch (e) {
+            console.error('Categorization failed', e);
+            return [];
+        }
+    }
+
+    private isValidAiResponse(input: unknown): input is { categories: string[] } {
+        if (typeof input !== 'object' || input === null) return false;
+        const value = (input as Record<string, unknown>)['categories'];
+        if (!Array.isArray(value)) return false;
+        return value.every(item => typeof item === 'string');
+    }
+
+    private sanitizeFileName(name: string): string {
+        return name.replace(/[<>:"/\\|?*]/g, '_').trim();
+    }
+}

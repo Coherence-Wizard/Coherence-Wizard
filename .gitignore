@@ -1,0 +1,14 @@
+node_modules/
+.DS_Store
+.idea/
+.vscode/
+*.log
+test_vault/
+.obsidian/
+data.json
+Releases/
+*.zip
+.env
+.env.*
+*.pem
+*.key

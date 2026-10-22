@@ -1,0 +1,11 @@
+{
+  "id": "coherence-wizard",
+  "name": "Coherence Wizard",
+  "version": "0.0.36",
+  "minAppVersion": "1.13.0",
+  "description": "Organize, summarize, split, merge, and refine notes with local Ollama models and bulk file tools.",
+  "author": "Coherence Wizard",
+  "authorUrl": "https://github.com/Coherence-Wizard",
+  "isDesktopOnly": true,
+  "fundingUrl": "https://www.buymeacoffee.com/rastovich"
+}
