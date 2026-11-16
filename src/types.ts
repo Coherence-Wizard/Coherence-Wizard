@@ -14,6 +14,7 @@ export interface CoherenceSettings extends AIConnectionSettings {
     summarizerModel: string;
     summarizerMode: 'multi-stage' | 'one-shot';
     summarizerDisableThinking: boolean;
+    summarizerAddShortSummary: boolean;
     summarizerOneShotPrompt: string;
     summarizerRecursive: boolean;
     summarizerOverwrite: boolean;

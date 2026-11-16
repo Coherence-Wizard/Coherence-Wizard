@@ -291,3 +291,20 @@ test('disable-thinking default is visible, saved, and preserved on reload', asyn
     const reloaded = await fixture(plugin.saved);
     assert.equal(reloaded.plugin.settings.summarizerDisableThinking, false);
 });
+
+test('optional short summary defaults off, persists in settings, and supports a batch override', async () => {
+    const { plugin, app } = await fixture();
+    assert.equal(plugin.settings.summarizerAddShortSummary, false);
+    plugin.tab.activeTab = 'summarizer'; plugin.tab.render();
+    const control = plugin.tab.containerEl.settings.find(setting => setting.name === 'Add short summary').controls[0];
+    assert.equal(control.value, false); await control.change(true);
+    const reloaded = await fixture(plugin.saved); assert.equal(reloaded.plugin.settings.summarizerAddShortSummary, true);
+    const target = new TFolder('notes'); app.vault.getAbstractFileByPath = () => target;
+    let request;
+    const modal = new (load('src/ui/summarizer-modal.ts').SummarizerModal)(app, plugin.settings, async () => {}, target, async value => { request = value; return true; });
+    modal.display();
+    const toggle = modal.contentEl.settings.find(setting => setting.name === 'Add short summary').controls[0];
+    assert.equal(toggle.value, true); toggle.change(false);
+    await modal.contentEl.settings.at(-1).controls[0].click();
+    assert.equal(request.addShortSummary, false); assert.equal(plugin.settings.summarizerAddShortSummary, true);
+});

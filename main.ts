@@ -44,6 +44,7 @@ const DEFAULT_SETTINGS: CoherenceSettings = {
     summarizerModel: 'llama3',
     summarizerMode: 'one-shot',
     summarizerDisableThinking: true,
+    summarizerAddShortSummary: false,
     summarizerOneShotPrompt: ONE_SHOT_SUMMARY_PROMPT,
     summarizerRecursive: false,
     summarizerOverwrite: false,
@@ -741,7 +742,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
     renderSummarizerSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('Summarizer').setHeading();
-        containerEl.createEl('p', { text: "Writes summaries to note frontmatter using the selected AI provider. After removing Markdown formatting, tags, and backlinks, bodies of 50 words or fewer are copied directly without AI. Runs in the background with progress and stop controls in the right sidebar. Notes edited during generation are left unchanged. Choose a single concise pass or your existing sequence of prompts." });
+        containerEl.createEl('p', { text: "Writes summaries to note frontmatter using the selected AI provider. After removing Markdown formatting, tags, backlinks, and dates, bodies of 50 words or fewer are copied directly into the normal summary without AI. The optional short summary may still need AI. Runs in the background with progress and stop controls in the right sidebar. Notes edited during generation are left unchanged. Choose a single concise pass or your existing sequence of prompts." });
         new Setting(containerEl)
             .setName('Default model')
             .setDesc('Model to use for summarization')
@@ -784,6 +785,14 @@ class CoherenceSettingTab extends PluginSettingTab {
                 }));
 
         new Setting(containerEl)
+            .setName('Add short summary')
+            .setDesc('Also write summary_short in YAML, capped at 10 words. Off by default. Condenses the normal summary with an extra AI request when it exceeds 10 cleaned words; shorter text is copied directly. Can fill a missing short summary without replacing an existing normal summary. Overwrite applies to each field separately.')
+            .addToggle(toggle => toggle.setValue(this.plugin.settings.summarizerAddShortSummary).onChange(async value => {
+                this.plugin.settings.summarizerAddShortSummary = value;
+                await this.plugin.saveSettings();
+            }));
+
+        new Setting(containerEl)
             .setName('Disable thinking')
             .setDesc('On by default for faster summaries. Requests no reasoning from supported Ollama and Unsloth models. Compatible servers use the enable_thinking chat-template option; support varies. Models that require reasoning may still think. Applies to all summary stages and optional titles. Turn off to use the server default, or override for a single batch in the start dialog.')
             .addToggle(toggle => toggle.setValue(this.plugin.settings.summarizerDisableThinking).onChange(async value => {
@@ -793,7 +802,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('One-shot prompt')
-            .setDesc('A single request per note. The result is cleaned and limited to 50 words; automatic title generation is disabled for this mode. Placeholders: {filename}, {text}. Your multi-stage prompts are preserved below.')
+            .setDesc('A single request for the normal summary; the optional short summary may add another. The result is cleaned and limited to 50 words; automatic title generation is disabled for this mode. Placeholders: {filename}, {text}. Your multi-stage prompts are preserved below.')
             .addTextArea(text => text
                 .setValue(this.plugin.settings.summarizerOneShotPrompt)
                 .then(control => control.inputEl.rows = 8)

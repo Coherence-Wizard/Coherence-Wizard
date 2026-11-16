@@ -332,3 +332,91 @@ test('short summaries remove dates and timestamp IDs before counting words, pres
     assert.equal(plainSummaryBody('Before 2026-11-16 after 2026-11-16_123456 done.'), 'Before after done.');
     assert.equal(plainSummaryBody('id2026-11-16 2026-11-16_1234567 2026-11-16_label'), 'id2026-11-16 2026-11-16_1234567 2026-11-16_label');
 });
+
+test('optional short summary adds a second capped field with the same thinking and cancellation options', async () => {
+    const f = fixture(), file = f.add('Long.md'), calls = [], signal = new AbortController().signal;
+    const normal = 'A clear explanation of how thoughtful planning helps communities make better decisions together.';
+    const service = new (load('summarizer').SummarizerService)(f.app, { generate: async (...args) => {
+        calls.push(args);
+        return calls.length === 1 ? normal : '<think>Hidden reasoning</think>Summary: **Thoughtful** planning|supports resilient communities through shared goals and clear collective decisions.';
+    } });
+    await service.summarizeFile(file, 'test', false, [], false, { oneShot: true, addShortSummary: true, disableThinking: true, signal });
+    const fm = JSON.parse(f.contents.get(file).split('\n')[1]);
+    assert.equal(fm.summary, normal); assert.ok(fm.summary_short.split(/\s+/).length <= 10);
+    assert.ok(fm.summary_short.startsWith('Thoughtful planning supports')); assert.ok(!fm.summary_short.includes('think'));
+    assert.equal(calls.length, 2); assert.match(calls[1][1], /at most 10 words/); assert.ok(calls[1][1].includes(normal));
+    assert.equal(calls[1][2].think, false); assert.equal(calls[1][3], signal);
+    assert.equal(f.writes.length, 1); assert.ok(f.contents.get(file).endsWith(LONG_BODY));
+});
+
+test('short-summary backfill preserves existing normal summaries, metadata, and existing short fields', async () => {
+    const f = fixture(); let calls = 0;
+    const original = 'Original summary with more than ten words which must remain exactly unchanged.';
+    const file = f.add('Existing.md', '---\n' + JSON.stringify({ summary: original, 'summary model': 'original-model', other: 'keep' }) + '\n---\n' + LONG_BODY);
+    const service = new (load('summarizer').SummarizerService)(f.app, { generate: async () => { calls++; return 'Clear shared purpose guides action.'; } });
+    assert.equal(await service.summarizeFile(file, 'new-model', false, [], false, { addShortSummary: true, oneShot: true }), true);
+    let fm = JSON.parse(f.contents.get(file).split('\n')[1]);
+    assert.equal(fm.summary, original); assert.equal(fm['summary model'], 'original-model'); assert.equal(fm.other, 'keep');
+    assert.equal(fm.summary_short, 'Clear shared purpose guides action.'); assert.equal(calls, 1);
+    assert.equal(await service.summarizeFile(file, 'new-model', false, [], false, { addShortSummary: true }), false);
+    assert.equal(calls, 1);
+    await service.summarizeFile(file, 'new-model', true, [], false, { addShortSummary: true, oneShot: true });
+    fm = JSON.parse(f.contents.get(file).split('\n')[1]);
+    assert.equal(fm.summary, 'Clear shared purpose guides action.'); assert.equal(fm.summary_short, fm.summary);
+    assert.equal(fm['summary model'], 'new-model'); assert.equal(calls, 2);
+    const onlyShort = f.add('Only short.md', '---\n{"summary_short":"Keep existing short"}\n---\nA small note.');
+    await service.summarizeFile(onlyShort, 'new-model', false, [], false, { addShortSummary: true });
+    assert.equal(JSON.parse(f.contents.get(onlyShort).split('\n')[1]).summary_short, 'Keep existing short');
+});
+
+test('short-summary boundary copies up to 10 words and generates at 11; batches unload only after AI use', async () => {
+    for (const count of [10, 11]) {
+        const f = fixture(), body = Array.from({ length: count }, (_, i) => `word${i}`).join(' '), file = f.add('Short.md', body);
+        let calls = 0, unloads = 0;
+        const job = new (load('summarization-job').SummarizationJob)(f.app, () => ({
+            generate: async () => { calls++; return 'Concise central idea.'; }, unloadModel: async () => { unloads++; },
+        }));
+        job.start(config(file, { addShortSummary: true })); await job.completion;
+        assert.equal(job.state.saved, 1); assert.equal(job.state.errors, 0);
+        const fm = JSON.parse(f.contents.get(file).split('\n')[1]);
+        assert.equal(fm.summary, body); assert.equal(fm.summary_short, count === 10 ? body : 'Concise central idea.');
+        assert.equal(calls, count === 10 ? 0 : 1); assert.equal(unloads, calls);
+    }
+});
+
+test('short-summary failure, cancellation, or concurrent edits never partially write either field', async () => {
+    for (const outcome of ['empty', 'failure', 'cancel', 'edit']) {
+        const f = fixture(), file = f.add('Long.md'), controller = new AbortController(); let calls = 0;
+        const original = f.contents.get(file);
+        const service = new (load('summarizer').SummarizerService)(f.app, { generate: async () => {
+            calls++;
+            if (calls === 1) return 'This central idea needs more than ten words to be expressed correctly.';
+            if (outcome === 'failure') throw new Error('Server failed');
+            if (outcome === 'cancel') controller.abort();
+            if (outcome === 'edit') f.contents.set(file, 'User changed the note.');
+            return outcome === 'empty' ? '<think>Only reasoning</think>' : 'Concise central idea.';
+        } });
+        await assert.rejects(service.summarizeFile(file, 'test', false, [], false, { addShortSummary: true, oneShot: true, signal: controller.signal }));
+        assert.equal(f.writes.length, 0); assert.equal(f.contents.get(file), outcome === 'edit' ? 'User changed the note.' : original);
+    }
+});
+
+test('short-summary opt-out preserves existing short fields even when replacing the normal summary', async () => {
+    const f = fixture(), file = f.add('Short.md', '---\n{"summary":"Old normal","summary_short":"Keep short"}\n---\nNew short body.');
+    const service = new (load('summarizer').SummarizerService)(f.app, { generate: () => { throw new Error('No AI'); } });
+    await service.summarizeFile(file, '', true, [], false, { addShortSummary: false });
+    const fm = JSON.parse(f.contents.get(file).split('\n')[1]);
+    assert.equal(fm.summary, 'New short body.'); assert.equal(fm.summary_short, 'Keep short');
+});
+
+test('multi-stage mode creates the optional short field from the final summary', async () => {
+    const f = fixture(), file = f.add('Stages.md'), prompts = [];
+    const final = 'A final summary containing more than ten words describing the central idea clearly.';
+    const service = new (load('summarizer').SummarizerService)(f.app, { generate: async (_model, prompt) => {
+        prompts.push(prompt); return prompts.length === 1 ? 'First draft' : prompts.length === 2 ? final : 'A clear central idea.';
+    } });
+    await service.summarizeFile(file, 'test', false, ['First {text}', 'Refine {summary}'], false, { oneShot: false, addShortSummary: true });
+    assert.equal(prompts.length, 3); assert.ok(prompts[2].includes(final));
+    const fm = JSON.parse(f.contents.get(file).split('\n')[1]);
+    assert.equal(fm.summary, final); assert.equal(fm.summary_short, 'A clear central idea.');
+});
