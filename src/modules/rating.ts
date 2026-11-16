@@ -1,8 +1,8 @@
 import { App, TFile, TFolder } from 'obsidian';
-import { OllamaService } from './ollama';
+import { AIService } from './ai-service';
 
 export class RatingService {
-    constructor(private app: App, private ollama: OllamaService) { }
+    constructor(private app: App, private ollama: AIService) { }
 
     async rateFile(file: TFile, model: string, qualityParams: string[], skipExisting: boolean = true): Promise<number> {
         try {

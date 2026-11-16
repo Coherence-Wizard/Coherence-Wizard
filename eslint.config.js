@@ -31,7 +31,7 @@ module.exports = defineConfig([
       "obsidianmd/sample-names": "off",
       // Preserve product names and literal example/folder names in explanatory text.
       "obsidianmd/ui/sentence-case": ["warn", {
-        brands: ["Coherence Wizard", "Obsidian", "Ollama", "Markdown"],
+        brands: ["Coherence Wizard", "Obsidian", "Ollama", "Markdown", "Unsloth", "OpenAI"],
         ignoreWords: ["Work", "John", "Jon", "Alex", "Censored", "Generalized"]
       }]
       // Removed invalid rule obsidianmd/prefer-file-manager-trash (not present in plugin v0.1.9)

@@ -1,0 +1,30 @@
+/** Plain visible prose for the short-note shortcut; the source note is never changed. */
+export function plainSummaryBody(body: string): string {
+    return body
+        .replace(/%%[\s\S]*?%%/g, '')
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .replace(/!?(?:\[\[[\s\S]*?\]\])/g, '')
+        .replace(/^\s*\[[^\]]+\]:\s+.*$/gm, '')
+        .replace(/!\[[^\]]*\]\((?:[^()\n]|\([^()\n]*\))*\)/g, '')
+        .replace(/\[([^\]]+)\]\((?:[^()\n]|\([^()\n]*\))*\)/g, '$1')
+        .replace(/\[([^\]]+)\]\[[^\]]*\]/g, '$1')
+        .replace(/\[\^[^\]]+\]/g, '')
+        .replace(/<(https?:\/\/[^>]+)>/g, '$1')
+        .replace(/<[^>]*>/g, '')
+        .replace(/^\s*(`{3,}|~{3,})[^\n]*$/gm, '')
+        .replace(/^\s{0,3}(?:#{1,6}\s+|(?:>\s*)+|[-+*]\s+(?:\[[ xX]\]\s*)?|\d+[.)]\s+)/gm, '')
+        .replace(/^\s*\[![\w-]+\][+-]?\s*/gm, '')
+        .replace(/\s+#+(?=\s*(?:\n|$))/g, '')
+        .replace(/^\s*(?:[-*_]\s*){3,}$/gm, '')
+        .replace(/^\s*(?:=+|-+|\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?)\s*$/gm, '')
+        .replace(/(^|\s)#[\p{L}\p{N}_/-]+/gu, '$1')
+        .replace(/(^|\s)\^[\w-]+(?=\s|$)/g, '$1')
+        .replace(/`+([^`]+)`+/g, '$1')
+        .replace(/(\*\*|__|~~|==)([\s\S]*?)\1/g, '$2')
+        .replace(/(^|[\s(])[*_]([^*_\n]+)[*_](?=$|[\s.,!?:;)])/g, '$1$2')
+        .replace(/\\([\\`*{}[\]()#+.!_>~-])/g, '$1')
+        .replace(/\[([^\]\n]+)\]/g, '$1')
+        .replace(/\|/g, ' ')
+        .replace(/&(?:amp|lt|gt|quot|apos|nbsp);/g, entity => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'", '&nbsp;': ' ' })[entity] || entity)
+        .replace(/\s+/g, ' ').trim();
+}

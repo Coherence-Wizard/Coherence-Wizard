@@ -1,14 +1,15 @@
 import { App, Modal, Setting, DropdownComponent, Notice, TFile, TFolder } from 'obsidian';
 import { ONE_SHOT_SUMMARY_PROMPT } from '../modules/summarizer';
 import { SummarizationRequest } from '../modules/summarization-job';
-import { OllamaService } from '../modules/ollama';
+import { AIService, createAIService, AIConnectionSettings } from '../modules/ai-service';
 import { CoherenceSettings } from '../../main';
 
 export class SummarizerModal extends Modal {
     mode: 'multi-stage' | 'one-shot';
     oneShotPrompt: string;
-    private ollamaUrl: string;
-    ollama: OllamaService;
+    private connection: AIConnectionSettings;
+    private modelError = '';
+    ollama: AIService;
     target: TFile | TFolder | null = null;
     targetPath = '/';
 
@@ -35,8 +36,8 @@ export class SummarizerModal extends Modal {
 
     constructor(app: App, settings: CoherenceSettings, saveSettings: (key: string, value: unknown) => Promise<void>, target: TFile | TFolder | undefined, private startRun: (request: SummarizationRequest) => Promise<boolean>) {
         super(app);
-        this.ollama = new OllamaService(settings.ollamaUrl);
-        this.ollamaUrl = settings.ollamaUrl;
+        this.ollama = createAIService(settings);
+        this.connection = { aiProvider: settings.aiProvider, ollamaUrl: settings.ollamaUrl, openaiBaseUrl: settings.openaiBaseUrl, openaiApiKey: settings.openaiApiKey };
         this.mode = settings.summarizerMode;
         this.oneShotPrompt = settings.summarizerOneShotPrompt || ONE_SHOT_SUMMARY_PROMPT;
         this.saveSettings = saveSettings;
@@ -75,8 +76,8 @@ export class SummarizerModal extends Modal {
 
         try {
             this.models = await this.ollama.listModels();
-        } catch {
-            contentEl.createEl('p', { text: 'Failed to load models. Is Ollama running?', cls: 'error-text' });
+        } catch (error) {
+            this.modelError = error instanceof Error ? error.message : String(error);
         }
 
         this.display();
@@ -89,9 +90,10 @@ export class SummarizerModal extends Modal {
 
         // Model Selection
         new Setting(contentEl)
-            .setName('Ollama model')
+            .setName('Model')
             .addDropdown((drop: DropdownComponent) => {
                 drop.addOption('', 'Select a model');
+                if (this.selectedModel && !this.models.includes(this.selectedModel)) drop.addOption(this.selectedModel, this.selectedModel);
                 this.models.forEach(m => {drop.addOption(m, m)});
                 drop.setValue(this.selectedModel);
                 drop.onChange(async (value: string) => {
@@ -99,6 +101,15 @@ export class SummarizerModal extends Modal {
                     await this.saveSettings('summarizerModel', value);
                 });
             });
+
+        if (this.modelError) contentEl.createEl('p', { text: this.modelError, cls: 'coherence-text-error' });
+        new Setting(contentEl).setName('Model ID')
+            .setDesc('Enter the exact ID if it is not in the list. Configure the provider and API key in the AI connection settings tab.')
+            .addText(text => text.setValue(this.selectedModel).onChange(async value => {
+                this.selectedModel = value.trim();
+                await this.saveSettings('summarizerModel', this.selectedModel);
+            }));
+        contentEl.createEl('p', { text: 'Markdown formatting, tags, and backlinks are removed before counting words. A body of 50 words or fewer is copied directly into the summary without AI, in either mode.' });
 
         new Setting(contentEl)
             .setName('Summary mode')
@@ -135,7 +146,7 @@ export class SummarizerModal extends Modal {
                 .setDisabled(this.mode === 'one-shot')
                 .onChange(value => this.generateTitle = value));
 
-        contentEl.createEl('p', { text: 'Starting closes this dialog. The batch progress bar and a stop button appear in the left sidebar while you continue using Obsidian. Stopping or finishing the batch automatically unloads its model.' });
+        contentEl.createEl('p', { text: 'Starting closes this dialog. The batch progress bar and a stop button appear in the right sidebar while you continue using Obsidian. Stopping or finishing an AI batch automatically unloads its model on Ollama and Unsloth. Other compatible servers manage their own model memory.' });
         new Setting(contentEl)
             .addButton(button => button
                 .setButtonText('Start summarization')
@@ -144,10 +155,6 @@ export class SummarizerModal extends Modal {
                     const target = this.app.vault.getAbstractFileByPath(this.targetPath);
                     if (!(target instanceof TFile || target instanceof TFolder) || (target instanceof TFile && target.extension !== 'md')) {
                         new Notice('Choose a Markdown note or folder.');
-                        return;
-                    }
-                    if (!this.selectedModel.trim()) {
-                        new Notice('Choose an Ollama model first.');
                         return;
                     }
                     const prompts: string[] = [];
@@ -165,7 +172,7 @@ export class SummarizerModal extends Modal {
                     button.setDisabled(true);
                     try {
                         const started = await this.startRun({
-                            target, ollamaUrl: this.ollamaUrl, model: this.selectedModel,
+                            target, ...this.connection, model: this.selectedModel,
                             recursive: this.recursive, overwrite: this.overwrite, prompts,
                             generateTitle: this.generateTitle, oneShot: this.mode === 'one-shot',
                             maxChars: this.maxChars, includeYaml: this.includeYaml,

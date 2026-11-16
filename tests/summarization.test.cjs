@@ -23,9 +23,10 @@ function load(name) {
     vm.runInNewContext(code, context);
     cache.set(name, context.module.exports); return context.module.exports;
 }
+const LONG_BODY = 'Detailed useful ideas '.repeat(25) + 'Useful ideas from the original note.';
 function fixture() {
     const folder = new TFolder('notes'), contents = new Map(), writes = [], renamed = [], entries = new Map([[folder.path, folder]]);
-    const add = (name, content = 'Useful ideas from the original note.', parent = folder) => {
+    const add = (name, content = LONG_BODY, parent = folder) => {
         const file = new TFile(`${parent.path}/${name}`, parent); parent.children.push(file); contents.set(file, content); entries.set(file.path, file); return file;
     };
     const app = { workspace: { getLeavesOfType: () => [] }, vault: {
@@ -54,11 +55,11 @@ test('one-shot makes one request even for untitled notes, removes a preamble, an
 });
 
 test('multi-stage prompts retain their ordering, placeholders, and output length', async () => {
-    const f = fixture(), file = f.add('Planning.md', 'Budget is $& and $1.'); const calls = [];
+    const f = fixture(), file = f.add('Planning.md', 'Budget is $& and $1. ' + LONG_BODY); const calls = [];
     const long = Array.from({ length: 65 }, () => 'word').join(' ');
     const ollama = { generate: async (_model, prompt) => { calls.push(prompt); return calls.length === 1 ? 'First pass' : long; } };
     await new (load('summarizer').SummarizerService)(f.app, ollama).summarizeFile(file, 'test', false, ['First: {text}', 'Next: {summary} / {filename}']);
-    assert.deepEqual(calls, ['First: Budget is $& and $1.', 'Next: First pass / Planning']);
+    assert.deepEqual(calls, ['First: Budget is $& and $1. ' + LONG_BODY, 'Next: First pass / Planning']);
     assert.equal(summaryOf(f, file), long);
 });
 
@@ -79,7 +80,7 @@ test('cancellation after generation and before saving leaves the current note un
 });
 
 test('completed batch counts saved, skipped, and failed notes, and automatically unloads exactly once', async () => {
-    const f = fixture(); f.add('Saved.md'); f.add('Skipped.md', '---\n{"summary":"Existing"}\n---\nBody'); f.add('Failed.md', 'Fail this');
+    const f = fixture(); f.add('Saved.md'); f.add('Skipped.md', '---\n{"summary":"Existing"}\n---\nBody'); f.add('Failed.md', 'Fail this ' + LONG_BODY);
     let unloads = 0;
     const fake = { generate: async (_model, prompt) => { if (prompt.includes('Fail this')) throw new Error('model failure'); return 'Useful summary.'; }, unloadModel: async () => { unloads++; } };
     const job = new (load('summarization-job').SummarizationJob)(f.app, () => fake), states = [];
@@ -99,7 +100,7 @@ test('single stop aborts the current note, keeps completed summaries, skips rema
     assert.equal(job.state.completed, 1); assert.equal(job.start(config(f.folder)), false);
     job.stop(); job.stop(); await job.completion;
     assert.equal(job.state.status, 'stopped'); assert.equal(job.state.saved, 1); assert.equal(job.state.completed, 1);
-    assert.equal(summaryOf(f, first), 'Saved first.'); assert.equal(f.contents.get(second), 'Useful ideas from the original note.');
+    assert.equal(summaryOf(f, first), 'Saved first.'); assert.equal(f.contents.get(second), LONG_BODY);
     assert.equal(calls, 2); assert.equal(unloads, 1); assert.equal(job.state.errors, 0);
 });
 
@@ -124,14 +125,14 @@ test('closing a sidebar subscription does not stop the job, but disabling the pl
 });
 
 test('empty folders and nonrecursive runs finish accurately and unload automatically', async () => {
-    const f = fixture(); const nested = new TFolder('notes/nested'); f.folder.children.push(nested); f.add('Deep.md', 'Nested', nested);
+    const f = fixture(); const nested = new TFolder('notes/nested'); f.folder.children.push(nested); f.add('Deep.md', 'Nested ' + LONG_BODY, nested);
     let calls = 0, unloads = 0;
     const fake = { generate: async () => { calls++; return 'Summary.'; }, unloadModel: async () => { unloads++; } };
     const job = new (load('summarization-job').SummarizationJob)(f.app, () => fake);
     job.start(config(f.folder)); await job.completion;
-    assert.equal(job.state.total, 0); assert.equal(job.state.status, 'completed'); assert.equal(calls, 0); assert.equal(unloads, 1);
+    assert.equal(job.state.total, 0); assert.equal(job.state.status, 'completed'); assert.equal(calls, 0); assert.equal(unloads, 0);
     job.start(config(f.folder, { recursive: true })); await job.completion;
-    assert.equal(job.state.total, 1); assert.equal(job.state.saved, 1); assert.equal(calls, 1); assert.equal(unloads, 2);
+    assert.equal(job.state.total, 1); assert.equal(job.state.saved, 1); assert.equal(calls, 1); assert.equal(unloads, 1);
 });
 
 test('desktop Ollama transport cancels a real pending HTTP request and sends the unload protocol', async () => {
@@ -165,4 +166,98 @@ test('unsaved editor changes are protected even before Obsidian writes them to d
     const service = new (load('summarizer').SummarizerService)(f.app, { generate: async () => 'Stale summary.' });
     await assert.rejects(service.summarizeFile(file, 'test'), /Note changed during summarization/);
     assert.equal(f.writes.length, 0);
+});
+
+test('short note bodies become plain summaries without any AI or unload calls in either mode', async () => {
+    for (const oneShot of [false, true]) {
+        const f = fixture();
+        const body = '# Heading\n\n**Clear** _ideas_ with `code` and [a resource](https://example.com).\n- [x] Keep this. #topic/subtag [[Related note|alias]] ![[image.png]]\n%%hidden%%';
+        const file = f.add('Untitled.md', '---\n{"tags":["yaml-tag"],"other":"keep me"}\n---\n' + body);
+        const fake = { generate: () => { throw new Error('must not generate'); }, unloadModel: () => { throw new Error('must not unload'); } };
+        const job = new (load('summarization-job').SummarizationJob)(f.app, () => fake);
+        job.start(config(file, { model: '', oneShot, generateTitle: true })); await job.completion;
+        assert.equal(job.state.saved, 1); assert.equal(job.state.errors, 0);
+        assert.equal(summaryOf(f, file), 'Heading Clear ideas with code and a resource. Keep this.');
+        const fm = JSON.parse(f.contents.get(file).split('\n')[1]);
+        assert.equal(fm.other, 'keep me'); assert.equal(fm['summary model'], 'Note body (no AI)');
+        assert.ok(f.contents.get(file).endsWith(body)); assert.equal(f.renamed.length, 0);
+        assert.equal(job.state.modelStatus, 'No model was needed for this batch.');
+    }
+});
+
+test('the 50-word shortcut counts cleaned body words, excludes YAML, and uses AI starting at 51', async () => {
+    for (const count of [49, 50, 51]) {
+        const f = fixture(), words = Array.from({ length: count }, (_, i) => `word${i}`).join(' ');
+        const file = f.add('Boundary.md', '---\n{"description":"' + LONG_BODY + '"}\n---\n' + words + ' #tag [[backlink]]');
+        let calls = 0;
+        const service = new (load('summarizer').SummarizerService)(f.app, { generate: async () => { calls++; return 'AI summary.'; } });
+        await service.summarizeFile(file, 'test', false, [], false, { oneShot: true });
+        assert.equal(calls, count > 50 ? 1 : 0);
+        assert.equal(summaryOf(f, file), count > 50 ? 'AI summary.' : words);
+    }
+});
+
+test('empty or backlink-only bodies do not write empty summaries; overwrite still respects existing summaries', async () => {
+    const f = fixture(), service = new (load('summarizer').SummarizerService)(f.app, { generate: () => { throw new Error('No AI'); } });
+    assert.equal(await service.summarizeFile(f.add('Empty.md', '#tag [[Link]]'), 'test'), false);
+    const file = f.add('Existing.md', '---\n{"summary":"Keep this"}\n---\nShort body.');
+    assert.equal(await service.summarizeFile(file, 'test'), false); assert.equal(summaryOf(f, file), 'Keep this');
+    assert.equal(await service.summarizeFile(file, 'test', true), true); assert.equal(summaryOf(f, file), 'Short body.');
+});
+
+test('OpenAI-compatible API supports auth, exact model IDs, prompts, structured output, and Unsloth unload', async () => {
+    const requests = [];
+    const server = http.createServer((req, res) => {
+        let text = ''; req.on('data', chunk => text += chunk); req.on('end', () => {
+            const body = text ? JSON.parse(text) : null; requests.push({ url: req.url, auth: req.headers.authorization, body });
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(req.url.endsWith('/models') ? { data: [{ id: 'test/model:Q3' }] }
+                : req.url.endsWith('/unload') ? { status: 'unloaded', model: body.model_path }
+                    : { choices: [{ message: { content: 'Generated result.' } }] }));
+        });
+    });
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    try {
+        const service = load('ai-service').createAIService({ aiProvider: 'unsloth', openaiBaseUrl: `http://127.0.0.1:${server.address().port}/v1/`, openaiApiKey: 'test-token' });
+        assert.equal((await service.listModels())[0], 'test/model:Q3');
+        assert.equal(await service.generate('test/model:Q3', 'Source note', { system: 'System prompt', num_predict: 123 }, new AbortController().signal), 'Generated result.');
+        await service.chat('test/model:Q3', [{ role: 'user', content: 'Rate this' }], { type: 'object', properties: {} }, { temperature: 0 });
+        await service.unloadModel('test/model:Q3');
+        assert.ok(requests.every(request => request.auth === 'Bearer test-token'));
+        assert.deepEqual(requests.map(request => request.url), ['/v1/models', '/v1/chat/completions', '/v1/chat/completions', '/v1/unload']);
+        assert.deepEqual(requests[1].body.messages, [{ role: 'system', content: 'System prompt' }, { role: 'user', content: 'Source note' }]);
+        assert.equal(requests[1].body.model, 'test/model:Q3'); assert.equal(requests[1].body.max_tokens, 123); assert.equal(requests[1].body.stream, false);
+        assert.equal(requests[2].body.response_format.type, 'json_schema'); assert.equal(requests[2].body.temperature, 0);
+        assert.deepEqual(requests[3].body, { model_path: 'test/model:Q3', force_cancel_active: false });
+    } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
+});
+
+test('generic compatible endpoints report unsupported unloading without pretending success or making a request', async () => {
+    const service = new (load('openai-compatible').OpenAICompatibleService)('http://example.invalid/v1', '', false);
+    assert.match(await service.unloadModel('model'), /does not provide model unloading/);
+});
+
+test('OpenAI-compatible requests abort and authentication errors do not expose the API key', async () => {
+    const received = deferred(), closed = deferred(); let deny = false;
+    const server = http.createServer((req, res) => {
+        req.resume(); req.on('end', () => {
+            if (deny) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: { message: 'Rejected secret-test-token' } })); }
+            else { received.resolve(); res.on('close', () => closed.resolve()); }
+        });
+    });
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    try {
+        const service = new (load('openai-compatible').OpenAICompatibleService)(`http://127.0.0.1:${server.address().port}/v1`, 'secret-test-token');
+        const controller = new AbortController();
+        const result = assert.rejects(service.generate('model', 'body', undefined, controller.signal), { name: 'AbortError' });
+        await received.promise; controller.abort(); await result; await closed.promise;
+        deny = true;
+        await assert.rejects(service.listModels(), error => { assert.match(error.message, /HTTP 401/); assert.ok(!error.message.includes('secret-test-token')); return true; });
+    } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
+});
+
+test('short-note cleanup handles nested quotes, callouts, link parentheses, tables, and formatting', () => {
+    const clean = load('summary-text').plainSummaryBody;
+    assert.equal(clean('## Heading ##\n> > [!note] ***Important*** ~~old~~ ==new==\n[Guide](https://example.com/a_(b)) [Reference][ref]\n[ref]: https://example.com\n<https://example.com>'), 'Heading Important old new Guide Reference https://example.com');
+    assert.equal(clean('| Item | Value |\n| --- | --- |\n| **A** | `B` |\n#topic [[Note]] ^block'), 'Item Value A B');
 });

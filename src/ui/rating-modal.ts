@@ -1,6 +1,6 @@
 import { App, Modal, Setting, Notice, TextComponent, ToggleComponent, DropdownComponent, TFile, TFolder } from 'obsidian';
 import { RatingService } from '../modules/rating';
-import { OllamaService } from '../modules/ollama';
+import { AIService, createAIService } from '../modules/ai-service';
 import { CoherenceSettings } from '../../main';
 
 export class RatingModal extends Modal {
@@ -11,13 +11,13 @@ export class RatingModal extends Modal {
     model: string;
     params: string;
 
-    ollama: OllamaService;
+    ollama: AIService;
     models: string[] = [];
     saveSettings: (key: string, value: unknown) => Promise<void>;
 
     constructor(app: App, settings: CoherenceSettings, saveSettings: (key: string, value: unknown) => Promise<void>, target?: TFile | TFolder) {
         super(app);
-        this.ollama = new OllamaService(settings.ollamaUrl);
+        this.ollama = createAIService(settings);
         this.service = new RatingService(app, this.ollama);
         this.saveSettings = saveSettings;
         this.target = target || app.workspace.getActiveFile();
@@ -35,7 +35,7 @@ export class RatingModal extends Modal {
         try {
             this.models = await this.ollama.listModels();
         } catch {
-            contentEl.createEl('p', { text: 'Failed to load models. Is Ollama running?', cls: 'error-text' });
+            contentEl.createEl('p', { text: 'Failed to load models. Is your AI server running?', cls: 'error-text' });
         }
 
         this.display();

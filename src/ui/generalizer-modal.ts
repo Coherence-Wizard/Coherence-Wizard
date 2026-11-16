@@ -1,11 +1,11 @@
 import { App, Modal, Setting, TFile, TFolder, Notice } from 'obsidian';
 import { GeneralizerService } from '../modules/generalizer';
-import { OllamaService } from '../modules/ollama';
+import { AIService, createAIService } from '../modules/ai-service';
 import { CoherenceSettings } from '../types';
 
 export class GeneralizerModal extends Modal {
     private service: GeneralizerService;
-    private ollamaService: OllamaService;
+    private ollamaService: AIService;
     private targetFolder: TFolder | null = null;
     private recursive = false;
     private outputMode: 'folder' | 'same-folder' = 'folder';
@@ -18,7 +18,7 @@ export class GeneralizerModal extends Modal {
     constructor(app: App, private settings: CoherenceSettings, private fileOrFolder?: TFile | TFolder) {
         super(app);
         this.service = new GeneralizerService(app, settings);
-        this.ollamaService = new OllamaService(settings.ollamaUrl);
+        this.ollamaService = createAIService(settings);
         this.recursive = settings.generalizerRecursive || false;
         this.outputMode = settings.generalizerOutputMode || 'folder';
         this.suffix = settings.generalizerSuffix || '_generalized';
@@ -74,7 +74,7 @@ export class GeneralizerModal extends Modal {
 
         new Setting(contentEl)
             .setName('Model')
-            .setDesc('Select Ollama model')
+            .setDesc('Select a model')
             .addDropdown(drop => {
                 this.models.forEach(m => {drop.addOption(m, m)});
                 drop.setValue(this.model)

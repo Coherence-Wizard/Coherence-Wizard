@@ -86,7 +86,7 @@ function load(file) {
 }
 async function fixture(saved) {
     const handlers = {};
-    const app = { vault: {}, workspace: { on: (event, callback) => { handlers[event] = callback; }, getActiveFile: () => new TFile('notes/example.md') } };
+    const app = { vault: {}, workspace: { onLayoutReady: () => {}, on: (event, callback) => { handlers[event] = callback; }, getActiveFile: () => new TFile('notes/example.md') } };
     const plugin = new (load('main.ts').default)(app); plugin.saved = saved; await plugin.onload();
     return { plugin, app, handlers };
 }
@@ -136,7 +136,7 @@ test('all settings tabs render; censor is separate and before distill', async ()
     const tabs = tab.containerEl.children[0].children.map(el => el.text);
     assert.equal(tabs[tabs.indexOf('Distill') - 1], 'Censor');
     assert.ok(!tabs.includes('Coherence wizard'));
-    for (const activeTab of ['about', 'contextmenu', 'datefix', 'merge', 'atomizer', 'yaml', 'summarizer', 'categorizer', 'parsemove', 'censor', 'distill', 'rating']) {
+    for (const activeTab of ['about', 'connection', 'contextmenu', 'datefix', 'merge', 'atomizer', 'yaml', 'summarizer', 'categorizer', 'parsemove', 'censor', 'distill', 'rating']) {
         tab.activeTab = activeTab; tab.render();
         assert.ok(!tab.containerEl.children.some(el => el.text.includes('Error rendering')), activeTab);
         assert.ok(tab.containerEl.children.some(el => el.tag === 'p' || el.children.length > 0), activeTab);
@@ -185,13 +185,13 @@ test('distill offers generalize and wisdom without censor; each launches the sel
     dropdown.change('wisdom'); button.click(); assert.equal(opened.at(-1).constructor.name, 'WisdomModal');
 });
 
-test('starting a summary reveals the left pane and closes setup without waiting for the batch', async () => {
+test('starting a summary reveals the right pane and closes setup without waiting for the batch', async () => {
     const { plugin, app, handlers } = await fixture();
     const target = new TFolder('notes'), states = [], revealed = [];
     const leaf = { setViewState: async state => states.push(state) };
     app.vault.getAbstractFileByPath = () => target;
     app.workspace.getLeavesOfType = () => [];
-    app.workspace.getLeftLeaf = split => { assert.equal(split, false); return leaf; };
+    app.workspace.getRightLeaf = split => { assert.equal(split, false); return leaf; };
     app.workspace.revealLeaf = async item => revealed.push(item);
     let request;
     plugin.summarizationJob = { start: value => { request = value; return true; }, completion: new Promise(() => {}) };
@@ -231,4 +231,48 @@ test('recursive settings no longer change the independent title-generation setti
     await toggle.change(true);
     assert.equal(plugin.settings.summarizerRecursive, true);
     assert.equal(plugin.settings.summarizerGenerateTitle, false);
+});
+
+test('one-shot becomes the default on upgrade, then later mode choices are retained', async () => {
+    const { plugin } = await fixture({ summarizerMode: 'multi-stage' });
+    assert.equal(plugin.settings.summarizerMode, 'one-shot');
+    plugin.settings.summarizerMode = 'multi-stage'; await plugin.saveSettings();
+    const again = (await fixture(plugin.saved)).plugin;
+    assert.equal(again.settings.summarizerMode, 'multi-stage'); assert.equal(again.saves, 0);
+});
+
+test('restored progress outside the right sidebar is replaced there without stopping the job', async () => {
+    const { plugin, app } = await fixture(); const rightRoot = {}, leftRoot = {};
+    let detached = 0, created = 0, revealed;
+    const old = { getRoot: () => leftRoot, detach: () => detached++ };
+    const right = { getRoot: () => rightRoot, setViewState: async state => assert.equal(state.type, 'coherence-summarization-progress') };
+    app.workspace.rightSplit = rightRoot;
+    app.workspace.getLeavesOfType = () => [old];
+    app.workspace.getRightLeaf = () => { created++; return right; };
+    app.workspace.revealLeaf = async leaf => revealed = leaf;
+    const job = plugin.summarizationJob;
+    await plugin.showSummarizationProgress();
+    assert.equal(detached, 1); assert.equal(created, 1); assert.equal(revealed, right); assert.equal(plugin.summarizationJob, job);
+    app.workspace.getLeavesOfType = () => [right];
+    await plugin.showSummarizationProgress(); assert.equal(created, 1);
+});
+
+test('Unsloth provider reaches all AI tool dialogs and shared model selection', async () => {
+    const { plugin, app } = await fixture({ aiProvider: 'unsloth', openaiBaseUrl: 'http://localhost:8888/v1', openaiApiKey: 'test-key' });
+    const folder = new TFolder('notes');
+    for (const [file, cls, args, access] of [
+        ['summarizer', 'SummarizerModal', [app, plugin.settings, async () => {}, folder, async () => true], modal => modal.ollama],
+        ['wisdom', 'WisdomModal', [app, plugin.settings, folder], modal => modal.ollama],
+        ['rating', 'RatingModal', [app, plugin.settings, async () => {}, folder], modal => modal.ollama],
+        ['categorizer', 'CategorizerModal', [app, plugin.settings, folder], modal => modal.service.ollama],
+        ['generalizer', 'GeneralizerModal', [app, plugin.settings, folder], modal => modal.service.ollama],
+    ]) {
+        const modal = new (load(`src/ui/${file}-modal.ts`)[cls])(...args);
+        assert.equal(access(modal).constructor.name, 'OpenAICompatibleService', file);
+    }
+    plugin.tab.activeTab = 'connection'; plugin.tab.render();
+    const key = plugin.tab.containerEl.settings.find(setting => setting.name === 'API key').controls[0];
+    assert.equal(key.inputEl.type, 'password');
+    await plugin.tab.setSharedModel('example/model:quant');
+    for (const name of ['summarizerModel', 'wisdomModel', 'ratingModel', 'categorizerModel', 'generalizerModel']) assert.equal(plugin.settings[name], 'example/model:quant');
 });

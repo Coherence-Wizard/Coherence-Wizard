@@ -1,7 +1,9 @@
-export interface CoherenceSettings {
+import { AIConnectionSettings } from './modules/ai-service';
+
+export interface CoherenceSettings extends AIConnectionSettings {
     // General
-    ollamaUrl: string;
     recursiveDefaultsVersion: number;
+    summaryDefaultsVersion: number;
 
     // Atomizer
     atomizerDivider: string;

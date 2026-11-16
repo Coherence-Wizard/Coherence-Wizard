@@ -1,8 +1,8 @@
 import { TFile, TFolder, Vault, parseYaml, stringifyYaml, normalizePath } from 'obsidian';
-import { OllamaService } from './ollama';
+import { AIService } from './ai-service';
 
 export class WisdomService {
-    constructor(private vault: Vault, private ollama: OllamaService) { }
+    constructor(private vault: Vault, private ollama: AIService) { }
 
     private async getUniquePath(folder: string, name: string): Promise<string> {
         const base = normalizePath(`${folder}/${name}.md`);

@@ -1,11 +1,11 @@
 import { App, TFile, TFolder, normalizePath } from 'obsidian';
-import { OllamaService } from './ollama';
+import { AIService, createAIService, AIConnectionSettings } from './ai-service';
 
 export class GeneralizerService {
-    private ollama: OllamaService;
+    private ollama: AIService;
 
-    constructor(private app: App, settings: { ollamaUrl: string }) {
-        this.ollama = new OllamaService(settings.ollamaUrl);
+    constructor(private app: App, settings: AIConnectionSettings) {
+        this.ollama = createAIService(settings);
     }
 
     async processFile(

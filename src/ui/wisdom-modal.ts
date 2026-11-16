@@ -1,11 +1,11 @@
 import { App, Modal, Setting, Notice, TFile, TFolder } from 'obsidian';
 import { WisdomService } from '../modules/wisdom';
-import { OllamaService } from '../modules/ollama';
+import { AIService, createAIService } from '../modules/ai-service';
 import { CoherenceSettings } from '../types';
 
 export class WisdomModal extends Modal {
     service: WisdomService;
-    ollama: OllamaService;
+    ollama: AIService;
     target: TFile | TFolder | null = null;
 
     // Settings
@@ -18,7 +18,7 @@ export class WisdomModal extends Modal {
 
     constructor(app: App, settings: CoherenceSettings, target?: TFile | TFolder) {
         super(app);
-        this.ollama = new OllamaService(settings.ollamaUrl);
+        this.ollama = createAIService(settings);
         this.service = new WisdomService(app.vault, this.ollama);
         this.target = target ?? this.app.workspace.getActiveFile();
 
@@ -59,7 +59,7 @@ export class WisdomModal extends Modal {
 
         // Model Selection
         new Setting(contentEl)
-            .setName('Ollama model')
+            .setName('Model')
             .addDropdown(drop => {
                 this.models.forEach(m => {drop.addOption(m, m)});
                 drop.setValue(this.selectedModel);

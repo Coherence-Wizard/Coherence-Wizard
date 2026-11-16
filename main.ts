@@ -19,7 +19,7 @@ import { CategorizeHubModal } from './src/ui/categorize-hub-modal';
 import { DistillModal } from './src/ui/distill-modal';
 import { ChronoMergeModal } from './src/ui/chrono-merge-modal';
 import { YamlTemplateModal } from './src/ui/yaml-template-modal';
-import { OllamaService } from './src/modules/ollama';
+import { createAIService } from './src/modules/ai-service';
 
 
 import { CoherenceSettings } from './src/types';
@@ -28,6 +28,10 @@ export type { CoherenceSettings } from './src/types';
 const DEFAULT_SETTINGS: CoherenceSettings = {
     // General
     ollamaUrl: 'http://localhost:11434',
+    aiProvider: 'ollama',
+    openaiBaseUrl: 'http://127.0.0.1:8888/v1',
+    openaiApiKey: '',
+    summaryDefaultsVersion: 1,
 
     recursiveDefaultsVersion: 1,
 
@@ -38,7 +42,7 @@ const DEFAULT_SETTINGS: CoherenceSettings = {
 
     // Summarizer
     summarizerModel: 'llama3',
-    summarizerMode: 'multi-stage',
+    summarizerMode: 'one-shot',
     summarizerOneShotPrompt: ONE_SHOT_SUMMARY_PROMPT,
     summarizerRecursive: false,
     summarizerOverwrite: false,
@@ -195,6 +199,11 @@ export default class CoherencePlugin extends Plugin {
             callback: () => { void this.showSummarizationProgress().catch(error => new Notice(String(error))); },
         });
 
+        this.app.workspace.onLayoutReady(() => {
+            if (this.app.workspace.getLeavesOfType(VIEW_TYPE_SUMMARIZATION).length) {
+                void this.showSummarizationProgress().catch(error => console.error('Could not restore progress pane', error));
+            }
+        });
         this.addSettingTab(new CoherenceSettingTab(this.app, this));
 
 
@@ -375,12 +384,15 @@ export default class CoherencePlugin extends Plugin {
 
     async showSummarizationProgress(): Promise<void> {
         const workspace = this.app.workspace;
-        let leaf = workspace.getLeavesOfType(VIEW_TYPE_SUMMARIZATION)[0];
+        const existing = workspace.getLeavesOfType(VIEW_TYPE_SUMMARIZATION);
+        let leaf = existing.find(item => item.getRoot() === workspace.rightSplit);
         if (!leaf) {
-            leaf = workspace.getLeftLeaf(false);
-            if (!leaf) throw new Error('Could not open the left sidebar.');
+            leaf = workspace.getRightLeaf(false);
+            if (!leaf) throw new Error('Could not open the right sidebar.');
             await leaf.setViewState({ type: VIEW_TYPE_SUMMARIZATION, active: false });
         }
+        // Replace old left-side/restored progress views without stopping the plugin-owned job.
+        for (const previous of existing) if (previous !== leaf) previous.detach();
         await workspace.revealLeaf(leaf);
     }
 
@@ -427,6 +439,11 @@ export default class CoherencePlugin extends Plugin {
         const data = (await this.loadData()) as unknown;
         const partial = (typeof data === 'object' && data !== null) ? (data as Partial<CoherenceSettings>) : {};
         this.settings = { ...DEFAULT_SETTINGS, ...partial };
+        if ((partial.summaryDefaultsVersion ?? 0) < 1) {
+            this.settings.summarizerMode = 'one-shot';
+            this.settings.summaryDefaultsVersion = 1;
+            await this.saveSettings();
+        }
         // Reset older saved defaults once; later opt-ins survive reloads.
         if ((partial.recursiveDefaultsVersion ?? 0) < 1) {
             for (const key of Object.keys(DEFAULT_SETTINGS)) {
@@ -452,6 +469,7 @@ class CoherenceSettingTab extends PluginSettingTab {
     plugin: CoherencePlugin;
     activeTab = 'about';
     ollamaModels: string[] = [];
+    modelError = '';
 
     constructor(app: App, plugin: CoherencePlugin) {
         super(app, plugin);
@@ -460,22 +478,16 @@ class CoherenceSettingTab extends PluginSettingTab {
 
     async fetchModels() {
         try {
-            const ollama = new OllamaService(this.plugin.settings.ollamaUrl);
-            this.ollamaModels = await ollama.listModels();
-            if (this.ollamaModels.length === 0) {
-                this.ollamaModels = ['llama3', 'mistral', 'gemma']; // Fallback
-            }
-        } catch (e) {
-            console.error('Failed to fetch models', e);
-            this.ollamaModels = ['llama3', 'mistral', 'gemma']; // Fallback
+            this.ollamaModels = await createAIService(this.plugin.settings).listModels();
+            this.modelError = this.ollamaModels.length ? '' : 'No models returned. Enter the exact model ID or check your server.';
+        } catch (error) {
+            this.ollamaModels = [];
+            this.modelError = error instanceof Error ? error.message : String(error);
         }
     }
 
     display(): void {
-        void (async () => {
-            await this.fetchModels();
-            this.render();
-        })();
+        this.render();
     }
 
     render() {
@@ -490,6 +502,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
         const tabs = [
             { id: 'about', name: 'About' },
+            { id: 'connection', name: 'AI connection' },
             { id: 'contextmenu', name: 'Context Menu' },
             { id: 'datefix', name: 'Date Fix' },
             { id: 'merge', name: 'Merge' },
@@ -519,6 +532,8 @@ class CoherenceSettingTab extends PluginSettingTab {
             if (this.activeTab === 'about') {
                 this.renderAboutSettings(containerEl);
 
+            } else if (this.activeTab === 'connection') {
+                this.renderConnectionSettings(containerEl);
             } else if (this.activeTab === 'rating') {
                 this.renderRatingSettings(containerEl);
             } else if (this.activeTab === 'contextmenu') {
@@ -555,29 +570,18 @@ class CoherenceSettingTab extends PluginSettingTab {
         containerEl.createEl('p', { text: 'The intention is to streamline coherence by using tools to convert chaos into order.' });
         containerEl.createEl('p',).appendText('The included tools have significantly enhanced my PKM workflows and I want to help others passionate about self-development using Obsidian.')
 
-        containerEl.createEl('p',).appendText('Many of these tools rely on private local AI via Ollama. (Future iterations of this plugin will allow for the use of large cloud AI via API). This is a privacy first plugin.');
+        containerEl.createEl('p',).appendText('AI tools use the provider selected in the AI connection tab: Ollama, Unsloth, or an OpenAI-compatible server. Note content is sent to that server. Local processing requires a local endpoint and local model.');
 
         const warning = containerEl.createEl('p');
         warning.createEl('strong').appendText('Many people without GPUs or large CPUs will struggle to use local models large enough to generate quality output. Without GPU, local AI models will be slow and potentially laggy. So use this beta plugin at your own risk. I recommend testing on a test vault or a test folder to see how all the tools work.');
 
-        containerEl.createEl('p',).appendText('You will need to install Ollama on your computer and pull your favorite local AI models. I recommend gemma3:12b-it-qat if your computer can handle it. Otherwise gemma3:4b-it-qat for constrained resources.')
+        containerEl.createEl('p',).appendText('For local AI, start Ollama or Unsloth and select an installed model. You can also configure another OpenAI-compatible endpoint. Model availability and authentication depend on your server.')
 
         containerEl.createEl('a', { href: 'https://www.buymeacoffee.com/rastovich', text: 'Support development' });
 
         new Setting(containerEl).setName('Configuration').setHeading();
 
-        const placeholder = 'http://localhost:11434'
-
-        new Setting(containerEl)
-            .setName('Ollama URL')
-            .setDesc('Ollama server URL. Note content and prompts are sent to this server; use localhost to keep processing on your computer.')
-            .addText(text => text
-                .setPlaceholder(placeholder)
-                .setValue(this.plugin.settings.ollamaUrl)
-                .onChange(async (value) => {
-                    this.plugin.settings.ollamaUrl = value;
-                    await this.plugin.saveSettings();
-                }));
+        containerEl.createEl('p', { text: 'Set your provider, endpoint, API key, and model in the AI connection tab.' });
 
         containerEl.createEl('p', { text: 'Next go through each of the settings tabs to review settings.' });
 
@@ -602,6 +606,83 @@ class CoherenceSettingTab extends PluginSettingTab {
         containerEl.createEl('p', { text: 'If this tool saves you just one hour of time per month, please consider donating or subscribing!' });
     }
 
+    renderConnectionSettings(containerEl: HTMLElement) {
+        new Setting(containerEl).setName('AI connection').setHeading();
+        containerEl.createEl('p', { text: 'This connection is used by all AI tools. Notes and prompts go to the selected server. Individual feature tabs can override the shared model selection.' });
+        new Setting(containerEl)
+            .setName('Provider')
+            .addDropdown(drop => drop
+                .addOption('ollama', 'Ollama')
+                .addOption('unsloth', 'Unsloth · OpenAI compatible')
+                .addOption('openai-compatible', 'OpenAI compatible')
+                .setValue(this.plugin.settings.aiProvider)
+                .onChange(async value => {
+                    this.plugin.settings.aiProvider = value as CoherenceSettings['aiProvider'];
+                    this.ollamaModels = [];
+                    this.modelError = '';
+                    await this.plugin.saveSettings();
+                    this.render();
+                }));
+        if (this.plugin.settings.aiProvider === 'ollama') {
+            new Setting(containerEl).setName('Ollama URL')
+                .setDesc('Server address for Ollama. The default uses port 11434.')
+                .addText(text => text.setValue(this.plugin.settings.ollamaUrl).onChange(async value => {
+                    this.plugin.settings.ollamaUrl = value.trim();
+                    this.ollamaModels = [];
+                    await this.plugin.saveSettings();
+                }));
+        } else {
+            new Setting(containerEl).setName('API base URL')
+                .setDesc('Include the API prefix, ending in /v1 for Unsloth. Use the server URL, not a chat page URL.')
+                .addText(text => text.setValue(this.plugin.settings.openaiBaseUrl).onChange(async value => {
+                    this.plugin.settings.openaiBaseUrl = value.trim();
+                    this.ollamaModels = [];
+                    await this.plugin.saveSettings();
+                }));
+            new Setting(containerEl).setName('API key')
+                .setDesc('Sent as a bearer token. Leave blank only if your server allows it. Saved locally in plugin settings; do not share data.json.')
+                .addText(text => {
+                    text.inputEl.type = 'password';
+                    text.setValue(this.plugin.settings.openaiApiKey).onChange(async value => {
+                        this.plugin.settings.openaiApiKey = value.trim();
+                        this.ollamaModels = [];
+                        await this.plugin.saveSettings();
+                    });
+                });
+            containerEl.createEl('p', { text: this.plugin.settings.aiProvider === 'unsloth'
+                ? 'Unsloth supports automatic model unloading after AI summarization or stop. An API key with model access is required. If the server refuses to unload a model that is in use elsewhere, the sidebar reports it.'
+                : 'OpenAI-compatible APIs do not define a model-unload operation. Stop cancels the request; the server manages model memory. Choose the Unsloth preset when using Unsloth to enable its unload operation.' });
+        }
+        new Setting(containerEl).setName('Refresh models')
+            .setDesc('Fetch available model IDs from the configured server.')
+            .addButton(button => button.setButtonText('Refresh models').onClick(async () => {
+                button.setDisabled(true);
+                await this.fetchModels();
+                this.render();
+            }));
+        if (this.modelError) containerEl.createEl('p', { text: this.modelError, cls: 'coherence-text-error' });
+        if (this.ollamaModels.length) {
+            new Setting(containerEl).setName('Available models')
+                .setDesc('Selecting a model sets it for all AI tools. You can change individual tools afterward.')
+                .addDropdown(drop => {
+                    drop.addOption('', 'Select a model');
+                    this.ollamaModels.forEach(model => { drop.addOption(model, model); });
+                    drop.setValue(this.ollamaModels.includes(this.plugin.settings.summarizerModel) ? this.plugin.settings.summarizerModel : '');
+                    drop.onChange(async value => { if (value) { await this.setSharedModel(value); this.render(); } });
+                });
+        }
+        new Setting(containerEl).setName('Model ID')
+            .setDesc('Exact model ID from your server. Sets the model for every AI tool, including summarization. You can enter an ID even when model listing is unavailable.')
+            .addText(text => text.setValue(this.plugin.settings.summarizerModel).onChange(value => this.setSharedModel(value.trim())));
+    }
+
+    async setSharedModel(value: string): Promise<void> {
+        for (const key of ['summarizerModel', 'categorizerModel', 'ratingModel', 'generalizerModel', 'wisdomModel'] as const) {
+            this.plugin.settings[key] = value;
+        }
+        await this.plugin.saveSettings();
+    }
+
     renderContextMenuSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('Context menu').setHeading();
         containerEl.createEl('p', { text: 'Choose the tools shown inside the Coherence Wizard submenu when you right-click a note, folder, or editor. Turning a tool off here does not remove its command-palette command.' });
@@ -611,11 +692,11 @@ class CoherenceSettingTab extends PluginSettingTab {
             { key: 'contextMenuMerge', name: 'Merge', description: 'Open chronological merging, file combining, or duplicate detection. Available for files and folders.' },
             { key: 'contextMenuAtomize', name: 'Atomize', description: 'Split Markdown notes into smaller notes. Available for files and folders.' },
             { key: 'contextMenuYamlTemplate', name: 'YAML template', description: 'Apply frontmatter fields and ordering. Available for files and folders.' },
-            { key: 'contextMenuSummarize', name: 'Summarize', description: 'Generate summaries using Ollama. Available for files and folders.' },
-            { key: 'contextMenuCategorize', name: 'Categorize', description: 'Assign dictionary categories or rate notes using Ollama. Available for files and folders.' },
+            { key: 'contextMenuSummarize', name: 'Summarize', description: 'Generate summaries using the selected AI provider. Available for files and folders.' },
+            { key: 'contextMenuCategorize', name: 'Categorize', description: 'Assign dictionary categories or rate notes using the selected AI provider. Available for files and folders.' },
             { key: 'contextMenuParseAndMove', name: 'Parse and copy', description: 'Copy matching content into category folders. Available for files and folders.' },
             { key: 'contextMenuCensor', name: 'Censor / alias', description: 'Replace dictionary terms with aliases or masking characters, without AI. Available for files and folders.' },
-            { key: 'contextMenuDistill', name: 'Distill', description: 'Rewrite personal text or extract wisdom with Ollama. Available for files and folders.' },
+            { key: 'contextMenuDistill', name: 'Distill', description: 'Rewrite personal text or extract wisdom with the selected AI provider. Available for files and folders.' },
             { key: 'contextMenuRating', name: 'Rating', description: 'Write AI-generated ratings to frontmatter. Available for files and folders.' },
         ];
         for (const feature of features) {
@@ -658,10 +739,10 @@ class CoherenceSettingTab extends PluginSettingTab {
 
     renderSummarizerSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('Summarizer').setHeading();
-        containerEl.createEl('p', { text: "Uses Ollama to write summaries to note frontmatter. Runs in the background with progress and stop controls in the left sidebar. Notes edited during generation are left unchanged. Choose a single concise pass or your existing sequence of prompts." });
+        containerEl.createEl('p', { text: "Writes summaries to note frontmatter using the selected AI provider. After removing Markdown formatting, tags, and backlinks, bodies of 50 words or fewer are copied directly without AI. Runs in the background with progress and stop controls in the right sidebar. Notes edited during generation are left unchanged. Choose a single concise pass or your existing sequence of prompts." });
         new Setting(containerEl)
             .setName('Default model')
-            .setDesc('Ollama model to use for summarization')
+            .setDesc('Model to use for summarization')
             .addDropdown(drop => {
                 this.ollamaModels.forEach(model => { drop.addOption(model, model); });
                 if (!this.ollamaModels.includes(this.plugin.settings.summarizerModel)) {
@@ -966,10 +1047,10 @@ class CoherenceSettingTab extends PluginSettingTab {
     }
     renderRatingSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('Automatic rating').setHeading();
-        containerEl.createEl('p', { text: "Uses Ollama to assess notes against your comma-separated criteria and writes the resulting rating to frontmatter. Choose criteria such as clarity or usefulness; these scores are subjective AI judgments." });
+        containerEl.createEl('p', { text: "Uses the selected AI provider to assess notes against your comma-separated criteria and writes the resulting rating to frontmatter. Choose criteria such as clarity or usefulness; these scores are subjective AI judgments." });
         new Setting(containerEl)
             .setName('Default model')
-            .setDesc('Ollama model to use for rating')
+            .setDesc('Model to use for rating')
             .addDropdown(drop => {
                 this.ollamaModels.forEach(model => { drop.addOption(model, model) });
                 if (!this.ollamaModels.includes(this.plugin.settings.ratingModel)) {
@@ -1068,10 +1149,10 @@ class CoherenceSettingTab extends PluginSettingTab {
 
     renderCategorizerSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('Categorizer').setHeading();
-        containerEl.createEl('p', { text: "Uses Ollama and the selected dictionary to choose categories for each note. Categories can become YAML tags, appended backlinks, or destination folders. Review move and copy options in the dialog because they can change where notes are stored." });
+        containerEl.createEl('p', { text: "Uses the selected AI provider and the selected dictionary to choose categories for each note. Categories can become YAML tags, appended backlinks, or destination folders. Review move and copy options in the dialog because they can change where notes are stored." });
         new Setting(containerEl)
             .setName('Categorizer model')
-            .setDesc('The Ollama model to use for categorization')
+            .setDesc('The model to use for categorization')
             .addDropdown(drop => {
                 this.ollamaModels.forEach(model => { drop.addOption(model, model) });
                 if (!this.ollamaModels.includes(this.plugin.settings.categorizerModel)) {
@@ -1401,12 +1482,12 @@ class CoherenceSettingTab extends PluginSettingTab {
 
     renderDistillSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('Distill').setHeading();
-        containerEl.createEl('p', { text: 'Use Ollama to rewrite personal notes as general insights. Generalize creates revised copies using your prompts; wisdom extraction offers an AI rewrite or a copy-only mode. Censor / alias has its own tab for dictionary-based replacements.' });
+        containerEl.createEl('p', { text: 'Use the selected AI provider to rewrite personal notes as general insights. Generalize creates revised copies using your prompts; wisdom extraction offers an AI rewrite or a copy-only mode. Censor / alias has its own tab for dictionary-based replacements.' });
         new Setting(containerEl).setName('Rewrite personal text').setHeading();
         this.renderRecursiveSetting(containerEl, 'generalizerRecursive');
         new Setting(containerEl)
             .setName('Model')
-            .setDesc('Ollama model to use')
+            .setDesc('Model to use')
             .addDropdown(drop => {
                 this.ollamaModels.forEach(model => { drop.addOption(model, model) });
                 if (!this.ollamaModels.includes(this.plugin.settings.generalizerModel)) {
@@ -1451,7 +1532,7 @@ class CoherenceSettingTab extends PluginSettingTab {
         this.renderRecursiveSetting(containerEl, 'wisdomRecursive');
         new Setting(containerEl)
             .setName('Default model')
-            .setDesc('Ollama model to use for wisdom extraction')
+            .setDesc('Model to use for wisdom extraction')
             .addDropdown(drop => {
                 this.ollamaModels.forEach(model => { drop.addOption(model, model) });
                 if (!this.ollamaModels.includes(this.plugin.settings.wisdomModel)) {

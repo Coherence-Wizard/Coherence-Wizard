@@ -56,6 +56,6 @@ export class SummarizationView extends ItemView {
                 .setDisabled(state.status === 'stopping')
                 .onClick(() => this.job.stop()));
         }
-        contentEl.createEl('p', { text: 'Stop cancels the batch and unloads its model. The model also unloads automatically after completion. Completed summaries are kept. Closing this pane leaves the job running; the command palette can reopen it.', cls: 'setting-item-description' });
+        contentEl.createEl('p', { text: 'Stop cancels the batch. Ollama and Unsloth models unload automatically after an AI batch stops or finishes; other servers manage their own model memory. Completed summaries are kept. Closing this pane leaves the job running; the command palette can reopen it.', cls: 'setting-item-description' });
     }
 }

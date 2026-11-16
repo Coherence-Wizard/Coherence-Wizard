@@ -1,5 +1,5 @@
 import { App, TFile, TFolder, normalizePath, Notice } from 'obsidian';
-import { OllamaService } from './ollama';
+import { AIService } from './ai-service';
 
 export interface CategorizerOptions {
     model: string;
@@ -12,7 +12,7 @@ export interface CategorizerOptions {
 }
 
 export class CategorizerService {
-    constructor(private app: App, private ollama: OllamaService) { }
+    constructor(private app: App, private ollama: AIService) { }
 
     async categorizeFile(file: TFile, options: CategorizerOptions): Promise<string[]> {
         try {

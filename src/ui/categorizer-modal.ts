@@ -1,6 +1,6 @@
 import { App, Modal, Setting, Notice, TFile, DropdownComponent, TFolder } from 'obsidian';
 import { CategorizerService, CategorizerOptions } from '../modules/categorizer';
-import { OllamaService } from '../modules/ollama';
+import { createAIService } from '../modules/ai-service';
 import { CoherenceSettings } from '../../main';
 
 export class CategorizerModal extends Modal {
@@ -22,7 +22,7 @@ export class CategorizerModal extends Modal {
     constructor(app: App, settings: CoherenceSettings, target?: unknown) {
         super(app);
         this.settings = settings;
-        const ollama = new OllamaService(settings.ollamaUrl);
+        const ollama = createAIService(settings);
         this.service = new CategorizerService(app, ollama);
         this.target = target;
 
@@ -42,14 +42,14 @@ export class CategorizerModal extends Modal {
 
     async fetchModels() {
         try {
-            const ollama = new OllamaService(this.settings.ollamaUrl);
+            const ollama = createAIService(this.settings);
             this.ollamaModels = await ollama.listModels();
             if (this.ollamaModels.length === 0) {
-                this.ollamaModels = ['llama3', 'mistral', 'gemma'];
+                this.ollamaModels = [];
             }
         } catch {
             new Notice('Failed to fetch models');
-            this.ollamaModels = ['llama3', 'mistral', 'gemma'];
+            this.ollamaModels = [];
         }
     }
 
