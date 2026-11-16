@@ -39,6 +39,11 @@ export class OpenAICompatibleService {
                             error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' ? error.message :
                                 typeof data.detail === 'string' ? data.detail : 'Check the provider, base URL, API key, and model ID.';
                         if (this.apiKey.trim()) detail = detail.split(this.apiKey.trim()).join('[redacted]');
+                        if (response.statusCode === 401) {
+                            detail = this.unsloth
+                                ? 'Authentication required. Create an API key in Unsloth, enable model access, paste it into AI connection → API key, then refresh models. A placeholder key will not work.'
+                                : 'Authentication failed. Enter a valid API key for this server, then refresh models.';
+                        }
                         reject(new Error(`API error (HTTP ${response.statusCode}): ${detail}`));
                     } else resolve(data);
                 });

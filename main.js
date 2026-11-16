@@ -674,6 +674,9 @@ var OpenAICompatibleService = class {
             const error = data.error;
             let detail = typeof error === "string" ? error : error && typeof error === "object" && "message" in error && typeof error.message === "string" ? error.message : typeof data.detail === "string" ? data.detail : "Check the provider, base URL, API key, and model ID.";
             if (this.apiKey.trim()) detail = detail.split(this.apiKey.trim()).join("[redacted]");
+            if (response.statusCode === 401) {
+              detail = this.unsloth ? "Authentication required. Create an API key in Unsloth, enable model access, paste it into AI connection \u2192 API key, then refresh models. A placeholder key will not work." : "Authentication failed. Enter a valid API key for this server, then refresh models.";
+            }
             reject(new Error(`API error (HTTP ${response.statusCode}): ${detail}`));
           } else resolve(data);
         });
@@ -4324,9 +4327,10 @@ var CoherenceSettingTab = class extends import_obsidian34.PluginSettingTab {
       this.render();
     }));
     if (this.modelError) containerEl.createEl("p", { text: this.modelError, cls: "coherence-text-error" });
-    if (this.ollamaModels.length) {
+    {
       new import_obsidian34.Setting(containerEl).setName("Available models").setDesc("Selecting a model sets it for all AI tools. You can change individual tools afterward.").addDropdown((drop) => {
-        drop.addOption("", "Select a model");
+        drop.addOption("", this.ollamaModels.length ? "Select a model" : "Refresh models to load available models");
+        drop.setDisabled(!this.ollamaModels.length);
         this.ollamaModels.forEach((model) => {
           drop.addOption(model, model);
         });

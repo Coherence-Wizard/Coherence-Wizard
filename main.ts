@@ -661,11 +661,12 @@ class CoherenceSettingTab extends PluginSettingTab {
                 this.render();
             }));
         if (this.modelError) containerEl.createEl('p', { text: this.modelError, cls: 'coherence-text-error' });
-        if (this.ollamaModels.length) {
+        {
             new Setting(containerEl).setName('Available models')
                 .setDesc('Selecting a model sets it for all AI tools. You can change individual tools afterward.')
                 .addDropdown(drop => {
-                    drop.addOption('', 'Select a model');
+                    drop.addOption('', this.ollamaModels.length ? 'Select a model' : 'Refresh models to load available models');
+                    drop.setDisabled(!this.ollamaModels.length);
                     this.ollamaModels.forEach(model => { drop.addOption(model, model); });
                     drop.setValue(this.ollamaModels.includes(this.plugin.settings.summarizerModel) ? this.plugin.settings.summarizerModel : '');
                     drop.onChange(async value => { if (value) { await this.setSharedModel(value); this.render(); } });

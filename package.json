@@ -1,6 +1,6 @@
 {
   "name": "coherence-wizard",
-  "version": "0.0.39",
+  "version": "0.0.40",
   "description": "Coherence Plugin for Obsidian",
   "main": "main.js",
   "scripts": {
