@@ -79,6 +79,12 @@ export class OpenAICompatibleService {
         for (const key of ['temperature', 'top_p', 'stop', 'seed', 'frequency_penalty', 'presence_penalty']) {
             if (options[key] !== undefined) body[key] = options[key];
         }
+        // Only add a vendor extension when the caller explicitly requests no thinking.
+        // Turning the preference off leaves each server/model's default untouched.
+        if (options.think === false) {
+            if (this.unsloth) body.enable_thinking = false;
+            else body.chat_template_kwargs = { enable_thinking: false };
+        }
         if (typeof options.num_predict === 'number') body.max_tokens = options.num_predict;
         if (typeof format === 'object') body.response_format = { type: 'json_schema', json_schema: { name: 'result', strict: true, schema: format } };
         else if (format === 'json') body.response_format = { type: 'json_object' };

@@ -10,6 +10,7 @@ export interface SummarizationRequest extends AIConnectionSettings {
     prompts: string[];
     generateTitle: boolean;
     oneShot: boolean;
+    disableThinking: boolean;
     maxChars: number;
     includeYaml: boolean;
 }
@@ -99,7 +100,7 @@ export class SummarizationJob {
                 try {
                     const saved = await service.summarizeFile(file, request.model, request.overwrite, request.prompts, request.generateTitle, {
                         onModelUse: () => { this.modelUsed = true; },
-                        signal, oneShot: request.oneShot, maxChars: request.maxChars, includeYaml: request.includeYaml,
+                        signal, disableThinking: request.disableThinking, oneShot: request.oneShot, maxChars: request.maxChars, includeYaml: request.includeYaml,
                         onStage: stage => { this.state.stage = stage; this.notify(); },
                     });
                     if (saved) this.state.saved++;

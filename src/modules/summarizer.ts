@@ -13,6 +13,7 @@ export interface SummaryOptions {
     signal?: AbortSignal;
     onModelUse?: () => void;
     oneShot?: boolean;
+    disableThinking?: boolean;
     maxChars?: number;
     includeYaml?: boolean;
     onStage?: (stage: string) => void;
@@ -81,6 +82,7 @@ export class SummarizerService {
 
         const maxChars = Math.max(1, options.maxChars || 50000);
         const input = (options.includeYaml ? content : body).slice(0, maxChars);
+        const generationOptions = options.disableThinking ? { think: false } : undefined;
         const activePrompts = options.oneShot ? [prompts[0]?.trim() || ONE_SHOT_SUMMARY_PROMPT] : prompts.filter(prompt => prompt.trim());
         if (!activePrompts.length) activePrompts.push(ONE_SHOT_SUMMARY_PROMPT);
         let summary = useBody ? plainBody : input;
@@ -94,7 +96,7 @@ export class SummarizerService {
             if (!/\{(?:text|summary)\}/.test(template)) prompt += `\n\n${summary}`;
             if (!model.trim()) throw new Error('Choose a model in AI connection settings to summarize notes longer than 50 words.');
             options.onModelUse?.();
-            summary = await this.ollama.generate(model, prompt, undefined, signal);
+            summary = await this.ollama.generate(model, prompt, generationOptions, signal);
             checkCancelled(signal);
         }
         summary = options.oneShot && !useBody ? cleanShortSummary(summary) : summary.trim();
@@ -105,7 +107,7 @@ export class SummarizerService {
         if (!useBody && generateTitle && !options.oneShot && (/untitled/i.test(file.basename) || !/[a-zA-Z]/.test(file.basename))) {
             options.onStage?.('Generating title');
             try {
-                title = await this.ollama.generate(model, `Output exactly one 3-12-word title (no digits, punctuation, list markers). Return only the title.\n\nAbstract:\n${summary}`, undefined, signal);
+                title = await this.ollama.generate(model, `Output exactly one 3-12-word title (no digits, punctuation, list markers). Return only the title.\n\nAbstract:\n${summary}`, generationOptions, signal);
                 title = title.replace(/[.@#%$&/\\<>[\]():*?"|\n\r]/g, ' ').replace(/\s+/g, ' ').trim();
             } catch {
                 checkCancelled(signal);

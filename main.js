@@ -436,6 +436,7 @@ var SummarizerService = class {
     if (useBody) (_a = options.onStage) == null ? void 0 : _a.call(options, "Copying the short note body");
     const maxChars = Math.max(1, options.maxChars || 5e4);
     const input = (options.includeYaml ? content : body).slice(0, maxChars);
+    const generationOptions = options.disableThinking ? { think: false } : void 0;
     const activePrompts = options.oneShot ? [((_b = prompts[0]) == null ? void 0 : _b.trim()) || ONE_SHOT_SUMMARY_PROMPT] : prompts.filter((prompt) => prompt.trim());
     if (!activePrompts.length) activePrompts.push(ONE_SHOT_SUMMARY_PROMPT);
     let summary = useBody ? plainBody : input;
@@ -451,7 +452,7 @@ var SummarizerService = class {
 ${summary}`;
       if (!model.trim()) throw new Error("Choose a model in AI connection settings to summarize notes longer than 50 words.");
       (_d = options.onModelUse) == null ? void 0 : _d.call(options);
-      summary = await this.ollama.generate(model, prompt, void 0, signal);
+      summary = await this.ollama.generate(model, prompt, generationOptions, signal);
       checkCancelled(signal);
     }
     summary = options.oneShot && !useBody ? cleanShortSummary(summary) : summary.trim();
@@ -463,7 +464,7 @@ ${summary}`;
         title = await this.ollama.generate(model, `Output exactly one 3-12-word title (no digits, punctuation, list markers). Return only the title.
 
 Abstract:
-${summary}`, void 0, signal);
+${summary}`, generationOptions, signal);
         title = title.replace(/[.@#%$&/\\<>[\]():*?"|\n\r]/g, " ").replace(/\s+/g, " ").trim();
       } catch (e) {
         checkCancelled(signal);
@@ -710,6 +711,10 @@ var OpenAICompatibleService = class {
     for (const key of ["temperature", "top_p", "stop", "seed", "frequency_penalty", "presence_penalty"]) {
       if (options[key] !== void 0) body[key] = options[key];
     }
+    if (options.think === false) {
+      if (this.unsloth) body.enable_thinking = false;
+      else body.chat_template_kwargs = { enable_thinking: false };
+    }
     if (typeof options.num_predict === "number") body.max_tokens = options.num_predict;
     if (typeof format === "object") body.response_format = { type: "json_schema", json_schema: { name: "result", strict: true, schema: format } };
     else if (format === "json") body.response_format = { type: "json_object" };
@@ -743,6 +748,7 @@ var SummarizerModal = class extends import_obsidian5.Modal {
     this.ollama = createAIService(settings);
     this.connection = { aiProvider: settings.aiProvider, ollamaUrl: settings.ollamaUrl, openaiBaseUrl: settings.openaiBaseUrl, openaiApiKey: settings.openaiApiKey };
     this.mode = settings.summarizerMode;
+    this.disableThinking = settings.summarizerDisableThinking;
     this.oneShotPrompt = settings.summarizerOneShotPrompt || ONE_SHOT_SUMMARY_PROMPT;
     this.saveSettings = saveSettings;
     this.target = target || null;
@@ -805,6 +811,7 @@ var SummarizerModal = class extends import_obsidian5.Modal {
       this.mode = value;
       this.display();
     }));
+    new import_obsidian5.Setting(contentEl).setName("Disable thinking").setDesc("Request faster summaries without reasoning, when supported by the model and server. Applies to this batch, including multi-stage prompts and optional titles. Turn off to use the server default. Compatible servers must support the enable_thinking chat-template option.").addToggle((toggle) => toggle.setValue(this.disableThinking).onChange((value) => this.disableThinking = value));
     new import_obsidian5.Setting(contentEl).setName("Recursive").setDesc("Process subfolders (if target is folder)").addToggle((toggle) => toggle.setValue(this.recursive).onChange((value) => this.recursive = value));
     new import_obsidian5.Setting(contentEl).setName("Overwrite existing").setDesc("Re-summarize files that already have a summary").addToggle((toggle) => toggle.setValue(this.overwrite).onChange((value) => this.overwrite = value));
     new import_obsidian5.Setting(contentEl).setName("Generate title for untitled").setDesc(this.mode === "one-shot" ? "One-shot keeps filenames unchanged to use exactly one generation request per note." : "Automatically rename untitled files using an additional AI-generated title").addToggle((toggle) => toggle.setValue(this.mode === "one-shot" ? false : this.generateTitle).setDisabled(this.mode === "one-shot").onChange((value) => this.generateTitle = value));
@@ -839,7 +846,8 @@ var SummarizerModal = class extends import_obsidian5.Modal {
           generateTitle: this.generateTitle,
           oneShot: this.mode === "one-shot",
           maxChars: this.maxChars,
-          includeYaml: this.includeYaml
+          includeYaml: this.includeYaml,
+          disableThinking: this.disableThinking
         });
         if (started) this.close();
       } catch (error) {
@@ -949,6 +957,7 @@ var SummarizationJob = class {
               this.modelUsed = true;
             },
             signal,
+            disableThinking: request.disableThinking,
             oneShot: request.oneShot,
             maxChars: request.maxChars,
             includeYaml: request.includeYaml,
@@ -3807,6 +3816,7 @@ var DEFAULT_SETTINGS = {
   // Summarizer
   summarizerModel: "llama3",
   summarizerMode: "one-shot",
+  summarizerDisableThinking: true,
   summarizerOneShotPrompt: ONE_SHOT_SUMMARY_PROMPT,
   summarizerRecursive: false,
   summarizerOverwrite: false,
@@ -4415,6 +4425,10 @@ var CoherenceSettingTab = class extends import_obsidian34.PluginSettingTab {
     }));
     new import_obsidian34.Setting(containerEl).setName("Default summary mode").setDesc("Choose the default for new runs. You can switch modes in the start dialog without changing your saved multi-stage prompts.").addDropdown((drop) => drop.addOption("multi-stage", "Multi-stage prompts").addOption("one-shot", "One-shot \xB7 50 words or fewer").setValue(this.plugin.settings.summarizerMode).onChange(async (value) => {
       this.plugin.settings.summarizerMode = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian34.Setting(containerEl).setName("Disable thinking").setDesc("On by default for faster summaries. Requests no reasoning from supported Ollama and Unsloth models. Compatible servers use the enable_thinking chat-template option; support varies. Models that require reasoning may still think. Applies to all summary stages and optional titles. Turn off to use the server default, or override for a single batch in the start dialog.").addToggle((toggle) => toggle.setValue(this.plugin.settings.summarizerDisableThinking).onChange(async (value) => {
+      this.plugin.settings.summarizerDisableThinking = value;
       await this.plugin.saveSettings();
     }));
     new import_obsidian34.Setting(containerEl).setName("One-shot prompt").setDesc("A single request per note. The result is cleaned and limited to 50 words; automatic title generation is disabled for this mode. Placeholders: {filename}, {text}. Your multi-stage prompts are preserved below.").addTextArea((text) => text.setValue(this.plugin.settings.summarizerOneShotPrompt).then((control) => control.inputEl.rows = 8).onChange(async (value) => {

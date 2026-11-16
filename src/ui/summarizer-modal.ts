@@ -7,6 +7,7 @@ import { CoherenceSettings } from '../../main';
 export class SummarizerModal extends Modal {
     mode: 'multi-stage' | 'one-shot';
     oneShotPrompt: string;
+    disableThinking: boolean;
     private connection: AIConnectionSettings;
     private modelError = '';
     ollama: AIService;
@@ -39,6 +40,7 @@ export class SummarizerModal extends Modal {
         this.ollama = createAIService(settings);
         this.connection = { aiProvider: settings.aiProvider, ollamaUrl: settings.ollamaUrl, openaiBaseUrl: settings.openaiBaseUrl, openaiApiKey: settings.openaiApiKey };
         this.mode = settings.summarizerMode;
+        this.disableThinking = settings.summarizerDisableThinking;
         this.oneShotPrompt = settings.summarizerOneShotPrompt || ONE_SHOT_SUMMARY_PROMPT;
         this.saveSettings = saveSettings;
         this.target = target || null;
@@ -123,6 +125,11 @@ export class SummarizerModal extends Modal {
                     this.display();
                 }));
 
+        new Setting(contentEl)
+            .setName('Disable thinking')
+            .setDesc('Request faster summaries without reasoning, when supported by the model and server. Applies to this batch, including multi-stage prompts and optional titles. Turn off to use the server default. Compatible servers must support the enable_thinking chat-template option.')
+            .addToggle(toggle => toggle.setValue(this.disableThinking).onChange(value => this.disableThinking = value));
+
         // Options
         new Setting(contentEl)
             .setName('Recursive')
@@ -175,7 +182,7 @@ export class SummarizerModal extends Modal {
                             target, ...this.connection, model: this.selectedModel,
                             recursive: this.recursive, overwrite: this.overwrite, prompts,
                             generateTitle: this.generateTitle, oneShot: this.mode === 'one-shot',
-                            maxChars: this.maxChars, includeYaml: this.includeYaml,
+                            maxChars: this.maxChars, includeYaml: this.includeYaml, disableThinking: this.disableThinking,
                         });
                         if (started) this.close();
                     } catch (error) {

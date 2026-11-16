@@ -261,3 +261,56 @@ test('short-note cleanup handles nested quotes, callouts, link parentheses, tabl
     assert.equal(clean('## Heading ##\n> > [!note] ***Important*** ~~old~~ ==new==\n[Guide](https://example.com/a_(b)) [Reference][ref]\n[ref]: https://example.com\n<https://example.com>'), 'Heading Important old new Guide Reference https://example.com');
     assert.equal(clean('| Item | Value |\n| --- | --- |\n| **A** | `B` |\n#topic [[Note]] ^block'), 'Item Value A B');
 });
+
+test('batch thinking preference reaches every provider request and off restores server defaults', async () => {
+    const requests = [];
+    const server = http.createServer((req, res) => {
+        let text = ''; req.on('data', chunk => text += chunk); req.on('end', () => {
+            const body = JSON.parse(text); requests.push({ url: req.url, body });
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(req.url.endsWith('/unload') ? { status: 'unloaded' }
+                : req.url === '/api/generate' ? { response: 'A short summary.', done: true }
+                    : { choices: [{ message: { content: 'A short summary.' } }] }));
+        });
+    });
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    try {
+        const base = `http://127.0.0.1:${server.address().port}`;
+        for (const aiProvider of ['ollama', 'unsloth', 'openai-compatible']) {
+            for (const disableThinking of [true, false]) {
+                const f = fixture(), file = f.add('Long.md'); requests.length = 0;
+                const job = new (load('summarization-job').SummarizationJob)(f.app);
+                job.start(config(file, { aiProvider, ollamaUrl: base, openaiBaseUrl: base + '/v1', disableThinking }));
+                await job.completion;
+                assert.equal(job.state.errors, 0); assert.equal(job.state.saved, 1);
+                const generation = requests[0].body;
+                assert.equal(summaryOf(f, file), 'A short summary.');
+                if (disableThinking) {
+                    if (aiProvider === 'ollama') assert.equal(generation.think, false);
+                    else if (aiProvider === 'unsloth') {
+                        assert.equal(generation.enable_thinking, false);
+                        assert.equal('think' in generation, false);
+                        assert.equal('chat_template_kwargs' in generation, false);
+                    } else assert.deepEqual(generation.chat_template_kwargs, { enable_thinking: false });
+                } else {
+                    for (const key of ['think', 'enable_thinking', 'chat_template_kwargs']) assert.equal(key in generation, false);
+                }
+                for (const { body } of requests.slice(1)) {
+                    for (const key of ['think', 'enable_thinking', 'chat_template_kwargs']) assert.equal(key in body, false, 'Unload must not inherit generation options');
+                }
+            }
+        }
+    } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
+});
+
+test('disable thinking also covers multi-stage generation and titles without changing short-note bypass', async () => {
+    const f = fixture(), options = [];
+    const service = new (load('summarizer').SummarizerService)(f.app, {
+        generate: async (_model, _prompt, config) => { options.push(config); return 'Clear useful summary'; },
+    });
+    await service.summarizeFile(f.add('Untitled.md'), 'model', false, ['First {text}', 'Next {summary}'], true, { disableThinking: true });
+    assert.equal(options.length, 3);
+    for (const option of options) assert.equal(option.think, false);
+    await service.summarizeFile(f.add('Short.md', 'A short note.'), 'model', false, [], true, { disableThinking: true });
+    assert.equal(options.length, 3);
+});

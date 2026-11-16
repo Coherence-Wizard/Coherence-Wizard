@@ -43,6 +43,7 @@ const DEFAULT_SETTINGS: CoherenceSettings = {
     // Summarizer
     summarizerModel: 'llama3',
     summarizerMode: 'one-shot',
+    summarizerDisableThinking: true,
     summarizerOneShotPrompt: ONE_SHOT_SUMMARY_PROMPT,
     summarizerRecursive: false,
     summarizerOverwrite: false,
@@ -781,6 +782,14 @@ class CoherenceSettingTab extends PluginSettingTab {
                     this.plugin.settings.summarizerMode = value as 'multi-stage' | 'one-shot';
                     await this.plugin.saveSettings();
                 }));
+
+        new Setting(containerEl)
+            .setName('Disable thinking')
+            .setDesc('On by default for faster summaries. Requests no reasoning from supported Ollama and Unsloth models. Compatible servers use the enable_thinking chat-template option; support varies. Models that require reasoning may still think. Applies to all summary stages and optional titles. Turn off to use the server default, or override for a single batch in the start dialog.')
+            .addToggle(toggle => toggle.setValue(this.plugin.settings.summarizerDisableThinking).onChange(async value => {
+                this.plugin.settings.summarizerDisableThinking = value;
+                await this.plugin.saveSettings();
+            }));
 
         new Setting(containerEl)
             .setName('One-shot prompt')

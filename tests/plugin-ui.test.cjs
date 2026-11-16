@@ -200,8 +200,12 @@ test('starting a summary reveals the right pane and closes setup without waiting
     const modal = opened.at(-1); modal.display();
     const mode = modal.contentEl.settings.find(setting => setting.name === 'Summary mode').controls[0];
     mode.change('one-shot');
+    const thinking = modal.contentEl.settings.find(setting => setting.name === 'Disable thinking').controls[0];
+    assert.equal(thinking.value, true); thinking.change(false);
     const start = modal.contentEl.settings.at(-1).controls[0];
     await start.click();
+    assert.equal(request.disableThinking, false);
+    assert.equal(plugin.settings.summarizerDisableThinking, true);
     assert.equal(modal.closed, true); assert.equal(request.oneShot, true); assert.equal(request.prompts.length, 1);
     assert.equal(states[0].type, 'coherence-summarization-progress'); assert.equal(states[0].active, false);
     assert.equal(revealed[0], leaf);
@@ -275,4 +279,15 @@ test('Unsloth provider reaches all AI tool dialogs and shared model selection', 
     assert.equal(key.inputEl.type, 'password');
     await plugin.tab.setSharedModel('example/model:quant');
     for (const name of ['summarizerModel', 'wisdomModel', 'ratingModel', 'categorizerModel', 'generalizerModel']) assert.equal(plugin.settings[name], 'example/model:quant');
+});
+
+test('disable-thinking default is visible, saved, and preserved on reload', async () => {
+    const { plugin } = await fixture();
+    assert.equal(plugin.settings.summarizerDisableThinking, true);
+    plugin.tab.activeTab = 'summarizer'; plugin.tab.render();
+    const control = plugin.tab.containerEl.settings.find(setting => setting.name === 'Disable thinking').controls[0];
+    assert.equal(control.value, true);
+    await control.change(false);
+    const reloaded = await fixture(plugin.saved);
+    assert.equal(reloaded.plugin.settings.summarizerDisableThinking, false);
 });
