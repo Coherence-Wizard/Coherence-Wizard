@@ -136,6 +136,7 @@ export class SummarizerModal extends Modal {
             ['mainMaxWords', 'Main summary maximum words'],
             ['shortMaxWords', 'Short summary maximum words'],
         ] as const) {
+            if (key === 'shortMaxWords' && !this.addShortSummary) continue;
             new Setting(contentEl).setName(name)
                 .setDesc('Whole number from 1 to 10000 for this batch. Defaults: 50 main, 10 short. Short limit applies only when adding a short summary.')
                 .addText(text => {
@@ -151,7 +152,7 @@ export class SummarizerModal extends Modal {
         new Setting(contentEl)
             .setName('Add short summary')
             .setDesc('Also add summary_short to YAML using the short word limit. Uses an extra AI request when the cleaned normal summary exceeds that limit, even for a short note. Fills missing fields; enable overwrite to replace existing values.')
-            .addToggle(toggle => toggle.setValue(this.addShortSummary).onChange(value => this.addShortSummary = value));
+            .addToggle(toggle => toggle.setValue(this.addShortSummary).onChange(value => { this.addShortSummary = value; this.display(); }));
 
         new Setting(contentEl)
             .setName('Disable thinking')
@@ -186,7 +187,7 @@ export class SummarizerModal extends Modal {
                 .setButtonText('Start summarization')
                 .setCta()
                 .onClick(async () => {
-                    if (!validSummaryWordLimit(this.mainMaxWords) || !validSummaryWordLimit(this.shortMaxWords)) {
+                    if (!validSummaryWordLimit(this.mainMaxWords) || (this.addShortSummary && !validSummaryWordLimit(this.shortMaxWords))) {
                         new Notice('Enter whole-number summary word limits from 1 to 10000.');
                         return;
                     }

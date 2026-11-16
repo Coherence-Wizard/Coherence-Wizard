@@ -799,6 +799,7 @@ class CoherenceSettingTab extends PluginSettingTab {
             ['summarizerMainMaxWords', 'Main summary maximum words'],
             ['summarizerShortMaxWords', 'Short summary maximum words'],
         ] as const) {
+            if (key === 'summarizerShortMaxWords' && !this.plugin.settings.summarizerAddShortSummary) continue;
             new Setting(containerEl).setName(name)
                 .setDesc('Enter a whole number from 1 to 10000. Defaults are 50 for the main summary and 10 for the optional short summary. Overlong model responses are rewritten, never cut off; persistent failures are listed in the sidebar.')
                 .addText(text => {
@@ -820,6 +821,7 @@ class CoherenceSettingTab extends PluginSettingTab {
             .addToggle(toggle => toggle.setValue(this.plugin.settings.summarizerAddShortSummary).onChange(async value => {
                 this.plugin.settings.summarizerAddShortSummary = value;
                 await this.plugin.saveSettings();
+                this.render();
             }));
 
         new Setting(containerEl)

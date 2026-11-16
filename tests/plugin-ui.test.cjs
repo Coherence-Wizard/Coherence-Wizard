@@ -297,14 +297,22 @@ test('optional short summary defaults off, persists in settings, and supports a 
     assert.equal(plugin.settings.summarizerAddShortSummary, false);
     plugin.tab.activeTab = 'summarizer'; plugin.tab.render();
     const control = plugin.tab.containerEl.settings.find(setting => setting.name === 'Add short summary').controls[0];
+    assert.ok(!plugin.tab.containerEl.settings.some(setting => setting.name === 'Short summary maximum words'));
     assert.equal(control.value, false); await control.change(true);
+    assert.ok(plugin.tab.containerEl.settings.some(setting => setting.name === 'Short summary maximum words'));
     const reloaded = await fixture(plugin.saved); assert.equal(reloaded.plugin.settings.summarizerAddShortSummary, true);
     const target = new TFolder('notes'); app.vault.getAbstractFileByPath = () => target;
     let request;
     const modal = new (load('src/ui/summarizer-modal.ts').SummarizerModal)(app, plugin.settings, async () => {}, target, async value => { request = value; return true; });
     modal.display();
     const toggle = modal.contentEl.settings.find(setting => setting.name === 'Add short summary').controls[0];
+    modal.contentEl.settings.find(setting => setting.name === 'Short summary maximum words').controls[0].change('17');
     assert.equal(toggle.value, true); toggle.change(false);
+    assert.ok(!modal.contentEl.settings.some(setting => setting.name === 'Short summary maximum words'));
+    modal.contentEl.settings.find(setting => setting.name === 'Add short summary').controls[0].change(true);
+    assert.equal(modal.contentEl.settings.find(setting => setting.name === 'Short summary maximum words').controls[0].value, '17');
+    modal.contentEl.settings.find(setting => setting.name === 'Short summary maximum words').controls[0].change('');
+    modal.contentEl.settings.find(setting => setting.name === 'Add short summary').controls[0].change(false);
     await modal.contentEl.settings.at(-1).controls[0].click();
     assert.equal(request.addShortSummary, false); assert.equal(plugin.settings.summarizerAddShortSummary, true);
 });
@@ -327,7 +335,7 @@ test('one-shot hides multi-stage prompts and title controls, retaining them when
 });
 
 test('word limits persist, invalid input cannot start, and batch overrides reach the job', async () => {
-    const { plugin, app } = await fixture(); plugin.tab.activeTab = 'summarizer'; plugin.tab.render();
+    const { plugin, app } = await fixture(); plugin.settings.summarizerAddShortSummary = true; plugin.tab.activeTab = 'summarizer'; plugin.tab.render();
     const main = plugin.tab.containerEl.settings.find(setting => setting.name === 'Main summary maximum words').controls[0];
     const short = plugin.tab.containerEl.settings.find(setting => setting.name === 'Short summary maximum words').controls[0];
     assert.equal(main.value, '50'); assert.equal(short.value, '10');

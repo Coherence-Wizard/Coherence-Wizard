@@ -449,7 +449,7 @@ ${result}
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
     const { signal } = options;
     const mainLimit = summaryWordLimit(options.mainMaxWords, 50);
-    const shortLimit = summaryWordLimit(options.shortMaxWords, 10);
+    const shortLimit = options.addShortSummary ? summaryWordLimit(options.shortMaxWords, 10) : 10;
     checkCancelled(signal);
     const originalPath = file.path;
     const content = await this.app.vault.read(file);
@@ -893,6 +893,7 @@ var SummarizerModal = class extends import_obsidian5.Modal {
       ["mainMaxWords", "Main summary maximum words"],
       ["shortMaxWords", "Short summary maximum words"]
     ]) {
+      if (key === "shortMaxWords" && !this.addShortSummary) continue;
       new import_obsidian5.Setting(contentEl).setName(name).setDesc("Whole number from 1 to 10000 for this batch. Defaults: 50 main, 10 short. Short limit applies only when adding a short summary.").addText((text) => {
         text.inputEl.type = "number";
         text.inputEl.setAttribute("min", "1");
@@ -904,7 +905,10 @@ var SummarizerModal = class extends import_obsidian5.Modal {
         });
       });
     }
-    new import_obsidian5.Setting(contentEl).setName("Add short summary").setDesc("Also add summary_short to YAML using the short word limit. Uses an extra AI request when the cleaned normal summary exceeds that limit, even for a short note. Fills missing fields; enable overwrite to replace existing values.").addToggle((toggle) => toggle.setValue(this.addShortSummary).onChange((value) => this.addShortSummary = value));
+    new import_obsidian5.Setting(contentEl).setName("Add short summary").setDesc("Also add summary_short to YAML using the short word limit. Uses an extra AI request when the cleaned normal summary exceeds that limit, even for a short note. Fills missing fields; enable overwrite to replace existing values.").addToggle((toggle) => toggle.setValue(this.addShortSummary).onChange((value) => {
+      this.addShortSummary = value;
+      this.display();
+    }));
     new import_obsidian5.Setting(contentEl).setName("Disable thinking").setDesc("Request faster summaries without reasoning, when supported by the model and server. Applies to this batch, including multi-stage prompts and optional titles. Turn off to use the server default. Compatible servers must support the enable_thinking chat-template option.").addToggle((toggle) => toggle.setValue(this.disableThinking).onChange((value) => this.disableThinking = value));
     new import_obsidian5.Setting(contentEl).setName("Recursive").setDesc("Process subfolders (if target is folder)").addToggle((toggle) => toggle.setValue(this.recursive).onChange((value) => this.recursive = value));
     new import_obsidian5.Setting(contentEl).setName("Overwrite existing").setDesc("Replace existing summary values. When off, only missing requested fields are added.").addToggle((toggle) => toggle.setValue(this.overwrite).onChange((value) => this.overwrite = value));
@@ -913,7 +917,7 @@ var SummarizerModal = class extends import_obsidian5.Modal {
     }
     contentEl.createEl("p", { text: "Starting closes this dialog. The batch progress bar and a stop button appear in the right sidebar while you continue using Obsidian. Stopping or finishing an AI batch automatically unloads its model on Ollama and Unsloth. Other compatible servers manage their own model memory." });
     new import_obsidian5.Setting(contentEl).addButton((button) => button.setButtonText("Start summarization").setCta().onClick(async () => {
-      if (!validSummaryWordLimit(this.mainMaxWords) || !validSummaryWordLimit(this.shortMaxWords)) {
+      if (!validSummaryWordLimit(this.mainMaxWords) || this.addShortSummary && !validSummaryWordLimit(this.shortMaxWords)) {
         new import_obsidian5.Notice("Enter whole-number summary word limits from 1 to 10000.");
         return;
       }
@@ -4559,6 +4563,7 @@ var CoherenceSettingTab = class extends import_obsidian34.PluginSettingTab {
       ["summarizerMainMaxWords", "Main summary maximum words"],
       ["summarizerShortMaxWords", "Short summary maximum words"]
     ]) {
+      if (key === "summarizerShortMaxWords" && !this.plugin.settings.summarizerAddShortSummary) continue;
       new import_obsidian34.Setting(containerEl).setName(name).setDesc("Enter a whole number from 1 to 10000. Defaults are 50 for the main summary and 10 for the optional short summary. Overlong model responses are rewritten, never cut off; persistent failures are listed in the sidebar.").addText((text) => {
         text.inputEl.type = "number";
         text.inputEl.setAttribute("min", "1");
@@ -4576,6 +4581,7 @@ var CoherenceSettingTab = class extends import_obsidian34.PluginSettingTab {
     new import_obsidian34.Setting(containerEl).setName("Add short summary").setDesc("Also write summary_short in YAML using the short word limit. Off by default. Condenses the normal summary with an extra AI request when it exceeds that limit; shorter text is copied directly. Can fill a missing short summary without replacing an existing normal summary. Overwrite applies to each field separately.").addToggle((toggle) => toggle.setValue(this.plugin.settings.summarizerAddShortSummary).onChange(async (value) => {
       this.plugin.settings.summarizerAddShortSummary = value;
       await this.plugin.saveSettings();
+      this.render();
     }));
     new import_obsidian34.Setting(containerEl).setName("Disable thinking").setDesc("On by default for faster summaries. Requests no reasoning from supported Ollama and Unsloth models. Compatible servers use the enable_thinking chat-template option; support varies. Models that require reasoning may still think. Applies to all summary stages and optional titles. Turn off to use the server default, or override for a single batch in the start dialog.").addToggle((toggle) => toggle.setValue(this.plugin.settings.summarizerDisableThinking).onChange(async (value) => {
       this.plugin.settings.summarizerDisableThinking = value;

@@ -78,7 +78,7 @@ export class SummarizerService {
     async summarizeFile(file: TFile, model: string, overwrite = false, prompts: string[] = [], generateTitle = false, options: SummaryOptions = {}): Promise<boolean> {
         const { signal } = options;
         const mainLimit = summaryWordLimit(options.mainMaxWords, 50);
-        const shortLimit = summaryWordLimit(options.shortMaxWords, 10);
+        const shortLimit = options.addShortSummary ? summaryWordLimit(options.shortMaxWords, 10) : 10;
         checkCancelled(signal);
         const originalPath = file.path;
         const content = await this.app.vault.read(file);
