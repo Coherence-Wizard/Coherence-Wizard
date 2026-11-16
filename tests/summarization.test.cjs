@@ -43,9 +43,9 @@ async function until(predicate) { for (let i = 0; i < 100; i++) { if (predicate(
 function abortableWait(signal) { return new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true })); }
 function summaryOf(f, file) { return JSON.parse(f.contents.get(file).split('\n')[1]).summary; }
 
-test('one-shot makes one request even for untitled notes, removes a preamble, and caps output at 50 words', async () => {
+test('one-shot makes one request for compliant output, removes a preamble, and preserves all 50 words', async () => {
     const f = fixture(), file = f.add('Untitled.md'); const calls = [];
-    const ollama = { generate: async (...args) => { calls.push(args); return 'Here is a concise summary: ' + Array.from({ length: 70 }, (_, i) => `word${i}`).join(' '); } };
+    const ollama = { generate: async (...args) => { calls.push(args); return 'Here is a concise summary: ' + Array.from({ length: 50 }, (_, i) => `word${i}`).join(' '); } };
     await new (load('summarizer').SummarizerService)(f.app, ollama).summarizeFile(file, 'test', false, [load('summarizer').ONE_SHOT_SUMMARY_PROMPT], true, { oneShot: true });
     assert.equal(calls.length, 1); assert.equal(f.renamed.length, 0);
     assert.equal(summaryOf(f, file).split(/\s+/).length, 50);
@@ -58,8 +58,9 @@ test('multi-stage prompts retain their ordering, placeholders, and output length
     const f = fixture(), file = f.add('Planning.md', 'Budget is $& and $1. ' + LONG_BODY); const calls = [];
     const long = Array.from({ length: 65 }, () => 'word').join(' ');
     const ollama = { generate: async (_model, prompt) => { calls.push(prompt); return calls.length === 1 ? 'First pass' : long; } };
-    await new (load('summarizer').SummarizerService)(f.app, ollama).summarizeFile(file, 'test', false, ['First: {text}', 'Next: {summary} / {filename}']);
-    assert.deepEqual(calls, ['First: Budget is $& and $1. ' + LONG_BODY, 'Next: First pass / Planning']);
+    await new (load('summarizer').SummarizerService)(f.app, ollama).summarizeFile(file, 'test', false, ['First: {text}', 'Next: {summary} / {filename}'], false, { mainMaxWords: 70 });
+    assert.equal(calls.length, 2); assert.equal(calls[0], 'First: Budget is $& and $1. ' + LONG_BODY);
+    assert.ok(calls[1].startsWith('Next: First pass / Planning')); assert.match(calls[1], /at most 70 words/);
     assert.equal(summaryOf(f, file), long);
 });
 
@@ -338,7 +339,7 @@ test('optional short summary adds a second capped field with the same thinking a
     const normal = 'A clear explanation of how thoughtful planning helps communities make better decisions together.';
     const service = new (load('summarizer').SummarizerService)(f.app, { generate: async (...args) => {
         calls.push(args);
-        return calls.length === 1 ? normal : '<think>Hidden reasoning</think>Summary: **Thoughtful** planning|supports resilient communities through shared goals and clear collective decisions.';
+        return calls.length === 1 ? normal : '<think>Hidden reasoning</think>Summary: **Thoughtful** planning|supports resilient communities through shared goals.';
     } });
     await service.summarizeFile(file, 'test', false, [], false, { oneShot: true, addShortSummary: true, disableThinking: true, signal });
     const fm = JSON.parse(f.contents.get(file).split('\n')[1]);
@@ -419,4 +420,72 @@ test('multi-stage mode creates the optional short field from the final summary',
     assert.equal(prompts.length, 3); assert.ok(prompts[2].includes(final));
     const fm = JSON.parse(f.contents.get(file).split('\n')[1]);
     assert.equal(fm.summary, final); assert.equal(fm.summary_short, 'A clear central idea.');
+});
+
+test('custom word limits reach prompts and control both short-body copy thresholds', async () => {
+    const f = fixture(), calls = [];
+    const service = new (load('summarizer').SummarizerService)(f.app, { generate: async (_model, prompt) => {
+        calls.push(prompt); return calls.length === 1 ? 'Shared purpose creates stronger communities.' : 'Purpose strengthens communities.';
+    } });
+    const file = f.add('Limits.md', 'one two three four five six seven eight nine');
+    await service.summarizeFile(file, 'test', false, [], false, { oneShot: true, addShortSummary: true, mainMaxWords: 8, shortMaxWords: 3 });
+    const fm = JSON.parse(f.contents.get(file).split('\n')[1]);
+    assert.equal(fm.summary, 'Shared purpose creates stronger communities.'); assert.equal(fm.summary_short, 'Purpose strengthens communities.');
+    assert.match(calls[0], /at most 8 words/); assert.match(calls[1], /at most 3 words/);
+    const words = Array.from({ length: 60 }, () => 'word').join(' '), copied = f.add('Copy.md', words);
+    await service.summarizeFile(copied, '', false, [], false, { oneShot: true, addShortSummary: true, mainMaxWords: 60, shortMaxWords: 60 });
+    assert.equal(calls.length, 2); assert.equal(summaryOf(f, copied), words);
+    assert.equal(JSON.parse(f.contents.get(copied).split('\n')[1]).summary_short, words);
+});
+
+test('overlong summaries are rewritten as complete text instead of sliced at the limit', async () => {
+    for (const short of [false, true]) {
+        const f = fixture(), file = f.add('Rewrite.md'), calls = [], controller = new AbortController(), stages = [];
+        const original = short ? '---\n{"summary":"Thoughtful planning creates stronger communities through shared goals and collective action."}\n---\n' + LONG_BODY : LONG_BODY;
+        f.contents.set(file, original);
+        const responses = ['Thoughtful planning creates stronger communities through shared goals and collective action.', 'Thoughtful planning strengthens communities.'];
+        const service = new (load('summarizer').SummarizerService)(f.app, { generate: async (...args) => { calls.push(args); return responses.shift(); } });
+        await service.summarizeFile(file, 'test', false, [], false, { oneShot: true, addShortSummary: short, mainMaxWords: 5, shortMaxWords: 5, disableThinking: true, signal: controller.signal, onStage: stage => stages.push(stage) });
+        const fm = JSON.parse(f.contents.get(file).split('\n')[1]);
+        assert.equal(fm[short ? 'summary_short' : 'summary'], 'Thoughtful planning strengthens communities.');
+        assert.equal(calls.length, 2); assert.match(calls[1][1], /do not truncate a sentence/);
+        assert.equal(calls[1][2].think, false); assert.equal(calls[1][3], controller.signal);
+        assert.ok(stages.some(stage => stage.includes('Rewriting')));
+    }
+});
+
+test('repeated overlong responses leave notes unchanged and retain all failure reasons after batch completion', async () => {
+    const f = fixture(), first = f.add('Too long.md'), second = f.add('Server error.md'), saved = f.add('Small.md', 'Small note.');
+    const originals = new Map(f.contents); let calls = 0, unloads = 0;
+    const job = new (load('summarization-job').SummarizationJob)(f.app, () => ({
+        generate: async () => { calls++; if (calls <= 3) return 'A response that keeps exceeding the requested word limit.'; throw new Error('Server unavailable'); },
+        unloadModel: async () => { unloads++; },
+    }));
+    job.start(config(f.folder, { mainMaxWords: 3, shortMaxWords: 2 })); await job.completion;
+    assert.equal(job.state.status, 'completed'); assert.equal(job.state.errors, 2); assert.equal(job.state.saved, 1);
+    assert.equal(job.state.failures.length, 2); assert.equal(job.state.failures[0].path, first.path);
+    assert.match(job.state.failures[0].reason, /after 2 rewrite attempts.*maximum 3/);
+    assert.equal(job.state.failures[1].path, second.path); assert.match(job.state.failures[1].reason, /Server unavailable/);
+    assert.equal(f.contents.get(first), originals.get(first)); assert.equal(f.contents.get(second), originals.get(second));
+    assert.equal(unloads, 1); assert.equal(calls, 4);
+    job.start(config(saved)); await job.completion; assert.equal(job.state.failures.length, 0);
+});
+
+test('stop during a word-limit rewrite aborts and unloads without saving partial results', async () => {
+    const f = fixture(), file = f.add('Stop.md'); let calls = 0, unloads = 0;
+    const job = new (load('summarization-job').SummarizationJob)(f.app, () => ({
+        generate: async (_model, _prompt, _options, signal) => { calls++; return calls === 1 ? 'Too many words for this summary.' : abortableWait(signal); },
+        unloadModel: async () => { unloads++; },
+    }));
+    job.start(config(file, { mainMaxWords: 2 })); await until(() => calls === 2); job.stop(); await job.completion;
+    assert.equal(job.state.status, 'stopped'); assert.equal(f.writes.length, 0); assert.equal(unloads, 1); assert.equal(job.state.failures.length, 0);
+});
+
+test('invalid limits cannot modify notes or send inference requests', async () => {
+    const f = fixture(), file = f.add('Invalid.md');
+    const service = new (load('summarizer').SummarizerService)(f.app, { generate: () => { throw new Error('Must not generate'); } });
+    for (const value of [0, -1, 1.5, NaN, Infinity, 10001]) {
+        await assert.rejects(service.summarizeFile(file, 'test', false, [], false, { mainMaxWords: value }), /whole numbers/);
+    }
+    assert.equal(f.writes.length, 0);
 });

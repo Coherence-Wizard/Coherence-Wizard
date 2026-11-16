@@ -12,6 +12,8 @@ export interface SummarizationRequest extends AIConnectionSettings {
     oneShot: boolean;
     disableThinking: boolean;
     addShortSummary: boolean;
+    mainMaxWords: number;
+    shortMaxWords: number;
     maxChars: number;
     includeYaml: boolean;
 }
@@ -25,6 +27,7 @@ export interface SummarizationState {
     saved: number;
     skipped: number;
     errors: number;
+    failures: { path: string; reason: string }[];
     currentFile: string;
     stage: string;
     lastError: string;
@@ -35,7 +38,7 @@ export interface SummarizationState {
 export class SummarizationJob {
     state: SummarizationState = {
         status: 'idle', model: '', target: '', total: 0, completed: 0, saved: 0, skipped: 0,
-        errors: 0, currentFile: '', stage: '', lastError: '', unloading: false, modelStatus: '',
+        errors: 0, failures: [], currentFile: '', stage: '', lastError: '', unloading: false, modelStatus: '',
     };
     completion: Promise<void> = Promise.resolve();
     private controller?: AbortController;
@@ -75,7 +78,7 @@ export class SummarizationJob {
         this.modelUsed = false;
         this.state = {
             status: 'running', model: snapshot.model, target: snapshot.target.path, total: files.length,
-            completed: 0, saved: 0, skipped: 0, errors: 0, currentFile: '', stage: 'Starting',
+            completed: 0, saved: 0, skipped: 0, errors: 0, failures: [], currentFile: '', stage: 'Starting',
             lastError: '', unloading: false, modelStatus: '',
         };
         this.notify();
@@ -101,6 +104,7 @@ export class SummarizationJob {
                 try {
                     const saved = await service.summarizeFile(file, request.model, request.overwrite, request.prompts, request.generateTitle, {
                         onModelUse: () => { this.modelUsed = true; },
+                        mainMaxWords: request.mainMaxWords, shortMaxWords: request.shortMaxWords,
                         signal, addShortSummary: request.addShortSummary, disableThinking: request.disableThinking, oneShot: request.oneShot, maxChars: request.maxChars, includeYaml: request.includeYaml,
                         onStage: stage => { this.state.stage = stage; this.notify(); },
                     });
@@ -111,7 +115,8 @@ export class SummarizationJob {
                     checkCancelled(signal);
                     this.state.errors++;
                     this.state.completed++;
-                    this.state.lastError = `${file.path}: ${error instanceof Error ? error.message : String(error)}`;
+                    const reason = error instanceof Error ? error.message : String(error);
+                    this.state.failures.push({ path: file.path, reason });
                 }
                 this.notify();
             }

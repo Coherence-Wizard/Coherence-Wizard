@@ -308,3 +308,50 @@ test('optional short summary defaults off, persists in settings, and supports a 
     await modal.contentEl.settings.at(-1).controls[0].click();
     assert.equal(request.addShortSummary, false); assert.equal(plugin.settings.summarizerAddShortSummary, true);
 });
+
+test('one-shot hides multi-stage prompts and title controls, retaining them when switched back', async () => {
+    const { plugin, app } = await fixture();
+    plugin.tab.activeTab = 'summarizer'; plugin.tab.render();
+    const names = () => plugin.tab.containerEl.settings.map(setting => setting.name);
+    assert.ok(!names().includes('Prompt 1 (general summary)')); assert.ok(!names().includes('Generate titles in multi-stage mode'));
+    const original = plugin.settings.summarizerPrompt2;
+    await plugin.tab.containerEl.settings.find(setting => setting.name === 'Default summary mode').controls[0].change('multi-stage');
+    assert.ok(names().includes('Prompt 1 (general summary)')); assert.ok(names().includes('Generate titles in multi-stage mode'));
+    assert.equal(plugin.settings.summarizerPrompt2, original);
+    const modal = new (load('src/ui/summarizer-modal.ts').SummarizerModal)(app, plugin.settings, async () => {}, new TFolder('notes'), async () => true);
+    modal.display(); assert.ok(modal.contentEl.settings.some(setting => setting.name === 'Generate title for untitled'));
+    modal.contentEl.settings.find(setting => setting.name === 'Summary mode').controls[0].change('one-shot');
+    assert.ok(!modal.contentEl.settings.some(setting => setting.name === 'Generate title for untitled'));
+    modal.contentEl.settings.find(setting => setting.name === 'Summary mode').controls[0].change('multi-stage');
+    assert.ok(modal.contentEl.settings.some(setting => setting.name === 'Generate title for untitled'));
+});
+
+test('word limits persist, invalid input cannot start, and batch overrides reach the job', async () => {
+    const { plugin, app } = await fixture(); plugin.tab.activeTab = 'summarizer'; plugin.tab.render();
+    const main = plugin.tab.containerEl.settings.find(setting => setting.name === 'Main summary maximum words').controls[0];
+    const short = plugin.tab.containerEl.settings.find(setting => setting.name === 'Short summary maximum words').controls[0];
+    assert.equal(main.value, '50'); assert.equal(short.value, '10');
+    await main.change('75'); await short.change('15'); await main.change('0');
+    const reloaded = await fixture(plugin.saved); assert.equal(reloaded.plugin.settings.summarizerMainMaxWords, 75); assert.equal(reloaded.plugin.settings.summarizerShortMaxWords, 15);
+    const target = new TFolder('notes'); app.vault.getAbstractFileByPath = () => target; let request;
+    const modal = new (load('src/ui/summarizer-modal.ts').SummarizerModal)(app, plugin.settings, async () => {}, target, async value => { request = value; return true; });
+    modal.display(); const input = modal.contentEl.settings.find(setting => setting.name === 'Main summary maximum words').controls[0];
+    input.change('1.5'); await modal.contentEl.settings.at(-1).controls[0].click(); assert.equal(request, undefined);
+    input.change('25'); await modal.contentEl.settings.at(-1).controls[0].click();
+    assert.equal(request.mainMaxWords, 25); assert.equal(request.shortMaxWords, 15); assert.equal(request.generateTitle, false); assert.equal(plugin.settings.summarizerMainMaxWords, 75);
+});
+
+test('completed right-pane batches list every failed note and reason after reopening', async () => {
+    const { plugin } = await fixture();
+    plugin.summarizationJob.state = { ...plugin.summarizationJob.state, status: 'completed', total: 3, completed: 3, errors: 2, failures: [
+        { path: 'notes/First.md', reason: 'Server unavailable' }, { path: 'notes/Second.md', reason: 'summary_short exceeds limit' },
+    ] };
+    for (let i = 0; i < 2; i++) {
+        const view = plugin.views[0][1]({}); await view.onOpen();
+        const list = view.contentEl.children.find(element => element.tag === 'ul');
+        assert.equal(list.children.length, 2);
+        assert.equal(list.children[0].children[0].text, 'notes/First.md'); assert.equal(list.children[0].children[1].text, 'Server unavailable');
+        assert.equal(list.children[1].children[0].text, 'notes/Second.md'); assert.equal(list.children[1].children[1].text, 'summary_short exceeds limit');
+        await view.onClose();
+    }
+});

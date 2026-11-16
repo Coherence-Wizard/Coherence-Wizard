@@ -46,6 +46,15 @@ export class SummarizationView extends ItemView {
         if (state.currentFile) contentEl.createEl('p', { text: state.currentFile, cls: 'coherence-summary-path' });
         if (state.stage) contentEl.createEl('p', { text: state.stage });
         if (state.total === 0 && state.status === 'completed') contentEl.createEl('p', { text: 'No Markdown notes found in the selected scope.' });
+        if (state.failures.length) {
+            new Setting(contentEl).setName('Failed notes').setHeading();
+            const list = contentEl.createEl('ul');
+            for (const failure of state.failures) {
+                const item = list.createEl('li');
+                item.createEl('strong', { text: failure.path, cls: 'coherence-summary-path' });
+                item.createEl('p', { text: failure.reason, cls: 'coherence-text-error' });
+            }
+        }
         if (state.lastError) contentEl.createEl('p', { text: state.lastError, cls: 'coherence-text-error' });
         if (state.modelStatus) contentEl.createEl('p', { text: state.modelStatus });
 

@@ -2,6 +2,7 @@ import { App, Notice, Plugin, PluginSettingTab, Setting, TFile, TFolder, Menu } 
 import { AtomizerModal } from './src/ui/atomizer-modal';
 import { SummarizerModal } from './src/ui/summarizer-modal';
 import { ONE_SHOT_SUMMARY_PROMPT } from './src/modules/summarizer';
+import { validSummaryWordLimit } from './src/modules/summary-limits';
 import { SummarizationJob, SummarizationRequest } from './src/modules/summarization-job';
 import { SummarizationView, VIEW_TYPE_SUMMARIZATION } from './src/ui/summarization-view';
 import { WisdomModal } from './src/ui/wisdom-modal';
@@ -45,14 +46,16 @@ const DEFAULT_SETTINGS: CoherenceSettings = {
     summarizerMode: 'one-shot',
     summarizerDisableThinking: true,
     summarizerAddShortSummary: false,
+    summarizerMainMaxWords: 50,
+    summarizerShortMaxWords: 10,
     summarizerOneShotPrompt: ONE_SHOT_SUMMARY_PROMPT,
     summarizerRecursive: false,
     summarizerOverwrite: false,
     summarizerIncludeYaml: false,
     summarizerMaxChars: 50000,
     summarizerPrompt: "Please summarise the following Markdown content from the file titled '{filename}':\n\n{text}",
-    summarizerPrompt2: "You are a summarization assistant. Condense the following note into 50 words or fewer. Start directly with the main point and avoid phrases like 'This note', 'Key takeaways', 'It emphasizes', or any similar preamble. Use plain sentences only—no headings, quotes, markdown, dates, filenames, or filler.\n\nTitle: {filename}\n\nLonger summary:\n{summary}",
-    summarizerPrompt3: "Rewrite the following text keeping it at 50 words or fewer. Remove any filler, preambles (e.g., 'This note...', 'Key takeaways...'), dates, filenames, headings, markdown, or meta-language. Return only the cleaned summary text.\n\nText:\n{summary}",
+    summarizerPrompt2: "You are a summarization assistant. Condense the following note into {max_words} words or fewer. Start directly with the main point and avoid phrases like 'This note', 'Key takeaways', 'It emphasizes', or any similar preamble. Use plain sentences only—no headings, quotes, markdown, dates, filenames, or filler.\n\nTitle: {filename}\n\nLonger summary:\n{summary}",
+    summarizerPrompt3: "Rewrite the following text keeping it at {max_words} words or fewer. Remove any filler, preambles (e.g., 'This note...', 'Key takeaways...'), dates, filenames, headings, markdown, or meta-language. Return only the cleaned summary text.\n\nText:\n{summary}",
     summarizerPrompt4: "Rewrite the following summary text, capitalizing the most important words, subjects, and key concepts. Keep all other text unchanged. Return only the rewritten text with capitalized important words.\n\nSummary:\n{summary}",
     summarizerPrompt1Enabled: true,
     summarizerPrompt2Enabled: true,
@@ -441,6 +444,13 @@ export default class CoherencePlugin extends Plugin {
         const data = (await this.loadData()) as unknown;
         const partial = (typeof data === 'object' && data !== null) ? (data as Partial<CoherenceSettings>) : {};
         this.settings = { ...DEFAULT_SETTINGS, ...partial };
+        for (const key of ['summarizerMainMaxWords', 'summarizerShortMaxWords'] as const) {
+            if (!validSummaryWordLimit(this.settings[key])) this.settings[key] = DEFAULT_SETTINGS[key];
+        }
+        // Upgrade only untouched default prompts; preserve custom wording.
+        for (const key of ['summarizerOneShotPrompt', 'summarizerPrompt2', 'summarizerPrompt3'] as const) {
+            if (this.settings[key] === DEFAULT_SETTINGS[key].replace('{max_words}', '50')) this.settings[key] = DEFAULT_SETTINGS[key];
+        }
         if ((partial.summaryDefaultsVersion ?? 0) < 1) {
             this.settings.summarizerMode = 'one-shot';
             this.settings.summaryDefaultsVersion = 1;
@@ -742,7 +752,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
     renderSummarizerSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('Summarizer').setHeading();
-        containerEl.createEl('p', { text: "Writes summaries to note frontmatter using the selected AI provider. After removing Markdown formatting, tags, backlinks, and dates, bodies of 50 words or fewer are copied directly into the normal summary without AI. The optional short summary may still need AI. Runs in the background with progress and stop controls in the right sidebar. Notes edited during generation are left unchanged. Choose a single concise pass or your existing sequence of prompts." });
+        containerEl.createEl('p', { text: "Writes summaries to note frontmatter using the selected AI provider. After removing Markdown formatting, tags, backlinks, and dates, bodies within the main word limit are copied directly into the normal summary without AI. The optional short summary may still need AI. Runs in the background with progress and stop controls in the right sidebar. Notes edited during generation are left unchanged. Choose a single concise pass or your existing sequence of prompts." });
         new Setting(containerEl)
             .setName('Default model')
             .setDesc('Model to use for summarization')
@@ -777,16 +787,36 @@ class CoherenceSettingTab extends PluginSettingTab {
             .setDesc('Choose the default for new runs. You can switch modes in the start dialog without changing your saved multi-stage prompts.')
             .addDropdown(drop => drop
                 .addOption('multi-stage', 'Multi-stage prompts')
-                .addOption('one-shot', 'One-shot · 50 words or fewer')
+                .addOption('one-shot', 'One-shot')
                 .setValue(this.plugin.settings.summarizerMode)
                 .onChange(async value => {
                     this.plugin.settings.summarizerMode = value as 'multi-stage' | 'one-shot';
                     await this.plugin.saveSettings();
+                    this.render();
                 }));
+
+        for (const [key, name] of [
+            ['summarizerMainMaxWords', 'Main summary maximum words'],
+            ['summarizerShortMaxWords', 'Short summary maximum words'],
+        ] as const) {
+            new Setting(containerEl).setName(name)
+                .setDesc('Enter a whole number from 1 to 10000. Defaults are 50 for the main summary and 10 for the optional short summary. Overlong model responses are rewritten, never cut off; persistent failures are listed in the sidebar.')
+                .addText(text => {
+                    text.inputEl.type = 'number';
+                    text.inputEl.setAttribute('min', '1'); text.inputEl.setAttribute('max', '10000'); text.inputEl.setAttribute('step', '1');
+                    text.setValue(String(this.plugin.settings[key])).onChange(async value => {
+                        const limit = Number(value);
+                        text.inputEl.setAttribute('aria-invalid', String(!validSummaryWordLimit(limit)));
+                        if (!validSummaryWordLimit(limit)) return;
+                        this.plugin.settings[key] = limit;
+                        await this.plugin.saveSettings();
+                    });
+                });
+        }
 
         new Setting(containerEl)
             .setName('Add short summary')
-            .setDesc('Also write summary_short in YAML, capped at 10 words. Off by default. Condenses the normal summary with an extra AI request when it exceeds 10 cleaned words; shorter text is copied directly. Can fill a missing short summary without replacing an existing normal summary. Overwrite applies to each field separately.')
+            .setDesc('Also write summary_short in YAML using the short word limit. Off by default. Condenses the normal summary with an extra AI request when it exceeds that limit; shorter text is copied directly. Can fill a missing short summary without replacing an existing normal summary. Overwrite applies to each field separately.')
             .addToggle(toggle => toggle.setValue(this.plugin.settings.summarizerAddShortSummary).onChange(async value => {
                 this.plugin.settings.summarizerAddShortSummary = value;
                 await this.plugin.saveSettings();
@@ -802,7 +832,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('One-shot prompt')
-            .setDesc('A single request for the normal summary; the optional short summary may add another. The result is cleaned and limited to 50 words; automatic title generation is disabled for this mode. Placeholders: {filename}, {text}. Your multi-stage prompts are preserved below.')
+            .setDesc('One pass for the normal summary, with up to two rewrites if it exceeds the word limit. The optional short summary may add requests. Placeholders: {filename}, {text}, {max_words}. Multi-stage prompts are preserved and shown when you switch modes.')
             .addTextArea(text => text
                 .setValue(this.plugin.settings.summarizerOneShotPrompt)
                 .then(control => control.inputEl.rows = 8)
@@ -810,6 +840,8 @@ class CoherenceSettingTab extends PluginSettingTab {
                     this.plugin.settings.summarizerOneShotPrompt = value;
                     await this.plugin.saveSettings();
                 }));
+
+        if (this.plugin.settings.summarizerMode === 'one-shot') return;
 
         new Setting(containerEl)
             .setName('Generate titles in multi-stage mode')
