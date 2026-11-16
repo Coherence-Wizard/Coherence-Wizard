@@ -10,6 +10,8 @@ export interface CoherenceSettings {
 
     // Summarizer
     summarizerModel: string;
+    summarizerMode: 'multi-stage' | 'one-shot';
+    summarizerOneShotPrompt: string;
     summarizerRecursive: boolean;
     summarizerOverwrite: boolean;
     summarizerIncludeYaml: boolean;

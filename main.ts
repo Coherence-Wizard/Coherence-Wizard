@@ -1,6 +1,9 @@
 import { App, Notice, Plugin, PluginSettingTab, Setting, TFile, TFolder, Menu } from 'obsidian';
 import { AtomizerModal } from './src/ui/atomizer-modal';
 import { SummarizerModal } from './src/ui/summarizer-modal';
+import { ONE_SHOT_SUMMARY_PROMPT } from './src/modules/summarizer';
+import { SummarizationJob, SummarizationRequest } from './src/modules/summarization-job';
+import { SummarizationView, VIEW_TYPE_SUMMARIZATION } from './src/ui/summarization-view';
 import { WisdomModal } from './src/ui/wisdom-modal';
 import { DateFixModal } from './src/ui/date-fix-modal';
 import { ConcatonizerModal } from './src/ui/concatonizer-modal';
@@ -35,6 +38,8 @@ const DEFAULT_SETTINGS: CoherenceSettings = {
 
     // Summarizer
     summarizerModel: 'llama3',
+    summarizerMode: 'multi-stage',
+    summarizerOneShotPrompt: ONE_SHOT_SUMMARY_PROMPT,
     summarizerRecursive: false,
     summarizerOverwrite: false,
     summarizerIncludeYaml: false,
@@ -178,9 +183,17 @@ Bob, Robert = Ed`
 
 export default class CoherencePlugin extends Plugin {
     settings: CoherenceSettings;
+    summarizationJob: SummarizationJob;
 
     async onload() {
         await this.loadSettings();
+        this.summarizationJob = new SummarizationJob(this.app);
+        this.registerView(VIEW_TYPE_SUMMARIZATION, leaf => new SummarizationView(leaf, this.summarizationJob));
+        this.addCommand({
+            id: 'show-summarization-progress',
+            name: 'Show summarization progress',
+            callback: () => { void this.showSummarizationProgress().catch(error => new Notice(String(error))); },
+        });
 
         this.addSettingTab(new CoherenceSettingTab(this.app, this));
 
@@ -210,7 +223,7 @@ export default class CoherencePlugin extends Plugin {
                     new SummarizerModal(this.app, this.settings, async (key, value) => {
                         (this.settings as unknown as Record<string, unknown>)[key] = value;
                         await this.saveSettings();
-                    }, file).open();
+                    }, file, request => this.startSummarization(request)).open();
                 } else {
                     new Notice('No active file.');
                 }
@@ -360,6 +373,24 @@ export default class CoherencePlugin extends Plugin {
         }));
     }
 
+    async showSummarizationProgress(): Promise<void> {
+        const workspace = this.app.workspace;
+        let leaf = workspace.getLeavesOfType(VIEW_TYPE_SUMMARIZATION)[0];
+        if (!leaf) {
+            leaf = workspace.getLeftLeaf(false);
+            if (!leaf) throw new Error('Could not open the left sidebar.');
+            await leaf.setViewState({ type: VIEW_TYPE_SUMMARIZATION, active: false });
+        }
+        await workspace.revealLeaf(leaf);
+    }
+
+    private async startSummarization(request: SummarizationRequest): Promise<boolean> {
+        await this.showSummarizationProgress();
+        const started = this.summarizationJob.start(request);
+        if (!started) new Notice('A batch or model unload is already running. Wait for it to finish, or stop the active batch in the sidebar.');
+        return started;
+    }
+
     private addContextMenu(menu: Menu, target: TFile | TFolder) {
         const saveSetting = async (key: string, value: unknown) => {
             (this.settings as unknown as Record<string, unknown>)[key] = value;
@@ -373,7 +404,7 @@ export default class CoherencePlugin extends Plugin {
             { enabled: this.settings.contextMenuMerge, title: 'Merge', icon: 'merge', open: () => new MergeModal(this.app, this.settings, target).open() },
             { enabled: this.settings.contextMenuAtomize, title: 'Atomize', icon: 'scissors', open: () => new AtomizerModal(this.app, this.settings, target).open() },
             { enabled: this.settings.contextMenuYamlTemplate, title: 'Apply YAML template', icon: 'layout-template', open: () => new YamlTemplateModal(this.app, this.settings, target).open() },
-            { enabled: this.settings.contextMenuSummarize, title: 'Summarize', icon: 'lines-of-text', open: () => new SummarizerModal(this.app, this.settings, saveSetting, target).open() },
+            { enabled: this.settings.contextMenuSummarize, title: 'Summarize', icon: 'lines-of-text', open: () => new SummarizerModal(this.app, this.settings, saveSetting, target, request => this.startSummarization(request)).open() },
             { enabled: this.settings.contextMenuCategorize, title: 'Categorize', icon: 'folder', open: () => new CategorizeHubModal(this.app, this.settings, saveSetting, target).open() },
             { enabled: this.settings.contextMenuParseAndMove, title: 'Parse and copy', icon: 'folder-input', open: () => new ParseAndMoveModal(this.app, this.settings, target).open() },
             { enabled: this.settings.contextMenuCensor, title: 'Censor / alias', icon: 'eye-off', open: () => new CensorModal(this.app, this.settings, target).open() },
@@ -413,7 +444,7 @@ export default class CoherencePlugin extends Plugin {
     }
 
     onunload() {
-        // Cleanup if needed
+        this.summarizationJob?.dispose();
     }
 }
 
@@ -627,7 +658,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
     renderSummarizerSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('Summarizer').setHeading();
-        containerEl.createEl('p', { text: "Uses Ollama to generate a summary and write it to note frontmatter. Enabled prompt stages run in order, refining the previous summary. Title generation can also rename the source note; review the dialog before starting a folder batch." });
+        containerEl.createEl('p', { text: "Uses Ollama to write summaries to note frontmatter. Runs in the background with progress and stop controls in the left sidebar. Notes edited during generation are left unchanged. Choose a single concise pass or your existing sequence of prompts." });
         new Setting(containerEl)
             .setName('Default model')
             .setDesc('Ollama model to use for summarization')
@@ -653,10 +684,40 @@ class CoherenceSettingTab extends PluginSettingTab {
                 .onChange((value) => {
                     void (async () => {
                         this.plugin.settings.summarizerRecursive = value;
-                        this.plugin.settings.summarizerGenerateTitle = value;
                         await this.plugin.saveSettings();
                     })();
                 }));
+
+        new Setting(containerEl)
+            .setName('Default summary mode')
+            .setDesc('Choose the default for new runs. You can switch modes in the start dialog without changing your saved multi-stage prompts.')
+            .addDropdown(drop => drop
+                .addOption('multi-stage', 'Multi-stage prompts')
+                .addOption('one-shot', 'One-shot · 50 words or fewer')
+                .setValue(this.plugin.settings.summarizerMode)
+                .onChange(async value => {
+                    this.plugin.settings.summarizerMode = value as 'multi-stage' | 'one-shot';
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('One-shot prompt')
+            .setDesc('A single request per note. The result is cleaned and limited to 50 words; automatic title generation is disabled for this mode. Placeholders: {filename}, {text}. Your multi-stage prompts are preserved below.')
+            .addTextArea(text => text
+                .setValue(this.plugin.settings.summarizerOneShotPrompt)
+                .then(control => control.inputEl.rows = 8)
+                .onChange(async value => {
+                    this.plugin.settings.summarizerOneShotPrompt = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Generate titles in multi-stage mode')
+            .setDesc('Optionally make an additional request to rename untitled notes. One-shot mode always keeps filenames unchanged.')
+            .addToggle(toggle => toggle.setValue(this.plugin.settings.summarizerGenerateTitle).onChange(async value => {
+                this.plugin.settings.summarizerGenerateTitle = value;
+                await this.plugin.saveSettings();
+            }));
 
         new Setting(containerEl).setName('Progressive sequential summarization prompts').setHeading();
 

@@ -12,6 +12,7 @@ class Element {
     createDiv(options) { return this.createEl('div', options); }
     createSpan(options) { return this.createEl('span', options); }
     addClass() {}
+    setAttribute() {}
     setText(text) { this.text = text; }
     appendText(text) { this.text += text; }
     append(text) { this.text += text; }
@@ -58,7 +59,7 @@ const opened = [];
 class Modal {
     constructor(app) { this.app = app; this.contentEl = new Element(); }
     open() { opened.push(this); }
-    close() {}
+    close() { this.closed = true; }
 }
 class Plugin {
     constructor(app) { this.app = app; this.commands = []; this.views = []; this.ribbons = []; this.manifest = { version: '0.0.37' }; this.saves = 0; }
@@ -70,14 +71,15 @@ class Plugin {
     registerView(...args) { this.views.push(args); }
     addRibbonIcon(...args) { this.ribbons.push(args); }
 }
+class ItemView { constructor(leaf) { this.leaf = leaf; this.contentEl = new Element(); } }
 class PluginSettingTab { constructor(app) { this.app = app; this.containerEl = new Element(); } }
-const obsidian = { Plugin, PluginSettingTab, Modal, Setting, Menu, TFile, TFolder, Notice: class {}, normalizePath: p => p, requestUrl: async () => ({ json: { models: [] } }) };
+const obsidian = { ItemView, Plugin, PluginSettingTab, Modal, Setting, Menu, TFile, TFolder, Notice: class {}, normalizePath: p => p, requestUrl: async () => ({ json: { models: [] } }) };
 const cache = new Map();
 function load(file) {
     if (!cache.has(file)) {
         const code = buildSync({ entryPoints: [path.join(__dirname, '..', file)], bundle: true, write: false, platform: 'node', format: 'cjs', external: ['obsidian'] }).outputFiles[0].text;
         const exports = {};
-        const context = { module: { exports }, exports, console, createFragment: () => new Element(), require: id => id === 'obsidian' ? obsidian : require(id) };
+        const context = { module: { exports }, exports, console, AbortController, createFragment: () => new Element(), require: id => id === 'obsidian' ? obsidian : require(id) };
         vm.runInNewContext(code, context); cache.set(file, context.module.exports);
     }
     return cache.get(file);
@@ -123,7 +125,7 @@ test('upgrade resets recursive settings once, preserving dictionaries and subseq
 
 test('one-click dashboard is not registered; individual commands remain', async () => {
     const { plugin } = await fixture();
-    assert.equal(plugin.views.length, 0); assert.equal(plugin.ribbons.length, 0);
+    assert.deepEqual(plugin.views.map(view => view[0]), ['coherence-summarization-progress']); assert.equal(plugin.ribbons.length, 0);
     assert.ok(plugin.commands.length > 8);
     assert.ok(!plugin.commands.some(command => /wizard|dashboard/.test(command.id)));
 });
@@ -181,4 +183,52 @@ test('distill offers generalize and wisdom without censor; each launches the sel
     const button = modal.contentEl.settings.at(-1).controls[0];
     button.click(); assert.equal(opened.at(-1).constructor.name, 'GeneralizerModal');
     dropdown.change('wisdom'); button.click(); assert.equal(opened.at(-1).constructor.name, 'WisdomModal');
+});
+
+test('starting a summary reveals the left pane and closes setup without waiting for the batch', async () => {
+    const { plugin, app, handlers } = await fixture();
+    const target = new TFolder('notes'), states = [], revealed = [];
+    const leaf = { setViewState: async state => states.push(state) };
+    app.vault.getAbstractFileByPath = () => target;
+    app.workspace.getLeavesOfType = () => [];
+    app.workspace.getLeftLeaf = split => { assert.equal(split, false); return leaf; };
+    app.workspace.revealLeaf = async item => revealed.push(item);
+    let request;
+    plugin.summarizationJob = { start: value => { request = value; return true; }, completion: new Promise(() => {}) };
+    const menu = new Menu(); handlers['file-menu'](menu, target);
+    menu.items[0].submenu.items.find(item => item.title === 'Summarize').click();
+    const modal = opened.at(-1); modal.display();
+    const mode = modal.contentEl.settings.find(setting => setting.name === 'Summary mode').controls[0];
+    mode.change('one-shot');
+    const start = modal.contentEl.settings.at(-1).controls[0];
+    await start.click();
+    assert.equal(modal.closed, true); assert.equal(request.oneShot, true); assert.equal(request.prompts.length, 1);
+    assert.equal(states[0].type, 'coherence-summarization-progress'); assert.equal(states[0].active, false);
+    assert.equal(revealed[0], leaf);
+});
+
+test('sidebar displays completed batch progress and exactly one stop action', async () => {
+    const { plugin } = await fixture();
+    let stops = 0, unsubscribed = false;
+    plugin.summarizationJob = {
+        state: { ...plugin.summarizationJob.state, status: 'running', total: 8, completed: 3, saved: 2, skipped: 1, model: 'test-model' },
+        stop: () => { stops++; },
+        subscribe: callback => { callback(); return () => { unsubscribed = true; }; },
+    };
+    const view = plugin.views[0][1]({}); await view.onOpen();
+    const progress = view.contentEl.children.find(element => element.tag === 'progress');
+    assert.equal(progress.max, 8); assert.equal(progress.value, 3);
+    const buttons = view.contentEl.settings.flatMap(setting => setting.controls).filter(control => control.text);
+    assert.deepEqual(buttons.map(button => button.text), ['Stop']); buttons[0].click(); assert.equal(stops, 1);
+    await view.onClose(); assert.equal(unsubscribed, true); assert.equal(stops, 1);
+});
+
+test('recursive settings no longer change the independent title-generation setting', async () => {
+    const { plugin } = await fixture();
+    plugin.settings.summarizerGenerateTitle = false;
+    plugin.tab.activeTab = 'summarizer'; plugin.tab.render();
+    const toggle = plugin.tab.containerEl.settings.find(setting => setting.name === 'Recursive processing').controls[0];
+    await toggle.change(true);
+    assert.equal(plugin.settings.summarizerRecursive, true);
+    assert.equal(plugin.settings.summarizerGenerateTitle, false);
 });

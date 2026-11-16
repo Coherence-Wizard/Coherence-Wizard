@@ -8,7 +8,7 @@ class TFolder { constructor(path) { this.path = path; this.name = path.split('/'
 function load(name) {
  const code = buildSync({ entryPoints: [path.join(__dirname, `../src/modules/${name}.ts`)], bundle: true, write: false, platform: 'node', format: 'cjs', external: ['obsidian'] }).outputFiles[0].text;
  const exports = {};
- const context = { module: { exports }, exports, require: id => { assert.equal(id, 'obsidian'); return { TFile, TFolder, normalizePath: p => p.replace(/^\/+|\/+$/g, ''), Notice: class {} }; } };
+ const context = { module: { exports }, exports, require: id => { if (id === 'http' || id === 'https') return require(id); assert.equal(id, 'obsidian'); return { TFile, TFolder, normalizePath: p => p.replace(/^\/+|\/+$/g, ''), Notice: class {} }; } };
  vm.runInNewContext(code, context);
  return context.module.exports;
 }

@@ -1,10 +1,13 @@
 import { App, Modal, Setting, DropdownComponent, Notice, TFile, TFolder } from 'obsidian';
-import { SummarizerService } from '../modules/summarizer';
+import { ONE_SHOT_SUMMARY_PROMPT } from '../modules/summarizer';
+import { SummarizationRequest } from '../modules/summarization-job';
 import { OllamaService } from '../modules/ollama';
 import { CoherenceSettings } from '../../main';
 
 export class SummarizerModal extends Modal {
-    service: SummarizerService;
+    mode: 'multi-stage' | 'one-shot';
+    oneShotPrompt: string;
+    private ollamaUrl: string;
     ollama: OllamaService;
     target: TFile | TFolder | null = null;
     targetPath = '/';
@@ -30,10 +33,12 @@ export class SummarizerModal extends Modal {
 
     saveSettings: (key: string, value: unknown) => Promise<void>;
 
-    constructor(app: App, settings: CoherenceSettings, saveSettings: (key: string, value: unknown) => Promise<void>, target?: TFile | TFolder) {
+    constructor(app: App, settings: CoherenceSettings, saveSettings: (key: string, value: unknown) => Promise<void>, target: TFile | TFolder | undefined, private startRun: (request: SummarizationRequest) => Promise<boolean>) {
         super(app);
         this.ollama = new OllamaService(settings.ollamaUrl);
-        this.service = new SummarizerService(app, this.ollama);
+        this.ollamaUrl = settings.ollamaUrl;
+        this.mode = settings.summarizerMode;
+        this.oneShotPrompt = settings.summarizerOneShotPrompt || ONE_SHOT_SUMMARY_PROMPT;
         this.saveSettings = saveSettings;
         this.target = target || null;
 
@@ -95,6 +100,18 @@ export class SummarizerModal extends Modal {
                 });
             });
 
+        new Setting(contentEl)
+            .setName('Summary mode')
+            .setDesc('One-shot creates a summary of at most 50 words in one request, without an introduction. Multi-stage uses your enabled prompts in sequence.')
+            .addDropdown(drop => drop
+                .addOption('multi-stage', 'Multi-stage prompts')
+                .addOption('one-shot', 'One-shot · 50 words or fewer')
+                .setValue(this.mode)
+                .onChange(value => {
+                    this.mode = value as 'multi-stage' | 'one-shot';
+                    this.display();
+                }));
+
         // Options
         new Setting(contentEl)
             .setName('Recursive')
@@ -112,76 +129,51 @@ export class SummarizerModal extends Modal {
 
         new Setting(contentEl)
             .setName('Generate title for untitled')
-            .setDesc('Automatically rename untitled files using an AI-generated title')
+            .setDesc(this.mode === 'one-shot' ? 'One-shot keeps filenames unchanged to use exactly one generation request per note.' : 'Automatically rename untitled files using an additional AI-generated title')
             .addToggle(toggle => toggle
-                .setValue(this.generateTitle)
+                .setValue(this.mode === 'one-shot' ? false : this.generateTitle)
+                .setDisabled(this.mode === 'one-shot')
                 .onChange(value => this.generateTitle = value));
 
-        // Action
+        contentEl.createEl('p', { text: 'Starting closes this dialog. The batch progress bar and a stop button appear in the left sidebar while you continue using Obsidian. Stopping or finishing the batch automatically unloads its model.' });
         new Setting(contentEl)
-            .addButton(btn => btn
+            .addButton(button => button
                 .setButtonText('Start summarization')
                 .setCta()
-                .onClick(() => {
-                    void (async () => {
-                        btn.setButtonText('Processing...').setDisabled(true);
-
-                        // Create Progress Bar
-                        const progressContainer = contentEl.createDiv({ cls: 'coherence-progress-container' });
-                        const progressBarBg = progressContainer.createDiv({ cls: 'coherence-progress-bar-bg' });
-                        const progressBar = progressBarBg.createDiv({ cls: 'coherence-progress-bar-fill' });
-                        const progressText = progressContainer.createDiv({ cls: 'coherence-progress-text' });
-                        progressText.setText(`Starting with model: ${this.selectedModel}...`);
-
-                        const onProgress = (processed: number, total: number, currentFile: string) => {
-                            const percent = Math.floor((processed / total) * 100);
-                            progressBar.style.width = `${percent}%`;
-                            progressText.setText(`Processing ${processed}/${total}: ${currentFile}`);
-                        };
-
-                        try {
-                            const prompts = [];
-                            if (this.prompt1Enabled) prompts.push(this.prompt);
-                            if (this.prompt2Enabled) prompts.push(this.prompt2);
-                            if (this.prompt3Enabled) prompts.push(this.prompt3);
-                            if (this.prompt4Enabled) prompts.push(this.prompt4);
-
-                            // Check if path is file or folder
-                            const abstractFile = this.app.vault.getAbstractFileByPath(this.targetPath);
-                            if (abstractFile) {
-                                if (abstractFile instanceof TFile) {
-                                    // File
-                                    const result = await this.service.summarizeFile(
-                                        abstractFile,
-                                        this.selectedModel,
-                                        this.overwrite,
-                                        prompts,
-                                        this.generateTitle
-                                    );
-                                    new Notice(result ? 'Summary added.' : 'Skipped (exists).');
-                                } else if (abstractFile instanceof TFolder) {
-                                    // Folder
-                                    const result = await this.service.summarizeFolder(
-                                        this.targetPath,
-                                        this.selectedModel,
-                                        this.recursive,
-                                        this.overwrite,
-                                        prompts,
-                                        this.generateTitle,
-                                        onProgress
-                                    );
-                                    new Notice(`Complete: ${result.processed} processed, ${result.skipped} skipped, ${result.errors} errors.`);
-                                }
-                            } else {
-                                new Notice('Invalid path.');
-                            }
-                            this.close();
-                        } catch {
-                            new Notice('Error during summarization.');
-                            btn.setButtonText('Start summarization').setDisabled(false);
-                            progressText.setText('Error occurred.');
+                .onClick(async () => {
+                    const target = this.app.vault.getAbstractFileByPath(this.targetPath);
+                    if (!(target instanceof TFile || target instanceof TFolder) || (target instanceof TFile && target.extension !== 'md')) {
+                        new Notice('Choose a Markdown note or folder.');
+                        return;
+                    }
+                    if (!this.selectedModel.trim()) {
+                        new Notice('Choose an Ollama model first.');
+                        return;
+                    }
+                    const prompts: string[] = [];
+                    if (this.mode === 'one-shot') prompts.push(this.oneShotPrompt);
+                    else {
+                        if (this.prompt1Enabled) prompts.push(this.prompt);
+                        if (this.prompt2Enabled) prompts.push(this.prompt2);
+                        if (this.prompt3Enabled) prompts.push(this.prompt3);
+                        if (this.prompt4Enabled) prompts.push(this.prompt4);
+                        if (!prompts.some(prompt => prompt.trim())) {
+                            new Notice('Enable at least one nonempty prompt in settings, or choose one-shot mode.');
+                            return;
                         }
-                    })();
+                    }
+                    button.setDisabled(true);
+                    try {
+                        const started = await this.startRun({
+                            target, ollamaUrl: this.ollamaUrl, model: this.selectedModel,
+                            recursive: this.recursive, overwrite: this.overwrite, prompts,
+                            generateTitle: this.generateTitle, oneShot: this.mode === 'one-shot',
+                            maxChars: this.maxChars, includeYaml: this.includeYaml,
+                        });
+                        if (started) this.close();
+                    } catch (error) {
+                        new Notice(`Could not start summarization: ${error instanceof Error ? error.message : String(error)}`);
+                    } finally { button.setDisabled(false); }
                 }));
     }
 

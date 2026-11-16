@@ -10,7 +10,7 @@ Install from [the Obsidian community directory](https://community.obsidian.md/pl
 
 For manual installation:
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/Coherence-Wizard/Coherence-Wizard/releases/latest), or download and extract `coherence-wizard-0.0.37.zip`.
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/Coherence-Wizard/Coherence-Wizard/releases/latest), or download and extract `coherence-wizard-0.0.38.zip`.
 2. Put those three files in `<your vault>/.obsidian/plugins/coherence-wizard/` (use your configured settings folder if it differs from `.obsidian`).
 3. Restart Obsidian, open **Settings → Community plugins**, and enable **Coherence Wizard**.
 
@@ -26,7 +26,7 @@ The example dictionaries and folder names are generic. Replace them with your ow
 
 ## Tools
 
-- **Summarizer:** adds or replaces summaries and can generate filenames. Review overwrite and rename options.
+- **Summarizer:** runs in the background with batch progress in the left sidebar. Choose multi-stage prompts or a single pass capped at 50 words. Stop cancels the batch and unloads its model; completion also unloads automatically.
 - **Wisdom and Generalizer:** create rewritten notes using Ollama prompts.
 - **Atomizer:** splits notes by headings, dates, or dividers.
 - **Categorizer:** adds categories as tags or backlinks, with optional moves and copies.
@@ -45,6 +45,19 @@ The example dictionaries and folder names are generic. Replace them with your ow
 
 Some tools modify existing notes or previously generated output. There is no plugin-wide undo or automatic backup. Trash follows Obsidian's configured deletion preference; a failed batch can leave some operations completed.
 
+## Background summarization
+
+Open **Coherence Wizard → Summarize** from a note or folder’s context menu. Choose the model and summary mode, then start. The setup dialog closes and the left sidebar reveals a progress bar showing completed notes out of the batch total, saved/skipped/failed counts, the current note, and the current prompt stage. Obsidian remains usable throughout the run.
+
+- **Stop** cancels the current model request, skips the remaining notes, and automatically unloads the batch’s model. Completed summaries are kept; an interrupted summary is not saved.
+- Finishing a batch automatically unloads its model without asking. Unload failures appear in the sidebar.
+- Closing the progress pane does not stop the batch. Reopen it with **Coherence Wizard: Show summarization progress** in the command palette. Only one summarization batch runs at a time.
+- Notes changed while generation is running, including unsaved edits in an open editor, are left untouched and reported in the sidebar. Run those notes again when ready.
+- **One-shot · 50 words or fewer** makes one generation request per note. Its editable prompt asks for direct, elegant prose without introductory phrases. Common preambles are removed and output is capped at 50 words. This mode keeps filenames unchanged to avoid an extra title-generation request.
+- **Multi-stage prompts** keeps your existing prompts and enabled stages. Set the preferred default mode and edit either prompt approach under **Settings → Coherence Wizard → Summarize**.
+
+The desktop summarizer uses an abortable HTTP connection to the configured Ollama endpoint. Stopping disconnects that request and sends Ollama its model-unload request. Other tools retain their existing network behavior.
+
 ## Privacy and network use
 
 AI requests send note content, filenames included in prompts, instructions, and applicable dictionary text to the **Ollama URL you configure**. Model lists are also requested from that endpoint when relevant settings or dialogs are opened. With a local server and local models, processing stays on that computer. A remote server or cloud-backed model can send this data elsewhere; its operator controls handling and retention.
@@ -62,7 +75,7 @@ npm run build
 npm test
 ```
 
-`build` includes TypeScript checking and produces `main.js`. Tests exercise collision handling and save-before-trash ordering using a simulated vault. Lint uses Obsidian's recommended rules; one advisory remains for the existing tabbed settings interface, which does not expose individual settings to Obsidian's newer settings search.
+`build` includes TypeScript checking and produces `main.js`. Tests exercise file safety, background batch lifecycle, sidebar controls, edit protection, one-shot output, and cancellation/unloading using a simulated vault and a local HTTP test server. Lint uses Obsidian's recommended rules; one advisory remains for the existing tabbed settings interface, which does not expose individual settings to Obsidian's newer settings search.
 
 GitHub Actions checks pushes and pull requests. To release a future version, update `manifest.json`, `package.json`, the lockfile, and `versions.json`; push a tag matching the version exactly, without a `v` prefix. The release workflow checks version consistency and attaches the three installable files and a ZIP.
 

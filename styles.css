@@ -306,3 +306,21 @@
     width: 100%;
     height: 100px;
 }
+.coherence-summary-panel {
+    padding: 16px;
+}
+
+.coherence-summary-progress {
+    width: 100%;
+    height: 12px;
+    accent-color: var(--interactive-accent);
+}
+
+.coherence-summary-path {
+    overflow-wrap: anywhere;
+}
+
+.coherence-summary-status {
+    font-weight: var(--font-semibold);
+    color: var(--text-accent);
+}
