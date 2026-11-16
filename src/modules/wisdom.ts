@@ -87,7 +87,7 @@ export class WisdomService {
         return `Created ${newPath}`;
     }
 
-    async processFolder(folderPath: string, model: string, mode: 'safe' | 'generalized' = 'generalized', promptTemplate?: string): Promise<{ processed: number, skipped: number, errors: number }> {
+    async processFolder(folderPath: string, model: string, mode: 'safe' | 'generalized' = 'generalized', promptTemplate?: string, recursive = false): Promise<{ processed: number, skipped: number, errors: number }> {
         const files: TFile[] = [];
 
         const collectFiles = (path: string) => {
@@ -96,7 +96,7 @@ export class WisdomService {
                 for (const child of folder.children) {
                     if (child instanceof TFile && child.extension === 'md') {
                         files.push(child);
-                    } else if ('children' in child) {
+                    } else if (recursive && 'children' in child) {
                         collectFiles(child.path);
                     }
                 }

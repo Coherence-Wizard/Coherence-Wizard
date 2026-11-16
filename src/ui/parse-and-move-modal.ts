@@ -17,6 +17,7 @@ Resources: #resources`;
     constructor(app: App, settings: CoherenceSettings, private fileOrFolder?: TFile | TFolder) {
         super(app);
         this.service = new ParseAndMoveService(app);
+        this.recursive = settings.parseAndMoveRecursive;
         this.categoriesText = this.DEFAULT_CATEGORIES;
 
 

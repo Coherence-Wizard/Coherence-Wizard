@@ -10,7 +10,7 @@ Install from [the Obsidian community directory](https://community.obsidian.md/pl
 
 For manual installation:
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/Coherence-Wizard/Coherence-Wizard/releases/latest), or download and extract `coherence-wizard-0.0.36.zip`.
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/Coherence-Wizard/Coherence-Wizard/releases/latest), or download and extract `coherence-wizard-0.0.37.zip`.
 2. Put those three files in `<your vault>/.obsidian/plugins/coherence-wizard/` (use your configured settings folder if it differs from `.obsidian`).
 3. Restart Obsidian, open **Settings → Community plugins**, and enable **Coherence Wizard**.
 
@@ -18,7 +18,7 @@ Back up your vault and try the tools on copied notes before running bulk operati
 
 ## Get started
 
-Open **Settings → Coherence Wizard** to configure the tools. Use the command palette, a file or folder's context menu, or the **Open dashboard** command to start a workflow. Review each dialog's options before running it.
+Open **Settings → Coherence Wizard** to configure the tools. Use the command palette or the **Coherence Wizard** submenu in a note, folder, or editor’s right-click menu to open a tool. Review each dialog's options before running it.
 
 For AI tools, install [Ollama](https://ollama.com/), download a model appropriate for your hardware, and run the server. Set the Ollama URL (default `http://localhost:11434`) and select an installed model in each tool. Ollama and models are installed separately; the plugin never installs them. File operations do not require Ollama.
 
@@ -38,7 +38,10 @@ The example dictionaries and folder names are generic. Replace them with your ow
 - **YAML Template:** applies frontmatter keys and ordering.
 - **Deduplication:** finds matching files and lets you send selected duplicates to trash.
 - **Rating:** writes an AI-generated rating to frontmatter.
-- **Censor and Distill:** replace configured terms or produce revised text for review. These tools do not guarantee anonymization; inspect their output before sharing.
+- **Censor / Alias:** a separate settings tab and context-menu entry before Distill. Replace dictionary terms with aliases or masking without AI.
+- **Distill:** generalize personal notes or extract wisdom using Ollama; wisdom also offers copy-only mode. These tools do not guarantee anonymization; inspect their output before sharing.
+
+**Recursive processing is off by default for every tool.** Only immediate files in the selected folder are processed unless you enable recursion. Upgrading to 0.0.37 resets older saved recursive defaults to off once; later opt-ins are preserved. Smart Move and Wisdom now have explicit recursive toggles. The one-click dashboard, ribbon icon, command, and settings tab have been removed; individual tools remain available.
 
 Some tools modify existing notes or previously generated output. There is no plugin-wide undo or automatic backup. Trash follows Obsidian's configured deletion preference; a failed batch can leave some operations completed.
 

@@ -1,10 +1,10 @@
 import { App, Modal, Setting, TFile, TFolder } from 'obsidian';
-import { CensorModal } from './censor-modal';
+import { WisdomModal } from './wisdom-modal';
 import { GeneralizerModal } from './generalizer-modal';
 import { CoherenceSettings } from '../types';
 
 export class DistillModal extends Modal {
-    private mode: 'censor' | 'generalize' = 'censor';
+    private mode: 'generalize' | 'wisdom' = 'generalize';
 
     constructor(app: App, private settings: CoherenceSettings, private fileOrFolder?: TFile | TFolder) {
         super(app);
@@ -26,13 +26,13 @@ export class DistillModal extends Modal {
 
         new Setting(contentEl)
             .setName('Select tool')
-            .setDesc('Choose the distillation tool to use.')
+            .setDesc('Generalize rewrites personal text with AI. Wisdom extraction can rewrite with AI or copy the body unchanged. Censor / alias is a separate tool.')
             .addDropdown(drop => drop
-                .addOption('censor', 'Censor / alias')
+                .addOption('wisdom', 'Extract wisdom')
                 .addOption('generalize', 'Generalize (AI)')
                 .setValue(this.mode)
                 .onChange((value: string) => {
-                    this.mode = value as 'censor' | 'generalize';
+                    this.mode = value as 'generalize' | 'wisdom';
                 }));
 
         new Setting(contentEl)
@@ -41,8 +41,8 @@ export class DistillModal extends Modal {
                 .setCta()
                 .onClick(() => {
                     this.close();
-                    if (this.mode === 'censor') {
-                        new CensorModal(this.app, this.settings, this.fileOrFolder).open();
+                    if (this.mode === 'wisdom') {
+                        new WisdomModal(this.app, this.settings, this.fileOrFolder).open();
                     } else if (this.mode === 'generalize') {
                         new GeneralizerModal(this.app, this.settings, this.fileOrFolder).open();
                     }

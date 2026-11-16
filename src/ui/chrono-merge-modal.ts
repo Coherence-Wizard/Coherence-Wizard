@@ -19,6 +19,7 @@ export class ChronoMergeModal extends Modal {
         this.targetFolder = folder || null;
         this.folder = folder;
         this.threshold = settings.chronoMergeTimeThreshold;
+        this.recursive = settings.chronoMergeRecursive;
         this.useCreationTime = settings.chronoMergeUseCreationTime;
     }
 

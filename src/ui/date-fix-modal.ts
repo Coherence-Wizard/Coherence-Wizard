@@ -5,7 +5,7 @@ import { CoherenceSettings } from '../types';
 export class DateFixModal extends Modal {
     service: DateFixService;
     target: TFile | TFolder | null = null;
-    recursive = true;
+    recursive = false;
     fallbackToCreationDate = false;
     dateFormat = 'YYYY-MM-DD';
     exceptions = '';

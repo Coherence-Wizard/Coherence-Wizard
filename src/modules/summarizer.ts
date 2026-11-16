@@ -111,7 +111,7 @@ export class SummarizerService {
     async summarizeFolder(
         folderPath: string,
         model: string,
-        recursive = true,
+        recursive = false,
         overwrite = false,
         prompts: string[] = [],
         generateTitle = false,

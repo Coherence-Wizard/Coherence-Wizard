@@ -1,4 +1,4 @@
-import { App, Notice, Plugin, PluginSettingTab, Setting, TFile, TFolder, WorkspaceLeaf } from 'obsidian';
+import { App, Notice, Plugin, PluginSettingTab, Setting, TFile, TFolder, Menu } from 'obsidian';
 import { AtomizerModal } from './src/ui/atomizer-modal';
 import { SummarizerModal } from './src/ui/summarizer-modal';
 import { WisdomModal } from './src/ui/wisdom-modal';
@@ -15,130 +15,18 @@ import { MergeModal } from './src/ui/merge-modal';
 import { CategorizeHubModal } from './src/ui/categorize-hub-modal';
 import { DistillModal } from './src/ui/distill-modal';
 import { ChronoMergeModal } from './src/ui/chrono-merge-modal';
-import { WizardView, VIEW_TYPE_WIZARD } from './src/ui/wizard-view';
 import { YamlTemplateModal } from './src/ui/yaml-template-modal';
 import { OllamaService } from './src/modules/ollama';
 
 
-export interface CoherenceSettings {
-    // General
-    ollamaUrl: string;
-
-    // Atomizer
-    atomizerDivider: string;
-    atomizerModel: string;
-    atomizerMode: 'heading' | 'date' | 'divider';
-
-    // Summarizer
-    summarizerModel: string;
-    summarizerRecursive: boolean;
-    summarizerOverwrite: boolean;
-    summarizerIncludeYaml: boolean;
-    summarizerMaxChars: number;
-    summarizerPrompt: string;
-    summarizerPrompt2: string;
-    summarizerPrompt3: string;
-    summarizerPrompt4: string;
-    summarizerPrompt1Enabled: boolean;
-    summarizerPrompt2Enabled: boolean;
-    summarizerPrompt3Enabled: boolean;
-    summarizerPrompt4Enabled: boolean;
-    summarizerGenerateTitle: boolean;
-
-    // Automatic Rating
-    ratingModel: string;
-    ratingParams: string;
-    ratingSkipIfRated: boolean;
-
-    // YAML Template
-    yamlTemplate: string;
-    yamlAddDate: boolean;
-    yamlRecursive: boolean;
-
-
-    // Categorizer
-    categorizerModel: string;
-    categorizerDictionaries: { name: string; content: string }[];
-    categorizerActiveDictionary: string;
-    categorizerApplyAsTag: boolean;
-    categorizerApplyAsBacklink: boolean;
-    categorizerMoveToFolder: boolean;
-    categorizerMaxCategories: number;
-
-    // Date Fix
-    dateFixRecursive: boolean;
-    dateFixFallbackToCreationDate: boolean;
-    dateFixDateFormat: string;
-    dateFixExceptions: string;
-
-    // Chrono Merge
-    chronoMergeTimeThreshold: number;
-    chronoMergeRecursive: boolean;
-    chronoMergeUseCreationTime: boolean;
-
-    // Deduplication
-    deduplicationRecursive: boolean;
-
-    // Parse and Move
-    parseAndMoveTargetDir: string;
-    parseAndMoveRecursive: boolean;
-
-    // Generalizer
-    generalizerModel: string;
-    generalizerPrompt: string;
-    generalizerSystemPrompt: string;
-    generalizerWisdomPrompt: string;
-    generalizerOutputMode: 'folder' | 'same-folder';
-    generalizerSuffix: string;
-    generalizerMaxTokens: number;
-    generalizerRepeatPenalty: number;
-    generalizerMultiStage: boolean;
-    generalizerIntermediatePrompt: string;
-    generalizerRecursive: boolean;
-
-    // Wisdom
-    wisdomModel: string;
-    wisdomMode: 'generalized' | 'safe';
-    wisdomPrompt: string;
-
-    // Censor
-    censorDictionaries: { name: string; content: string }[];
-    censorActiveDictionary: string;
-    censorReplacementChar: string;
-    censorRecursive: boolean;
-    censorOutputMode: 'folder' | 'same-folder';
-    censorSuffix: string;
-
-    // Concatonizer
-    concatonizerRecursive: boolean;
-    concatonizerSuffix: string;
-    concatonizerStripYaml: boolean;
-
-    // Context Menu Visibility
-    contextMenuDateFix: boolean;
-    contextMenuMerge: boolean;
-    contextMenuAtomize: boolean;
-    contextMenuYamlTemplate: boolean;
-    contextMenuSummarize: boolean;
-    contextMenuCategorize: boolean;
-    contextMenuParseAndMove: boolean;
-    contextMenuDistill: boolean;
-    contextMenuRating: boolean;
-
-    // Wizard
-    wizardInboxDir: string;
-    wizardChronoDir: string;
-    wizardLivingDir: string;
-}
+import { CoherenceSettings } from './src/types';
+export type { CoherenceSettings } from './src/types';
 
 const DEFAULT_SETTINGS: CoherenceSettings = {
     // General
     ollamaUrl: 'http://localhost:11434',
 
-    // Wizard
-    wizardInboxDir: 'Inbox',
-    wizardChronoDir: 'Chrono',
-    wizardLivingDir: 'Living',
+    recursiveDefaultsVersion: 1,
 
     // Atomizer
     atomizerDivider: '---',
@@ -169,7 +57,7 @@ const DEFAULT_SETTINGS: CoherenceSettings = {
     // YAML Template
     yamlTemplate: "date\nsummary\nsummary model\naudited\nrating",
     yamlAddDate: true,
-    yamlRecursive: true,
+    yamlRecursive: false,
 
     // Categorizer
     categorizerModel: 'llama3',
@@ -200,7 +88,7 @@ Recipes; Cooking recipes`
     chronoMergeUseCreationTime: false,
 
     // Deduplication
-    deduplicationRecursive: true,
+    deduplicationRecursive: false,
 
     // Parse and Move
     parseAndMoveTargetDir: 'Categorized Content',
@@ -249,6 +137,7 @@ Here is the text:
     generalizerRecursive: false,
 
     // Wisdom
+    wisdomRecursive: false,
     wisdomModel: 'llama3',
     wisdomMode: 'generalized',
     wisdomPrompt: 'Extract wisdom from this text.',
@@ -281,6 +170,8 @@ Bob, Robert = Ed`
     contextMenuCategorize: true,
     contextMenuParseAndMove: true,
 
+    contextMenuCensor: true,
+    contextMenuSmartMove: true,
     contextMenuDistill: true,
     contextMenuRating: true,
 };
@@ -288,37 +179,8 @@ Bob, Robert = Ed`
 export default class CoherencePlugin extends Plugin {
     settings: CoherenceSettings;
 
-    async activateWizardView() {
-        const { workspace } = this.app;
-
-        let leaf: WorkspaceLeaf | null = null;
-        const leaves = workspace.getLeavesOfType(VIEW_TYPE_WIZARD);
-
-        if (leaves.length > 0) {
-            leaf = leaves[0];
-        } else {
-            leaf = workspace.getRightLeaf(false);
-            await leaf.setViewState({ type: VIEW_TYPE_WIZARD, active: true });
-        }
-
-        // Cast to unknown first to avoid type overlap issues, then to the extended interface
-        (workspace as unknown as { revealLeaf(leaf: WorkspaceLeaf): void }).revealLeaf(leaf);
-    }
-
     async onload() {
         await this.loadSettings();
-
-        this.registerView(
-            VIEW_TYPE_WIZARD,
-            (leaf) => new WizardView(leaf, this.app, this.settings)
-        );
-
-        // Add Ribbon Icon
-        this.addRibbonIcon('wand-2', 'Coherence wizard', () => {
-            void (async () => {
-                await this.activateWizardView();
-            })();
-        });
 
         this.addSettingTab(new CoherenceSettingTab(this.app, this));
 
@@ -440,7 +302,7 @@ export default class CoherencePlugin extends Plugin {
             callback: () => {
                 const file = this.app.workspace.getActiveFile();
                 if (file && file.parent) {
-                    new DeduplicationModal(this.app, file.parent).open();
+                    new DeduplicationModal(this.app, file.parent, this.settings.deduplicationRecursive).open();
                 } else {
                     new Notice('No active file.');
                 }
@@ -489,234 +351,61 @@ export default class CoherencePlugin extends Plugin {
             }
         });
 
-        // Coherence wizard Command
-        this.addCommand({
-            id: 'open-dashboard',
-            name: 'Open dashboard',
-            callback: () => {
-                void (async () => {
-                    await this.activateWizardView();
-                })();
+        // Use the same submenu in the editor and file explorer.
+        this.registerEvent(this.app.workspace.on('editor-menu', (menu, _editor, view) => {
+            if (view.file) this.addContextMenu(menu, view.file);
+        }));
+        this.registerEvent(this.app.workspace.on('file-menu', (menu, file) => {
+            if (file instanceof TFile || file instanceof TFolder) this.addContextMenu(menu, file);
+        }));
+    }
+
+    private addContextMenu(menu: Menu, target: TFile | TFolder) {
+        const saveSetting = async (key: string, value: unknown) => {
+            (this.settings as unknown as Record<string, unknown>)[key] = value;
+            await this.saveSettings();
+        };
+        const actions = [
+            { enabled: this.settings.contextMenuDateFix, title: 'Date fix', icon: 'calendar', open: () => new DateFixModal(this.app, this.settings, target).open() },
+            { enabled: this.settings.contextMenuSmartMove && target instanceof TFolder, title: 'Smart move', icon: 'folder-output', open: () => {
+                if (target instanceof TFolder) new SmartMoveModal(this.app, target).open();
+            } },
+            { enabled: this.settings.contextMenuMerge, title: 'Merge', icon: 'merge', open: () => new MergeModal(this.app, this.settings, target).open() },
+            { enabled: this.settings.contextMenuAtomize, title: 'Atomize', icon: 'scissors', open: () => new AtomizerModal(this.app, this.settings, target).open() },
+            { enabled: this.settings.contextMenuYamlTemplate, title: 'Apply YAML template', icon: 'layout-template', open: () => new YamlTemplateModal(this.app, this.settings, target).open() },
+            { enabled: this.settings.contextMenuSummarize, title: 'Summarize', icon: 'lines-of-text', open: () => new SummarizerModal(this.app, this.settings, saveSetting, target).open() },
+            { enabled: this.settings.contextMenuCategorize, title: 'Categorize', icon: 'folder', open: () => new CategorizeHubModal(this.app, this.settings, saveSetting, target).open() },
+            { enabled: this.settings.contextMenuParseAndMove, title: 'Parse and copy', icon: 'folder-input', open: () => new ParseAndMoveModal(this.app, this.settings, target).open() },
+            { enabled: this.settings.contextMenuCensor, title: 'Censor / alias', icon: 'eye-off', open: () => new CensorModal(this.app, this.settings, target).open() },
+            { enabled: this.settings.contextMenuDistill, title: 'Distill', icon: 'flask-conical', open: () => new DistillModal(this.app, this.settings, target).open() },
+            { enabled: this.settings.contextMenuRating, title: 'Rating', icon: 'star', open: () => new RatingModal(this.app, this.settings, saveSetting, target).open() },
+        ].filter(action => action.enabled);
+        if (actions.length === 0) return;
+
+        menu.addItem(item => {
+            item.setTitle('Coherence Wizard').setIcon('wand-2');
+            // Obsidian provides native submenus at runtime, but omits this method from its public typings.
+            const submenu = (item as unknown as { setSubmenu(): Menu }).setSubmenu();
+            for (const action of actions) {
+                submenu.addItem(child => child.setTitle(action.title).setIcon(action.icon).onClick(action.open));
             }
         });
-
-        // Context Menu: Editor
-        this.registerEvent(
-            this.app.workspace.on('editor-menu', (menu, editor, view) => {
-                // 1. Date Fix
-                if (this.settings.contextMenuDateFix) {
-                    menu.addItem((item) => {
-                        item.setTitle('Coherence: date fix')
-                            .setIcon('calendar')
-                            .onClick(() => {
-                                new DateFixModal(this.app, this.settings, view.file).open();
-                            });
-                    });
-                }
-                // 2. Merge
-                if (this.settings.contextMenuMerge) {
-                    menu.addItem((item) => {
-                        item.setTitle('Coherence: merge')
-                            .setIcon('merge')
-                            .onClick(() => {
-                                new MergeModal(this.app, this.settings, view.file).open();
-                            });
-                    });
-                }
-                // 3. Atomize
-                if (this.settings.contextMenuAtomize) {
-                    menu.addItem((item) => {
-                        item.setTitle('Coherence: atomize')
-                            .setIcon('scissors')
-                            .onClick(() => {
-                                new AtomizerModal(this.app, this.settings, view.file).open();
-                            });
-                    });
-                }
-                // 4. YAML Template
-                if (this.settings.contextMenuYamlTemplate) {
-                    menu.addItem((item) => {
-                        item.setTitle('Coherence: apply YAML template')
-                            .setIcon('layout-template')
-                            .onClick(() => {
-                                new YamlTemplateModal(this.app, this.settings, view.file).open();
-                            });
-                    });
-                }
-                // 5. Summarize
-                if (this.settings.contextMenuSummarize) {
-                    menu.addItem((item) => {
-                        item.setTitle('Coherence: summarize')
-                            .setIcon('lines-of-text')
-                            .onClick(() => {
-                                new SummarizerModal(this.app, this.settings, async (key, value) => {
-                                    (this.settings as unknown as Record<string, unknown>)[key] = value;
-                                    await this.saveSettings();
-                                }, view.file).open();
-                            });
-                    });
-                }
-                // 6. Categorize
-                if (this.settings.contextMenuCategorize) {
-                    menu.addItem((item) => {
-                        item.setTitle('Coherence: categorize')
-                            .setIcon('folder')
-                            .onClick(() => {
-                                new CategorizeHubModal(this.app, this.settings, async (key, value) => {
-                                    (this.settings as unknown as Record<string, unknown>)[key] = value;
-                                    await this.saveSettings();
-                                }, view.file).open();
-                            });
-                    });
-                }
-                // 7. Parse and Copy
-                if (this.settings.contextMenuParseAndMove) {
-                    menu.addItem((item) => {
-                        item.setTitle('Coherence: parse and copy')
-                            .setIcon('folder-input')
-                            .onClick(() => {
-                                new ParseAndMoveModal(this.app, this.settings, view.file).open();
-                            });
-                    });
-                }
-                // 8. Distill
-                if (this.settings.contextMenuDistill) {
-                    menu.addItem((item) => {
-                        item.setTitle('Coherence: distill')
-                            .setIcon('flask-conical')
-                            .onClick(() => {
-                                new DistillModal(this.app, this.settings, view.file).open();
-                            });
-                    });
-                }
-                // 9. Rating
-
-            })
-        );
-
-        // Context Menu: File Explorer
-        this.registerEvent(
-            this.app.workspace.on('file-menu', (menu, file) => {
-                // 1. Date Fix
-                if (this.settings.contextMenuDateFix) {
-                    menu.addItem((item) => {
-                        item.setTitle('Coherence: date fix')
-                            .setIcon('calendar')
-                            .onClick(() => {
-                                if (file instanceof TFile || file instanceof TFolder) {
-                                    new DateFixModal(this.app, this.settings, file).open();
-                                }
-                            });
-                    });
-                }
-
-                // Smart Move (Folders only)
-                if (file instanceof TFolder) {
-                    menu.addItem((item) => {
-                        item.setTitle('Coherence: smart move')
-                            .setIcon('folder-output')
-                            .onClick(() => {
-                                new SmartMoveModal(this.app, file).open();
-                            });
-                    });
-                }
-
-                // 2. Merge
-                if (this.settings.contextMenuMerge) {
-                    menu.addItem((item) => {
-                        item.setTitle('Coherence: merge')
-                            .setIcon('merge')
-                            .onClick(() => {
-                                if (file instanceof TFile || file instanceof TFolder) {
-                                    new MergeModal(this.app, this.settings, file).open();
-                                }
-                            });
-                    });
-                }
-
-                // 3. Atomize
-                if (this.settings.contextMenuAtomize) {
-                    menu.addItem((item) => {
-                        item.setTitle('Coherence: atomize')
-                            .setIcon('scissors')
-                            .onClick(() => {
-                                if (file instanceof TFile || file instanceof TFolder) {
-                                    new AtomizerModal(this.app, this.settings, file).open();
-                                }
-                            });
-                    });
-                }
-                // 4. YAML Template
-                if (this.settings.contextMenuYamlTemplate) {
-                    menu.addItem((item) => {
-                        item.setTitle('Coherence: apply YAML template')
-                            .setIcon('layout-template')
-                            .onClick(() => {
-                                if (file instanceof TFile || file instanceof TFolder) {
-                                    new YamlTemplateModal(this.app, this.settings, file).open();
-                                }
-                            });
-                    });
-                }
-
-                if (file instanceof TFile || file instanceof TFolder) {
-                    // 5. Summarize
-                    if (this.settings.contextMenuSummarize) {
-                        menu.addItem((item) => {
-                            item.setTitle('Coherence: summarize')
-                                .setIcon('lines-of-text')
-                                .onClick(() => {
-                                    new SummarizerModal(this.app, this.settings, async (key, value) => {
-                                        (this.settings as unknown as Record<string, unknown>)[key] = value;
-                                        await this.saveSettings();
-                                    }, file).open();
-                                });
-                        });
-                    }
-                    // 6. Categorize
-                    if (this.settings.contextMenuCategorize) {
-                        menu.addItem((item) => {
-                            item.setTitle('Coherence: categorize')
-                                .setIcon('folder')
-                                .onClick(() => {
-                                    new CategorizeHubModal(this.app, this.settings, async (key, value) => {
-                                        (this.settings as unknown as Record<string, unknown>)[key] = value;
-                                        await this.saveSettings();
-                                    }, file).open();
-                                });
-                        });
-                    }
-                    // 7. Parse and Copy
-                    if (this.settings.contextMenuParseAndMove) {
-                        menu.addItem((item) => {
-                            item.setTitle('Coherence: parse and copy')
-                                .setIcon('folder-input')
-                                .onClick(() => {
-                                    new ParseAndMoveModal(this.app, this.settings, file).open();
-                                });
-                        });
-                    }
-                    // 8. Distill
-                    if (this.settings.contextMenuDistill) {
-                        menu.addItem((item) => {
-                            item.setTitle('Coherence: distill')
-                                .setIcon('flask-conical')
-                                .onClick(() => {
-                                    new DistillModal(this.app, this.settings, file).open();
-                                });
-                        });
-                    }
-                    // 9. Rating
-
-                }
-            })
-        );
     }
 
     async loadSettings() {
         const data = (await this.loadData()) as unknown;
         const partial = (typeof data === 'object' && data !== null) ? (data as Partial<CoherenceSettings>) : {};
         this.settings = { ...DEFAULT_SETTINGS, ...partial };
+        // Reset older saved defaults once; later opt-ins survive reloads.
+        if ((partial.recursiveDefaultsVersion ?? 0) < 1) {
+            for (const key of Object.keys(DEFAULT_SETTINGS)) {
+                if (key.endsWith('Recursive')) {
+                    (this.settings as unknown as Record<string, unknown>)[key] = false;
+                }
+            }
+            this.settings.recursiveDefaultsVersion = 1;
+            await this.saveSettings();
+        }
     }
 
     async saveSettings() {
@@ -778,9 +467,9 @@ class CoherenceSettingTab extends PluginSettingTab {
             { id: 'summarizer', name: 'Summarize' },
             { id: 'categorizer', name: 'Categorize' },
             { id: 'parsemove', name: 'Parse & Copy' },
+            { id: 'censor', name: 'Censor' },
             { id: 'distill', name: 'Distill' },
-            { id: 'rating', name: 'Rating' },
-            { id: 'wizard', name: 'Coherence wizard' }
+            { id: 'rating', name: 'Rating' }
         ];
 
         tabs.forEach(tab => {
@@ -798,84 +487,11 @@ class CoherenceSettingTab extends PluginSettingTab {
         try {
             if (this.activeTab === 'about') {
                 this.renderAboutSettings(containerEl);
-            } else if (this.activeTab === 'wizard') {
-                this.renderWizardSettings(containerEl);
+
             } else if (this.activeTab === 'rating') {
                 this.renderRatingSettings(containerEl);
             } else if (this.activeTab === 'contextmenu') {
-                // Inline renderContextMenuSettings
-                new Setting(containerEl).setName('Context menu').setHeading();
-                containerEl.createEl('p', { text: 'Select which features should appear in the right-click context menu.' });
-
-                new Setting(containerEl)
-                    .setName('Date fix')
-                    .setDesc('Available in: file, folder')
-                    .addToggle(toggle => toggle
-                        .setValue(this.plugin.settings.contextMenuDateFix)
-                        .onChange(async (value) => {
-                            this.plugin.settings.contextMenuDateFix = value;
-                            await this.plugin.saveSettings();
-                        }));
-
-                new Setting(containerEl)
-                    .setName('Merge')
-                    .setDesc('Available in: file, folder')
-                    .addToggle(toggle => toggle
-                        .setValue(this.plugin.settings.contextMenuMerge)
-                        .onChange(async (value) => {
-                            this.plugin.settings.contextMenuMerge = value;
-                            await this.plugin.saveSettings();
-                        }));
-
-                new Setting(containerEl)
-                    .setName('Atomize')
-                    .setDesc('Available in: file, folder')
-                    .addToggle(toggle => toggle
-                        .setValue(this.plugin.settings.contextMenuAtomize)
-                        .onChange(async (value) => {
-                            this.plugin.settings.contextMenuAtomize = value;
-                            await this.plugin.saveSettings();
-                        }));
-
-                new Setting(containerEl)
-                    .setName('YAML template')
-                    .setDesc('Available in: file, folder')
-                    .addToggle(toggle => toggle
-                        .setValue(this.plugin.settings.contextMenuYamlTemplate)
-                        .onChange(async (value) => {
-                            this.plugin.settings.contextMenuYamlTemplate = value;
-                            await this.plugin.saveSettings();
-                        }));
-
-                new Setting(containerEl)
-                    .setName('Summarize')
-                    .setDesc('Available in: file')
-                    .addToggle(toggle => toggle
-                        .setValue(this.plugin.settings.contextMenuSummarize)
-                        .onChange(async (value) => {
-                            this.plugin.settings.contextMenuSummarize = value;
-                            await this.plugin.saveSettings();
-                        }));
-
-                new Setting(containerEl)
-                    .setName('Parse and move')
-                    .setDesc('Available in: file')
-                    .addToggle(toggle => toggle
-                        .setValue(this.plugin.settings.contextMenuParseAndMove)
-                        .onChange(async (value) => {
-                            this.plugin.settings.contextMenuParseAndMove = value;
-                            await this.plugin.saveSettings();
-                        }));
-
-                new Setting(containerEl)
-                    .setName('Distill')
-                    .setDesc('Available in: file')
-                    .addToggle(toggle => toggle
-                        .setValue(this.plugin.settings.contextMenuDistill)
-                        .onChange(async (value) => {
-                            this.plugin.settings.contextMenuDistill = value;
-                            await this.plugin.saveSettings();
-                        }));
+                this.renderContextMenuSettings(containerEl);
             } else if (this.activeTab === 'datefix') {
                 this.renderDateFixSettings(containerEl);
             } else if (this.activeTab === 'merge') {
@@ -890,6 +506,8 @@ class CoherenceSettingTab extends PluginSettingTab {
                 this.renderCategorizerSettings(containerEl);
             } else if (this.activeTab === 'parsemove') {
                 this.renderParseAndMoveSettings(containerEl);
+            } else if (this.activeTab === 'censor') {
+                this.renderCensorSettings(containerEl);
             } else if (this.activeTab === 'distill') {
                 this.renderDistillSettings(containerEl);
             }
@@ -932,7 +550,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
         containerEl.createEl('p', { text: 'Next go through each of the settings tabs to review settings.' });
 
-        containerEl.createEl('p',).appendText('Settings which particularly need your attention are the ones for yaml template, categorize and distill.');
+        containerEl.createEl('p',).appendText('Start by configuring the YAML template, category dictionary, and censor dictionary to match your notes.');
         containerEl.createEl('p', { text: 'These require dictionaries you need to create that match your workflow.' });
 
         containerEl.createEl('p', { text: 'What YAML keys do you want to include? What order are these keys?' });
@@ -942,11 +560,11 @@ class CoherenceSettingTab extends PluginSettingTab {
         catList.createEl('li', { text: 'Work' });
         catList.createEl('li', { text: 'Personal' });
 
-        containerEl.createEl('p',).appendText('There are several tools under "Distill" which prepare your notes for expression with a general audience. This also includes a way to convert names and places to aliases. You need to create a dictionary that includes the names and places you want to obscure (along with their mispellings and abbreviations) along with the replacement word. For example:');
+        containerEl.createEl('p',).appendText('Distill uses AI to rewrite notes for a general audience. The separate Censor tab configures dictionary replacements for names and places, including spelling variants. For example:');
         const aliasList = containerEl.createEl('ul');
         aliasList.createEl('li',).appendText('John, Jon, Joan, Johnathon, Johnny = Bob');
 
-        containerEl.createEl('p', { text: 'Each settings tab will explain what each function does.' });
+        containerEl.createEl('p', { text: 'Open tools from the command palette or the Coherence Wizard right-click submenu. Recursive processing means including subfolders: it is off by default for every tool and reset to off once when upgrading to 0.0.37. You can opt in afterward in settings or a tool dialog.' });
 
         new Setting(containerEl).setName('Support').setHeading();
         containerEl.createEl('p',).appendText('If this app benefits you and want to encourage me to develop these and other tools. Please consider "Buying Me A Coffee" which would go a long way in encouraging me!')
@@ -955,103 +573,36 @@ class CoherenceSettingTab extends PluginSettingTab {
 
     renderContextMenuSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('Context menu').setHeading();
-        containerEl.createEl('p', { text: 'Select which features should appear in the right-click context menu.' });
-
-        new Setting(containerEl)
-            .setName('Date fix')
-            .setDesc('Available in: file, folder')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.contextMenuDateFix)
-                .onChange(async (value) => {
-                    this.plugin.settings.contextMenuDateFix = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
-            .setName('Merge')
-            .setDesc('Available in: file, folder')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.contextMenuMerge)
-                .onChange(async (value) => {
-                    this.plugin.settings.contextMenuMerge = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
-            .setName('Atomize')
-            .setDesc('Available in: file, folder')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.contextMenuAtomize)
-                .onChange(async (value) => {
-                    this.plugin.settings.contextMenuAtomize = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
-            .setName('YAML template')
-            .setDesc('Available in: file, folder')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.contextMenuYamlTemplate)
-                .onChange(async (value) => {
-                    this.plugin.settings.contextMenuYamlTemplate = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
-            .setName('Summarize')
-            .setDesc('Available in: file')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.contextMenuSummarize)
-                .onChange(async (value) => {
-                    this.plugin.settings.contextMenuSummarize = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
-            .setName('Categorize')
-            .setDesc('Available in: file')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.contextMenuCategorize)
-                .onChange(async (value) => {
-                    this.plugin.settings.contextMenuCategorize = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
-            .setName('Parse and move')
-            .setDesc('Available in: file')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.contextMenuParseAndMove)
-                .onChange(async (value) => {
-                    this.plugin.settings.contextMenuParseAndMove = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
-            .setName('Distill')
-            .setDesc('Available in: file')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.contextMenuDistill)
-                .onChange(async (value) => {
-                    this.plugin.settings.contextMenuDistill = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
-            .setName('Rating')
-            .setDesc('Available in: file, folder')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.contextMenuRating)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.contextMenuRating = value;
+        containerEl.createEl('p', { text: 'Choose the tools shown inside the Coherence Wizard submenu when you right-click a note, folder, or editor. Turning a tool off here does not remove its command-palette command.' });
+        const features: { key: keyof CoherenceSettings; name: string; description: string }[] = [
+            { key: 'contextMenuDateFix', name: 'Date fix', description: 'Standardize date prefixes in filenames. Available for files and folders.' },
+            { key: 'contextMenuSmartMove', name: 'Smart move', description: 'Move a folder’s files into another folder, preserving conflicting destination files. Available for folders only; subfolders are excluded unless you enable recursive processing in the dialog.' },
+            { key: 'contextMenuMerge', name: 'Merge', description: 'Open chronological merging, file combining, or duplicate detection. Available for files and folders.' },
+            { key: 'contextMenuAtomize', name: 'Atomize', description: 'Split Markdown notes into smaller notes. Available for files and folders.' },
+            { key: 'contextMenuYamlTemplate', name: 'YAML template', description: 'Apply frontmatter fields and ordering. Available for files and folders.' },
+            { key: 'contextMenuSummarize', name: 'Summarize', description: 'Generate summaries using Ollama. Available for files and folders.' },
+            { key: 'contextMenuCategorize', name: 'Categorize', description: 'Assign dictionary categories or rate notes using Ollama. Available for files and folders.' },
+            { key: 'contextMenuParseAndMove', name: 'Parse and copy', description: 'Copy matching content into category folders. Available for files and folders.' },
+            { key: 'contextMenuCensor', name: 'Censor / alias', description: 'Replace dictionary terms with aliases or masking characters, without AI. Available for files and folders.' },
+            { key: 'contextMenuDistill', name: 'Distill', description: 'Rewrite personal text or extract wisdom with Ollama. Available for files and folders.' },
+            { key: 'contextMenuRating', name: 'Rating', description: 'Write AI-generated ratings to frontmatter. Available for files and folders.' },
+        ];
+        for (const feature of features) {
+            new Setting(containerEl)
+                .setName(feature.name)
+                .setDesc(feature.description)
+                .addToggle(toggle => toggle
+                    .setValue(Boolean(this.plugin.settings[feature.key]))
+                    .onChange(async value => {
+                        (this.plugin.settings as unknown as Record<string, unknown>)[feature.key] = value;
                         await this.plugin.saveSettings();
-                    })();
-                }));
+                    }));
+        }
     }
 
     renderAtomizerSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('Atomizer').setHeading();
+        containerEl.createEl('p', { text: "Splits a Markdown note into new files by headings, dates, or a divider, keeping the source note. Folder runs process only immediate Markdown files; subfolders are not included. No AI is needed." });
 
         const desc = containerEl.createDiv({ cls: 'setting-item-description coherence-mb-20' });
         desc.createEl('p').createEl('strong', { text: 'Atomization modes:' });
@@ -1076,6 +627,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
     renderSummarizerSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('Summarizer').setHeading();
+        containerEl.createEl('p', { text: "Uses Ollama to generate a summary and write it to note frontmatter. Enabled prompt stages run in order, refining the previous summary. Title generation can also rename the source note; review the dialog before starting a folder batch." });
         new Setting(containerEl)
             .setName('Default model')
             .setDesc('Ollama model to use for summarization')
@@ -1095,7 +647,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('Recursive processing')
-            .setDesc('Process subfolders by default')
+            .setDesc('Include notes in subfolders when processing a folder. Off by default; when off, only files directly in the selected folder are processed.')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.summarizerRecursive)
                 .onChange((value) => {
@@ -1203,6 +755,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
     renderYamlSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('YAML template').setHeading();
+        containerEl.createEl('p', { text: "Adds missing frontmatter fields and puts them in your chosen order in existing notes. Existing field values are kept, except when you choose to set the date from the filename. No AI is needed." });
 
         const desc = containerEl.createDiv({ cls: 'setting-item-description coherence-mb-20' });
         desc.createEl('p').createEl('strong', { text: 'Note:' });
@@ -1239,7 +792,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('Recursive')
-            .setDesc('Process subfolders when running on a folder')
+            .setDesc('Include notes in subfolders when processing a folder. Off by default; when off, only files directly in the selected folder are processed.')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.yamlRecursive)
                 .onChange((value) => {
@@ -1252,9 +805,11 @@ class CoherenceSettingTab extends PluginSettingTab {
 
     renderMergeSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('Merge').setHeading();
+        containerEl.createEl('p', { text: "Choose a merge tool in the action dialog. When launched from a file, folder-based tools use its containing folder." });
 
         // Chrono Merge Settings
         new Setting(containerEl).setName('Chrono merge').setHeading();
+        containerEl.createEl('p', { text: "Groups notes with nearby timestamps for review. You can edit each proposed filename and merged text before saving. Source notes are sent to trash only after the merged output is saved." });
         new Setting(containerEl)
             .setName('Time threshold (minutes)')
             .setDesc('Files created within this time window will be merged')
@@ -1284,7 +839,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('Recursive')
-            .setDesc('Process subfolders by default')
+            .setDesc('Include notes in subfolders when processing a folder. Off by default; when off, only files directly in the selected folder are processed.')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.chronoMergeRecursive)
                 .onChange((value) => {
@@ -1296,6 +851,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
         // Concatonizer Settings
         new Setting(containerEl).setName('Concatonizer').setHeading();
+        containerEl.createEl('p', { text: "Combines Markdown files from a folder into one document while retaining the source notes. The dialog lets you include filenames and strip frontmatter from the combined output." });
         new Setting(containerEl)
             .setName('Filename suffix')
             .setDesc('Suffix to append to the folder name for the combined file (default: _combined)')
@@ -1310,7 +866,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('Recursive')
-            .setDesc('Include subfolders by default')
+            .setDesc('Include notes in subfolders when processing a folder. Off by default; when off, only files directly in the selected folder are processed.')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.concatonizerRecursive)
                 .onChange((value) => {
@@ -1334,9 +890,10 @@ class CoherenceSettingTab extends PluginSettingTab {
 
         // Deduplication Settings
         new Setting(containerEl).setName('Deduplication').setHeading();
+        containerEl.createEl('p', { text: "Finds files with identical content in one folder, two folders, or the vault root. Review the results and choose individual duplicates to send to trash; scanning does not delete anything." });
         new Setting(containerEl)
             .setName('Recursive')
-            .setDesc('Process subfolders by default')
+            .setDesc('Include notes in subfolders when processing a folder. Off by default; when off, only files directly in the selected folder are processed.')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.deduplicationRecursive)
                 .onChange((value) => {
@@ -1348,6 +905,7 @@ class CoherenceSettingTab extends PluginSettingTab {
     }
     renderRatingSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('Automatic rating').setHeading();
+        containerEl.createEl('p', { text: "Uses Ollama to assess notes against your comma-separated criteria and writes the resulting rating to frontmatter. Choose criteria such as clarity or usefulness; these scores are subjective AI judgments." });
         new Setting(containerEl)
             .setName('Default model')
             .setDesc('Ollama model to use for rating')
@@ -1390,54 +948,13 @@ class CoherenceSettingTab extends PluginSettingTab {
                 }));
     }
 
-    renderWizardSettings(containerEl: HTMLElement) {
-        ;
-        containerEl.createEl('p', { text: 'Configure the folders used by the one click coherence wizard.' });
-
-        new Setting(containerEl)
-            .setName('Inbox folder')
-            .setDesc('Folder containing new notes to process')
-            .addText(text => text
-                .setValue(this.plugin.settings.wizardInboxDir)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.wizardInboxDir = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-
-        new Setting(containerEl)
-            .setName('Chrono folder')
-            .setDesc('Folder for chronological storage (archive)')
-            .addText(text => text
-                .setValue(this.plugin.settings.wizardChronoDir)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.wizardChronoDir = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-
-        new Setting(containerEl)
-            .setName('Living folder')
-            .setDesc('Folder for living documents (categorized)')
-            .addText(text => text
-                .setValue(this.plugin.settings.wizardLivingDir)
-                .onChange((value) => {
-                    void (async () => {
-                        this.plugin.settings.wizardLivingDir = value;
-                        await this.plugin.saveSettings();
-                    })();
-                }));
-    }
-
     renderDateFixSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('Date fix').setHeading();
         containerEl.createDiv({ cls: 'setting-item-description' }).setText('This tool standardizes filenames by ensuring they start with a date in the preferred format. It automatically detects and converts existing dates or date-like number strings (e.g. 20220221) found in the filename.');
 
         new Setting(containerEl)
             .setName('Recursive')
-            .setDesc('Process subfolders by default')
+            .setDesc('Include notes in subfolders when processing a folder. Off by default; when off, only files directly in the selected folder are processed.')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.dateFixRecursive)
                 .onChange((value) => {
@@ -1490,9 +1007,10 @@ class CoherenceSettingTab extends PluginSettingTab {
 
     renderCategorizerSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName('Categorizer').setHeading();
+        containerEl.createEl('p', { text: "Uses Ollama and the selected dictionary to choose categories for each note. Categories can become YAML tags, appended backlinks, or destination folders. Review move and copy options in the dialog because they can change where notes are stored." });
         new Setting(containerEl)
             .setName('Categorizer model')
-            .setDesc('The ollama model to use for categorization')
+            .setDesc('The Ollama model to use for categorization')
             .addDropdown(drop => {
                 this.ollamaModels.forEach(model => { drop.addOption(model, model) });
                 if (!this.ollamaModels.includes(this.plugin.settings.categorizerModel)) {
@@ -1662,10 +1180,11 @@ class CoherenceSettingTab extends PluginSettingTab {
     }
 
     renderParseAndMoveSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('Parse and move').setHeading();
+        new Setting(containerEl).setName('Parse and copy').setHeading();
+        containerEl.createEl('p', { text: 'Copies content matching your category and tag rules into category folders under the target directory. Source notes stay in place. Define rules such as Work: #work in the dialog; repeated runs can append the same content again. No AI is needed.' });
         new Setting(containerEl)
             .setName('Target directory')
-            .setDesc('Directory to move parsed files to')
+            .setDesc('Base folder where category folders and copied content are created')
             .addText(text => text
                 .setValue(this.plugin.settings.parseAndMoveTargetDir)
                 .onChange((value) => {
@@ -1677,7 +1196,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('Recursive')
-            .setDesc('Process subfolders by default')
+            .setDesc('Include notes in subfolders when processing a folder. Off by default; when off, only files directly in the selected folder are processed.')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.parseAndMoveRecursive)
                 .onChange((value) => {
@@ -1688,11 +1207,10 @@ class CoherenceSettingTab extends PluginSettingTab {
                 }));
     }
 
-    renderDistillSettings(containerEl: HTMLElement) {
-        new Setting(containerEl).setName('Distill').setHeading();
-
+    renderCensorSettings(containerEl: HTMLElement) {
         // Censor / Alias Settings
         new Setting(containerEl).setName('Censor / alias').setHeading();
+        containerEl.createEl('p', { text: "Replaces matching dictionary terms with aliases or masks them without AI. Use one mapping per line, for example: John, Jon = Alex. The dialog offers masking, whole-sentence masking, and reverse alias replacement. Results go to a Censored subfolder by default; rerunning can replace earlier output. Review the result before sharing." });
 
         const dictDesc = containerEl.createDiv({ cls: 'setting-item-description coherence-mb-10' });
         dictDesc.createEl('p').createEl('strong', { text: 'Dictionary syntax:' });
@@ -1798,7 +1316,7 @@ class CoherenceSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('Recursive')
-            .setDesc('Process subfolders')
+            .setDesc('Include notes in subfolders when processing a folder. Off by default; when off, only files directly in the selected folder are processed.')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.censorRecursive)
                 .onChange((value) => {
@@ -1808,8 +1326,23 @@ class CoherenceSettingTab extends PluginSettingTab {
                     })();
                 }));
 
-        // Generalizer Settings
-        ;
+    }
+
+    renderRecursiveSetting(containerEl: HTMLElement, key: 'generalizerRecursive' | 'wisdomRecursive') {
+        new Setting(containerEl)
+            .setName('Recursive')
+            .setDesc('Include notes in subfolders when processing a folder. Off by default; when off, only files directly in the selected folder are processed.')
+            .addToggle(toggle => toggle.setValue(this.plugin.settings[key]).onChange(async value => {
+                this.plugin.settings[key] = value;
+                await this.plugin.saveSettings();
+            }));
+    }
+
+    renderDistillSettings(containerEl: HTMLElement) {
+        new Setting(containerEl).setName('Distill').setHeading();
+        containerEl.createEl('p', { text: 'Use Ollama to rewrite personal notes as general insights. Generalize creates revised copies using your prompts; wisdom extraction offers an AI rewrite or a copy-only mode. Censor / alias has its own tab for dictionary-based replacements.' });
+        new Setting(containerEl).setName('Rewrite personal text').setHeading();
+        this.renderRecursiveSetting(containerEl, 'generalizerRecursive');
         new Setting(containerEl)
             .setName('Model')
             .setDesc('Ollama model to use')
@@ -1853,6 +1386,8 @@ class CoherenceSettingTab extends PluginSettingTab {
 
         // Wisdom Settings
         new Setting(containerEl).setName('Wisdom extractor').setHeading();
+        containerEl.createEl('p', { text: 'Creates a new note in a Generalized subfolder and links it to the original in frontmatter. Generalized mode rewrites the text with AI. Safe mode copies the body without AI; it does not remove identifying details.' });
+        this.renderRecursiveSetting(containerEl, 'wisdomRecursive');
         new Setting(containerEl)
             .setName('Default model')
             .setDesc('Ollama model to use for wisdom extraction')

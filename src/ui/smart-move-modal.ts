@@ -5,6 +5,7 @@ import { SmartMoveService } from '../modules/smart-move';
 export class SmartMoveModal extends Modal {
     private service: SmartMoveService;
     private targetFolder: string = '';
+    private recursive = false;
 
     constructor(app: App, private sourceFolder: TFolder) {
         super(app);
@@ -28,6 +29,11 @@ export class SmartMoveModal extends Modal {
                 }));
 
         new Setting(contentEl)
+            .setName('Recursive')
+            .setDesc('Include subfolders and their contents. Off by default; when off, move only files directly in the source folder.')
+            .addToggle(toggle => toggle.setValue(this.recursive).onChange(value => this.recursive = value));
+
+        new Setting(contentEl)
             .addButton(btn => btn
                 .setButtonText('Move')
                 .setCta()
@@ -49,7 +55,7 @@ export class SmartMoveModal extends Modal {
         this.close();
         new Notice('Starting move...');
         try {
-            await this.service.moveFiles(this.sourceFolder, this.targetFolder);
+            await this.service.moveFiles(this.sourceFolder, this.targetFolder, this.recursive);
             new Notice('Move completed.');
         } catch (error) {
             new Notice(error instanceof Error ? error.message : 'Move failed.');

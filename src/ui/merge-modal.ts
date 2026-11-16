@@ -50,7 +50,7 @@ export class MergeModal extends Modal {
                     } else if (this.mode === 'concat') {
                         new ConcatonizerModal(this.app, this.settings, this.fileOrFolder).open();
                     } else if (this.mode === 'dedup') {
-                        new DeduplicationModal(this.app, this.fileOrFolder).open();
+                        new DeduplicationModal(this.app, this.fileOrFolder, this.settings.deduplicationRecursive).open();
                     }
                 }));
     }

@@ -3,7 +3,7 @@ import { App, TFolder, TFile, normalizePath } from 'obsidian';
 export class SmartMoveService {
     constructor(private app: App) { }
 
-    async moveFiles(sourceFolder: TFolder, targetRootPath: string, recursive = true): Promise<void> {
+    async moveFiles(sourceFolder: TFolder, targetRootPath: string, recursive = false): Promise<void> {
         const targetPath = normalizePath(targetRootPath.trim());
         if (!targetPath || targetPath.split('/').some(part => part === '..' || part === '.')) {
             throw new Error('Choose a folder inside the vault.');

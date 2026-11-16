@@ -12,6 +12,7 @@ export class WisdomModal extends Modal {
     selectedModel: string;
     mode: 'safe' | 'generalized';
     prompt: string;
+    recursive = false;
 
     models: string[] = [];
 
@@ -25,6 +26,7 @@ export class WisdomModal extends Modal {
         this.selectedModel = settings.wisdomModel;
         this.mode = settings.wisdomMode;
         this.prompt = settings.wisdomPrompt;
+        this.recursive = settings.wisdomRecursive;
     }
 
     async onOpen() {
@@ -77,6 +79,13 @@ export class WisdomModal extends Modal {
                 .setValue(this.mode)
                 .onChange(value => this.mode = value as 'safe' | 'generalized'));
 
+        if (this.target instanceof TFolder) {
+            new Setting(contentEl)
+                .setName('Recursive')
+                .setDesc('Include notes in subfolders. Off by default.')
+                .addToggle(toggle => toggle.setValue(this.recursive).onChange(value => this.recursive = value));
+        }
+
         // Action
         new Setting(contentEl)
             .addButton(btn => btn
@@ -101,7 +110,8 @@ export class WisdomModal extends Modal {
                                     this.target.path,
                                     this.selectedModel,
                                     this.mode,
-                                    this.prompt
+                                    this.prompt,
+                                    this.recursive
                                 );
                                 new Notice(`Batch Complete: ${result.processed} processed, ${result.skipped} skipped, ${result.errors} errors.`);
                             }

@@ -74,7 +74,7 @@ export class GeneralizerModal extends Modal {
 
         new Setting(contentEl)
             .setName('Model')
-            .setDesc('Select ollama model')
+            .setDesc('Select Ollama model')
             .addDropdown(drop => {
                 this.models.forEach(m => {drop.addOption(m, m)});
                 drop.setValue(this.model)

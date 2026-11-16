@@ -9,13 +9,14 @@ export class DeduplicationModal extends Modal {
     searchScope: 'vault' | 'folder' | 'two-folders' = 'folder';
     folderA = '';
     folderB = '';
-    recursive = true;
+    recursive = false;
     duplicates: DuplicateGroup[] = null;
 
-    constructor(app: App, target?: TFile | TFolder) {
+    constructor(app: App, target?: TFile | TFolder, recursive = false) {
         super(app);
         this.service = new DeduplicationService(app);
         this.target = target;
+        this.recursive = recursive;
 
         if (target instanceof TFolder) {
             this.folderA = target.path;

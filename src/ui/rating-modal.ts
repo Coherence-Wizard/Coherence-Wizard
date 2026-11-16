@@ -35,7 +35,7 @@ export class RatingModal extends Modal {
         try {
             this.models = await this.ollama.listModels();
         } catch {
-            contentEl.createEl('p', { text: 'Failed to load models. Is ollama running?', cls: 'error-text' });
+            contentEl.createEl('p', { text: 'Failed to load models. Is Ollama running?', cls: 'error-text' });
         }
 
         this.display();

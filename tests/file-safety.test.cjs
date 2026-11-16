@@ -38,3 +38,27 @@ test('successful merge saves output before trashing source notes', async () => {
  await new (load('chrono-merge').ChronoMergeService)(f.app).mergeGroup(files,'merged',true,'content');
  assert.deepEqual(events,['save','trash','trash']);
 });
+
+test('smart move leaves nested folders untouched by default and includes them only on opt-in', async () => {
+ for (const recursive of [undefined, true]) {
+  const f = fixture(); f.add(f.source, 'top.md');
+  const nested = new TFolder('source/nested'); nested.parent = f.source;
+  f.source.children.push(nested); f.entries.set(nested.path, nested); f.add(nested, 'deep.md');
+  await new (load('smart-move').SmartMoveService)(f.app).moveFiles(f.source, 'target', recursive);
+  assert.deepEqual(f.moves, recursive ? ['target/top.md', 'target/nested'] : ['target/top.md']);
+  assert.equal(f.source.children.includes(nested), !recursive);
+ }
+});
+
+test('wisdom processes immediate notes by default and nested notes only on opt-in', async () => {
+ for (const recursive of [undefined, true]) {
+  const f = fixture(); const top = f.add(f.source, 'top.md');
+  const nested = new TFolder('source/nested'); f.source.children.push(nested); f.entries.set(nested.path, nested);
+  const deep = f.add(nested, 'deep.md'); const processed = [];
+  const service = new (load('wisdom').WisdomService)(f.app.vault, {});
+  service.processFile = async file => { processed.push(file.path); return 'Created'; };
+  const result = await service.processFolder('source', 'example-model', 'safe', '', recursive);
+  assert.deepEqual(processed, recursive ? [top.path, deep.path] : [top.path]);
+  assert.equal(result.processed, recursive ? 2 : 1);
+ }
+});

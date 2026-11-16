@@ -5,7 +5,7 @@ import { CoherenceSettings } from '../types';
 export class YamlTemplateModal extends Modal {
     service: YamlTemplateService;
     target: TFile | TFolder | null;
-    recursive = true;
+    recursive = false;
     addDate = true;
     template: string;
 
@@ -13,6 +13,8 @@ export class YamlTemplateModal extends Modal {
         super(app);
         this.service = new YamlTemplateService(app);
         this.target = target || null;
+        this.recursive = settings.yamlRecursive;
+        this.addDate = settings.yamlAddDate;
         this.template = settings.yamlTemplate || "date\nsummary\nsummary model\naudited\nrating";
     }
 

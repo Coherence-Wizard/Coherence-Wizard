@@ -1,6 +1,7 @@
 export interface CoherenceSettings {
     // General
     ollamaUrl: string;
+    recursiveDefaultsVersion: number;
 
     // Atomizer
     atomizerDivider: string;
@@ -74,6 +75,7 @@ export interface CoherenceSettings {
     generalizerRecursive: boolean;
 
     // Wisdom
+    wisdomRecursive: boolean;
     wisdomModel: string;
     wisdomMode: 'generalized' | 'safe';
     wisdomPrompt: string;
@@ -99,11 +101,9 @@ export interface CoherenceSettings {
     contextMenuSummarize: boolean;
     contextMenuCategorize: boolean;
     contextMenuParseAndMove: boolean;
+    contextMenuCensor: boolean;
+    contextMenuSmartMove: boolean;
     contextMenuDistill: boolean;
     contextMenuRating: boolean;
 
-    // Wizard
-    wizardInboxDir: string;
-    wizardChronoDir: string;
-    wizardLivingDir: string;
 }

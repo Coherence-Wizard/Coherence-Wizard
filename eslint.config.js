@@ -28,7 +28,12 @@ module.exports = defineConfig([
       },
     },
     rules: {
-      "obsidianmd/sample-names": "off"
+      "obsidianmd/sample-names": "off",
+      // Preserve product names and literal example/folder names in explanatory text.
+      "obsidianmd/ui/sentence-case": ["warn", {
+        brands: ["Coherence Wizard", "Obsidian", "Ollama", "Markdown"],
+        ignoreWords: ["Work", "John", "Jon", "Alex", "Censored", "Generalized"]
+      }]
       // Removed invalid rule obsidianmd/prefer-file-manager-trash (not present in plugin v0.1.9)
     },
   },
