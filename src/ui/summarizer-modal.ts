@@ -111,7 +111,7 @@ export class SummarizerModal extends Modal {
                 this.selectedModel = value.trim();
                 await this.saveSettings('summarizerModel', this.selectedModel);
             }));
-        contentEl.createEl('p', { text: 'Markdown formatting, tags, and backlinks are removed before counting words. A body of 50 words or fewer is copied directly into the summary without AI, in either mode.' });
+        contentEl.createEl('p', { text: 'Markdown formatting, tags, backlinks, and dates (such as 2026-11-16 or 2026-11-16_123456) are removed before counting words. A body of 50 words or fewer is copied directly into the summary without AI, in either mode.' });
 
         new Setting(contentEl)
             .setName('Summary mode')

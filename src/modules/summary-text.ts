@@ -26,5 +26,7 @@ export function plainSummaryBody(body: string): string {
         .replace(/\[([^\]\n]+)\]/g, '$1')
         .replace(/\|/g, ' ')
         .replace(/&(?:amp|lt|gt|quot|apos|nbsp);/g, entity => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'", '&nbsp;': ' ' })[entity] || entity)
+        // Remove standalone ISO dates and six-digit timestamp suffixes before counting words.
+        .replace(/(^|[^\p{L}\p{N}_])\d{4}-\d{2}-\d{2}(?:_\d{6})?(?![\p{L}\p{N}_])/gu, '$1')
         .replace(/\s+/g, ' ').trim();
 }

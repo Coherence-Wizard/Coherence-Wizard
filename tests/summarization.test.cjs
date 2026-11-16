@@ -314,3 +314,21 @@ test('disable thinking also covers multi-stage generation and titles without cha
     await service.summarizeFile(f.add('Short.md', 'A short note.'), 'model', false, [], true, { disableThinking: true });
     assert.equal(options.length, 3);
 });
+
+test('short summaries remove dates and timestamp IDs before counting words, preserving source and YAML', async () => {
+    for (const oneShot of [false, true]) {
+        const f = fixture();
+        const words = Array.from({ length: 50 }, (_, i) => `word${i}`).join(' ');
+        const body = '**2026-11-16**\n' + words + '\n`2026-11-16_123456` #tag [[backlink]]';
+        const file = f.add('Dated.md', '---\n{"date":"2026-11-16","other":"keep"}\n---\n' + body);
+        const service = new (load('summarizer').SummarizerService)(f.app, { generate: () => { throw new Error('Short cleaned notes must bypass AI'); } });
+        assert.equal(await service.summarizeFile(file, 'test', false, [], false, { oneShot }), true);
+        assert.equal(summaryOf(f, file), words);
+        assert.equal(JSON.parse(f.contents.get(file).split('\n')[1]).date, '2026-11-16');
+        assert.ok(f.contents.get(file).endsWith(body));
+        assert.equal(await service.summarizeFile(f.add('Dates only.md', '2026-11-16\n2026-11-16_123456'), 'test'), false);
+    }
+    const { plainSummaryBody } = load('summary-text');
+    assert.equal(plainSummaryBody('Before 2026-11-16 after 2026-11-16_123456 done.'), 'Before after done.');
+    assert.equal(plainSummaryBody('id2026-11-16 2026-11-16_1234567 2026-11-16_label'), 'id2026-11-16 2026-11-16_1234567 2026-11-16_label');
+});
